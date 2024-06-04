@@ -15,6 +15,9 @@ fire = "^0.6.0"
 pandas = "^2.2.2"
 
 
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.4.7"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
