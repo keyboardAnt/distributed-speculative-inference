@@ -1,4 +1,6 @@
 """The main entrypoint for the CLI."""
+
+
 class SimulationMode(str):
     analytic = "analytic"
     thread_pool = "thread_pool"

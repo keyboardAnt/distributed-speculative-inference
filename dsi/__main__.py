@@ -1,4 +1,5 @@
 """The main entrypoint for the CLI."""
+
 import fire
 
 from dsi.main import main
