@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "distributed-speculative-inference"
+version = "0.1.0"
+description = "Distributed Speculative Inference of LLMs"
+authors = ["Nadav Timor <nadav.timor@weizmann.ac.il>"]
+license = "Apache-2.0"
+readme = "README.md"
+packages = [{include = "dsi"}]
+
+[tool.poetry.dependencies]
+python = "^3.10.14"
+numpy = "^1.26.4"
+matplotlib = "^3.9.0"
+fire = "^0.6.0"
+pandas = "^2.2.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
