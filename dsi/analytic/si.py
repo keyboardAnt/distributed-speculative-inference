@@ -3,6 +3,12 @@ from dsi.schemas.results import ResultSI
 from dsi.schemas.run import Run
 
 
+class AcceptanceRateError(Exception):
+    """Raised when the acceptance rate is not in [0, 1]."""
+
+    pass
+
+
 class RunSI(Run):
     """Run speculative inference."""
 
@@ -10,7 +16,8 @@ class RunSI(Run):
         return ResultSI()
 
     def run(self) -> ResultSI:
-        assert self.config.a <= 1
+        if self.config.a > 1:
+            raise AcceptanceRateError(f"Invalid acceptance rate: {self.config.a}")
 
         def get_num_accepted() -> int:
             is_accepted: list[bool] = [
