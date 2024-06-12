@@ -1,14 +1,14 @@
 """The main entrypoint for the CLI."""
 
+import logging
 import os
+
 import hydra
 from matplotlib import pyplot as plt
 from omegaconf import OmegaConf
 
-from dsi.config import Config, SimulationType
 from dsi.analytic.si import RunSI
-import logging
-
+from dsi.config import Config, SimulationType
 from dsi.schemas.results import ResultSI
 from dsi.vis.iters_dist import PlotIters
 

@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+
 from dsi.config import ConfigRun
 from dsi.utils import set_random_seed
 
