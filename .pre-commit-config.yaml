@@ -1,26 +1,33 @@
--   repo: https://github.com/pre-commit/pre-commit-hooks
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
     hooks:
-    -   id: check-added-large-files
-    -   id: check-ast
-    -   id: check-builtin-literals
-    -   id: check-case-conflict
-    -   id: check-executables-have-shebangs
-    -   id: check-illegal-windows-names
-    -   id: check-json
-    -   id: check-merge-conflict
-    -   id: check-shebang-scripts-are-executable
-    -   id: check-toml
-    -   id: check-yaml
-    -   id: debug-statements
-    -   id: detect-private-key
-    -   id: double-quote-string-fixer
-    -   id: pretty-format-json
-    -   id: sort-simple-yaml
-    -   id: trailing-whitespace
-- repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.4.7
-  hooks:
-    - id: ruff
-      types_or: [ python, pyi, jupyter ]
-      args: [ --fix ]
+      - id: check-added-large-files
+      - id: check-ast
+      - id: check-builtin-literals
+      - id: check-case-conflict
+      - id: check-executables-have-shebangs
+      - id: check-merge-conflict
+      - id: check-shebang-scripts-are-executable
+      - id: check-toml
+      - id: check-yaml
+      - id: debug-statements
+      - id: detect-private-key
+      - id: sort-simple-yaml
+      - id: trailing-whitespace
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        args: ["--profile", "black"]
+  - repo: https://github.com/psf/black
+    rev: 24.4.2
+    hooks:
+      - id: black
+      - id: black-jupyter
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.8
+    hooks:
+      - id: ruff
+        types_or: [python, pyi, jupyter]
+        args: [--fix]
