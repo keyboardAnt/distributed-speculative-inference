@@ -21,7 +21,11 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-    - uses: snok/install-poetry@v1
+    - name: Install poetry
+      uses: snok/install-poetry@v1
+    - name: Install poetry extras
+      run: |
+        poetry install --all-extras
     - name: Lint with Ruff
       run: |
         poetry run ruff check --output-format=github .
