@@ -15,7 +15,6 @@ repos:
       - id: debug-statements
       - id: detect-private-key
       - id: double-quote-string-fixer
-      - id: pretty-format-json
       - id: sort-simple-yaml
       - id: trailing-whitespace
   - repo: https://github.com/pycqa/isort
