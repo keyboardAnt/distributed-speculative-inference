@@ -34,7 +34,6 @@ jobs:
       with:
         options: "--check --verbose"
         jupyter: true
-        use_pyproject: true
     - name: Test with pytest
       run: |
         poetry run pytest
