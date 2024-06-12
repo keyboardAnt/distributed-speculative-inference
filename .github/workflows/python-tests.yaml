@@ -24,7 +24,7 @@ jobs:
     - name: Install Poetry
       uses: snok/install-poetry@v1
       with:
-        installation-arguments: "--all-extras"
+        installation-arguments: --all-extras
     - name: Lint with Ruff
       run: |
         poetry run ruff check --output-format=github .
