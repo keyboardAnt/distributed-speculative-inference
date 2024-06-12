@@ -27,6 +27,8 @@ jobs:
     - name: Lint with Ruff
       run: |
         poetry run ruff check --output-format=github .
+    - name: Sort imports
+      uses: isort/isort-action@master
     - name: Test with pytest
       run: |
         poetry run pytest
