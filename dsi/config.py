@@ -4,6 +4,12 @@ from enum import Enum
 from hydra.core.config_store import ConfigStore
 
 
+class AcceptanceRateError(Exception):
+    """Raised when the acceptance rate is not in [0, 1]."""
+
+    pass
+
+
 @dataclass
 class ConfigRun:
     """
@@ -17,6 +23,13 @@ class ConfigRun:
     S: int = 1000  # Number of tokens to generate
     num_repeats: int = 5  # Number of times to repeat the simulation
     k: int = 5  # Lookahead
+
+    def is_acceptance_rate_valid(self) -> bool:
+        return 0 <= self.a <= 1
+
+    def __post_init__(self) -> None:
+        if not self.is_acceptance_rate_valid():
+            raise AcceptanceRateError(f"Invalid acceptance rate: {self.a}")
 
 
 class WaitsOnTargetServerError(Exception):

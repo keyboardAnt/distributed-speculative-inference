@@ -1,15 +1,13 @@
 import pytest
 
-from dsi.analytic.si import AcceptanceRateError, RunSI
-from dsi.config import ConfigRun
-from dsi.schemas.results import ResultSI
+from dsi.analytic.si import RunSI
+from dsi.config import AcceptanceRateError, ConfigRun
+from dsi.types.results import ResultSI
 
 
 def test_si_acceptance_rate() -> None:
-    config: ConfigRun = ConfigRun(a=1.01)
-    si: RunSI = RunSI(config)
     with pytest.raises(AcceptanceRateError):
-        si.run()
+        ConfigRun(a=1.01)
 
 
 def test_si_result_shapes() -> None:

@@ -1,8 +1,8 @@
-"""Defines schemas for the results of the simulations."""
+"""Defines types for the results of the simulations."""
 
 from dataclasses import dataclass, field
 
-from dsi.schemas.run import Result
+from dsi.types.run import Result
 
 
 @dataclass
