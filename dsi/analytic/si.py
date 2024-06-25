@@ -1,5 +1,4 @@
-import numpy as np
-
+from dsi.analytic.common import get_num_new_tokens
 from dsi.schemas.results import ResultSI
 from dsi.schemas.run import Run
 
@@ -20,21 +19,14 @@ class RunSI(Run):
         if self.config.a > 1:
             raise AcceptanceRateError(f"Invalid acceptance rate: {self.config.a}")
 
-        def get_num_accepted() -> int:
-            is_accepted: list[bool] = [
-                np.random.rand() < self.config.a for _ in range(self.config.k)
-            ]
-            try:
-                return is_accepted.index(False)
-            except ValueError:
-                return self.config.k
-
         for _ in range(self.config.num_repeats):
             total_cost: float = 0
             total_toks: int = 0
             num_iters: int = 0
             while total_toks < self.config.S:
-                num_accepted: int = get_num_accepted()
+                num_accepted: int = get_num_new_tokens(
+                    acceptance_rate=self.config.a, lookahead=self.config.k
+                )
                 total_toks += num_accepted + 1
                 total_cost += self.config.k * self.config.c + self.config.failure_cost
                 num_iters += 1
