@@ -21,7 +21,7 @@ class Run:
         set_random_seed()
 
     def _get_empty_result(self) -> Result:
-        raise NotImplementedError
+        return Result()
 
     def run(self) -> Result:
         raise NotImplementedError
