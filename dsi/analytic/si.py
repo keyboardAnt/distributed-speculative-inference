@@ -1,4 +1,4 @@
-from dsi.analytic.common import get_num_new_tokens
+from dsi.analytic.common import get_num_accepted_tokens
 from dsi.types.results import ResultSI
 from dsi.types.run import Run
 
@@ -15,7 +15,7 @@ class RunSI(Run):
             total_toks: int = 0
             num_iters: int = 0
             while total_toks < self.config.S:
-                num_accepted: int = get_num_new_tokens(
+                num_accepted: int = get_num_accepted_tokens(
                     acceptance_rate=self.config.a, lookahead=self.config.k
                 )
                 total_toks += num_accepted + 1
