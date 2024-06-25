@@ -9,4 +9,4 @@ def get_num_accepted_tokens(acceptance_rate: float, lookahead: int) -> int:
         return 0
     if acceptance_rate == 1:
         return lookahead
-    return np.random.geometric(1 - acceptance_rate) - 1
+    return min(lookahead, np.random.geometric(1 - acceptance_rate) - 1)
