@@ -13,7 +13,12 @@ def S(request):
     return request.param
 
 
-def test_dsi_run_config_num_target_servers(a: float, S: int) -> None:
+@pytest.fixture(params=[1, 2, 1000])
+def num_repeats(request):
+    return request.param
+
+
+def test_dsi_run_config_num_target_servers(a: float, S: int, num_repeats: int) -> None:
     """
     Verify that initiating ConfigRunDSI without enough target servers throws an error.
     """
@@ -23,7 +28,7 @@ def test_dsi_run_config_num_target_servers(a: float, S: int) -> None:
             failure_cost=1.0,
             a=a,
             S=S,
-            num_repeats=5,
+            num_repeats=num_repeats,
             k=1,
             num_target_servers=1,
         )
