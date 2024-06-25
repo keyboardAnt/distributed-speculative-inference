@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 
 from hydra.core.config_store import ConfigStore
@@ -70,7 +70,7 @@ class SimulationType(str, Enum):
 @dataclass
 class Config:
     simulation_type: SimulationType = SimulationType.analytic
-    config_run: ConfigRun = ConfigRun()
+    config_run: ConfigRun = field(default_factory=ConfigRun)
 
 
 cs = ConfigStore.instance()
