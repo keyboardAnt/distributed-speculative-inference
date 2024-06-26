@@ -11,14 +11,19 @@ class ConfigRun(BaseModel):
     Each experiment simulates an algorithm multiple times.
     """
 
-    c: float = Field(0.1, title="The latency of the drafter", ge=0)
+    c: float = Field(
+        0.1,
+        title="The latency of the drafter",
+        description="c=0 requires infinitly many target servers",
+        gt=0,
+    )
     failure_cost: float = Field(1.0, title="The latency of the target", ge=0)
     a: float = Field(0.9, title="The acceptance rate", ge=0, le=1)
     S: int = Field(1000, title="The number of tokens to generate", ge=1)
     num_repeats: int = Field(
         5, title="The number of times that a single run repeats the simulation", ge=1
     )
-    k: int = Field(5, title="Lookahead")
+    k: int = Field(5, title="Lookahead", ge=0)
 
 
 class ConfigRunDSI(ConfigRun):
@@ -37,6 +42,11 @@ class ConfigRunDSI(ConfigRun):
         """
         Verify that there are enough target servers so that threads never wait to be executed.
         """
-        num_target_servers_required: int = ceil(self.failure_cost / (self.k * self.c))
+        num_target_servers_required: int = ceil(
+            self.failure_cost / (max(1, self.k) * self.c)
+        )
         if self.num_target_servers < num_target_servers_required:
-            raise NumOfTargetServersInsufficientError()
+            msg: str = (
+                f"num_target_servers={self.num_target_servers} < num_target_servers_required={num_target_servers_required}"
+            )
+            raise NumOfTargetServersInsufficientError(msg)
