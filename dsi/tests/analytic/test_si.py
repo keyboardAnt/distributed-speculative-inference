@@ -6,8 +6,8 @@ from dsi.types.results import ResultSI
 
 
 def test_si_result_shapes():
-    config: ConfigRun = ConfigRun(num_repeats=7)
-    si: RunSI = RunSI(config)
+    config = ConfigRun(num_repeats=7)
+    si = RunSI(config)
     res: ResultSI = si.run()
     assert len(res.cost_per_run) == 7
     assert len(res.num_iters_per_run) == 7
@@ -15,8 +15,8 @@ def test_si_result_shapes():
 
 @pytest.mark.parametrize("a", [0.0, 0.01, 0.1, 0.5, 0.9, 0.99, 1.0])
 def test_si_result_cost(a: float):
-    config: ConfigRun = ConfigRun(a=1)
-    si: RunSI = RunSI(config)
+    config = ConfigRun(a=1)
+    si = RunSI(config)
     res: ResultSI = si.run()
     cost_per_iter: float = config.k * config.c + config.failure_cost
     for cost, num_iters in zip(res.cost_per_run, res.num_iters_per_run):
