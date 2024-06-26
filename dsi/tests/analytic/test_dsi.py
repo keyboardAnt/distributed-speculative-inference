@@ -1,7 +1,9 @@
 import pytest
 
+from dsi.analytic.dsi import RunDSI
 from dsi.config import ConfigRunDSI
 from dsi.types.exceptions import AcceptanceRateError, WaitsOnTargetServerError
+from dsi.types.results import Result
 
 
 @pytest.fixture(params=[0.0, 0.01, 0.1, 0.5, 0.9, 0.99, 1.0])
@@ -64,3 +66,11 @@ def test_run_config_dsi_num_target_servers_insufficient(
 def test_dsi_acceptance_rate():
     with pytest.raises(AcceptanceRateError):
         ConfigRunDSI(a=1.01)
+
+
+def test_dsi_result_shapes():
+    num_repeats: int = 17
+    config: ConfigRunDSI = ConfigRunDSI(num_repeats=num_repeats)
+    dsi = RunDSI(config)
+    res: Result = dsi.run()
+    assert len(res.cost_per_run) == num_repeats
