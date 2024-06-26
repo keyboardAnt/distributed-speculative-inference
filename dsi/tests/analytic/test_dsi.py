@@ -1,7 +1,7 @@
 import pytest
 
 from dsi.config import ConfigRunDSI
-from dsi.types.exceptions import WaitsOnTargetServerError
+from dsi.types.exceptions import AcceptanceRateError, WaitsOnTargetServerError
 
 
 @pytest.fixture(params=[0.0, 0.01, 0.1, 0.5, 0.9, 0.99, 1.0])
@@ -59,3 +59,8 @@ def test_run_config_dsi_num_target_servers_insufficient(
         k=k,
         num_target_servers=num_target_servers + 1,
     )
+
+
+def test_dsi_acceptance_rate() -> None:
+    with pytest.raises(AcceptanceRateError):
+        ConfigRunDSI(a=1.01)

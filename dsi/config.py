@@ -47,6 +47,7 @@ class ConfigRunDSI(ConfigRun):
             raise WaitsOnTargetServerError()
 
     def __post_init__(self) -> None:
+        super().__post_init__()
         self.verify_no_waits_on_target_servers()
 
 
