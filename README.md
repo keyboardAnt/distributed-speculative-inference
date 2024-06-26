@@ -10,8 +10,8 @@ The code used in the paper "[Distributed Speculative Inference of Large Language
 
 ## Run
 
-- analytic simulations: `python -m dsi analytic`
-- thread pool simulations: `python -m dsi thread_pool`
+- analytic simulations: `python -m dsi`
+- thread pool simulations: `python -m dsi run_type=thread_pool`
 
 [Hydra](https://hydra.cc/docs/intro/) manages the configuration (defined at `dsi/config.py`). For example,
 - to set the drafter latency (`c`) to 5%: `python -m dsi config_run.c=.05`
