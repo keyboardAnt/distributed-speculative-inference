@@ -1,7 +1,8 @@
 import pytest
 
 from dsi.analytic.si import RunSI
-from dsi.config import AcceptanceRateError, ConfigRun
+from dsi.config import ConfigRun
+from dsi.types.exceptions import AcceptanceRateError
 from dsi.types.results import ResultSI
 
 

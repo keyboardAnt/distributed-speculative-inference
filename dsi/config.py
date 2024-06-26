@@ -3,11 +3,7 @@ from enum import Enum
 
 from hydra.core.config_store import ConfigStore
 
-
-class AcceptanceRateError(Exception):
-    """Raised when the acceptance rate is not in [0, 1]."""
-
-    pass
+from dsi.types.exceptions import AcceptanceRateError, WaitsOnTargetServerError
 
 
 @dataclass
@@ -30,14 +26,6 @@ class ConfigRun:
     def __post_init__(self) -> None:
         if not self.is_acceptance_rate_valid():
             raise AcceptanceRateError(f"Invalid acceptance rate: {self.a}")
-
-
-class WaitsOnTargetServerError(Exception):
-    def __init__(
-        self,
-        message="The current analysis supports only simples cases where there are no waits on target servers. For every k drafts that are ready for verification, there must be an idle target server.",
-    ):
-        super().__init__(message)
 
 
 @dataclass
