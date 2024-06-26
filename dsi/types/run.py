@@ -1,17 +1,6 @@
-from dataclasses import dataclass, field
-
 from dsi.config import ConfigRun
+from dsi.types.results import Result
 from dsi.utils import set_random_seed
-
-
-@dataclass
-class Result:
-    """
-    Args:
-        cost_per_run: The total latency for each run
-    """
-
-    cost_per_run: list[float] = field(default_factory=list)
 
 
 class Run:

@@ -2,7 +2,15 @@
 
 from dataclasses import dataclass, field
 
-from dsi.types.run import Result
+
+@dataclass
+class Result:
+    """
+    Args:
+        cost_per_run: The total latency for each run
+    """
+
+    cost_per_run: list[float] = field(default_factory=list)
 
 
 @dataclass

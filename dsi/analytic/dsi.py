@@ -1,6 +1,7 @@
 from dsi.analytic.common import get_num_accepted_tokens
 from dsi.config import ConfigRunDSI
-from dsi.types.run import Result, Run
+from dsi.types.Result import Result
+from dsi.types.run import Run
 
 
 class RunDSI(Run):

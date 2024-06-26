@@ -2,7 +2,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
 
-from dsi.types.run import Result
+from dsi.types.results import Result
 
 
 class PlotCost:
