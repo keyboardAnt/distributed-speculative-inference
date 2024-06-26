@@ -36,7 +36,7 @@ def test_run_config_dsi_num_target_servers_insufficient(
     a: float,
     S: int,
     num_repeats: int,
-) -> None:
+):
     """
     Verify that initiating ConfigRunDSI with enough target servers will not raise an error, and will raise an error if there are not enough target servers.
     """
@@ -61,6 +61,6 @@ def test_run_config_dsi_num_target_servers_insufficient(
     )
 
 
-def test_dsi_acceptance_rate() -> None:
+def test_dsi_acceptance_rate():
     with pytest.raises(AcceptanceRateError):
         ConfigRunDSI(a=1.01)

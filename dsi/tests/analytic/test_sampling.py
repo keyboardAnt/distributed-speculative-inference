@@ -5,7 +5,7 @@ import numpy as np
 from dsi.analytic.common import get_num_accepted_tokens
 
 
-def test_get_num_accepted_tokens_acceptance_rate_zero() -> None:
+def test_get_num_accepted_tokens_acceptance_rate_zero():
     lookaheads: list[int] = [0, 1, 2, 10, 1000]
     latencies: list[float] = []
     for lookahead in lookaheads:
@@ -24,7 +24,7 @@ def test_get_num_accepted_tokens_acceptance_rate_zero() -> None:
     ), "The latency of sampling the number of accepted tokens should not depend on the lookahead."
 
 
-def test_get_num_accepted_tokens_acceptance_rate_one() -> None:
+def test_get_num_accepted_tokens_acceptance_rate_one():
     lookaheads: list[int] = [0, 1, 2, 10, 1000]
     latencies: list[float] = []
     for lookahead in lookaheads:
@@ -43,7 +43,7 @@ def test_get_num_accepted_tokens_acceptance_rate_one() -> None:
     ), "The latency of sampling the number of accepted tokens should not depend on the lookahead."
 
 
-def test_get_num_accepted_tokens_acceptance_rate_random() -> None:
+def test_get_num_accepted_tokens_acceptance_rate_random():
     lookaheads: list[int] = [0, 1, 2, 10, 1000]
     acceptance_rates: list[float] = [0.1, 0.5, 0.9]
     latencies: list[float] = []
