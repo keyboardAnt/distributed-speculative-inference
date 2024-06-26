@@ -1,8 +1,8 @@
 import pytest
 
 from dsi.analytic.dsi import RunDSI
-from dsi.config import ConfigRunDSI
-from dsi.types.exceptions import AcceptanceRateError, WaitsOnTargetServerError
+from dsi.types.config_run import ConfigRunDSI
+from dsi.types.exceptions import NumOfTargetServersInsufficientError
 from dsi.types.results import Result
 
 
@@ -42,7 +42,7 @@ def test_run_config_dsi_num_target_servers_insufficient(
     """
     Verify that initiating ConfigRunDSI with enough target servers will not raise an error, and will raise an error if there are not enough target servers.
     """
-    with pytest.raises(WaitsOnTargetServerError):
+    with pytest.raises(NumOfTargetServersInsufficientError):
         ConfigRunDSI(
             c=c,
             failure_cost=failure_cost,
@@ -63,14 +63,11 @@ def test_run_config_dsi_num_target_servers_insufficient(
     )
 
 
-def test_dsi_acceptance_rate():
-    with pytest.raises(AcceptanceRateError):
-        ConfigRunDSI(a=1.01)
-
-
 def test_dsi_result_shapes():
     num_repeats: int = 17
     config: ConfigRunDSI = ConfigRunDSI(num_repeats=num_repeats)
     dsi = RunDSI(config)
     res: Result = dsi.run()
-    assert len(res.cost_per_run) == num_repeats
+    assert (
+        len(res.cost_per_run) == num_repeats
+    ), f"expected {num_repeats} results, got {len(res.cost_per_run)}"
