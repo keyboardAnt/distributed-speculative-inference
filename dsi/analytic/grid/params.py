@@ -30,7 +30,10 @@ def is_row_valid(row: pd.Series, verbose: bool = False) -> bool:
     return is_config_valid(c=row[Param.c], k=row[Param.k], verbose=verbose)
 
 
-def get_df_params() -> pd.DataFrame:
+def get_df_confs() -> pd.DataFrame:
+    """
+    Generate a pandas dataframe with all the configurations of c, a, k that are valid for DSI.
+    """
     ndim: int = 200
     c_vals: list[float] = np.linspace(0, 1, ndim + 1).tolist()
     c_vals[0] = 0.01
@@ -49,5 +52,5 @@ def get_df_params() -> pd.DataFrame:
     df_params = df_params.drop_duplicates()
     is_valid_mask = df_params.apply(is_row_valid, axis=1)
     df_params = df_params[is_valid_mask]
-    print(f"Number of valid configurations: {len(df_params)}")
+    log.info(f"Number of valid configurations: {len(df_params)}")
     return df_params

@@ -8,11 +8,12 @@ from dsi.types.config_run import ConfigRun
 
 class RunType(str, Enum):
     analytic = "analytic"
+    analytic_heatmap = "analytic_heatmap"
     thread_pool = "thread_pool"
 
 
 class ConfigCLI(BaseModel):
-    run_type: RunType = RunType.analytic
+    run_type: RunType = RunType.analytic_heatmap
     config_run: ConfigRun = Field(default_factory=ConfigRun)
 
 

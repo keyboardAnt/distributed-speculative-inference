@@ -3,6 +3,9 @@
 	"build": {
 		"dockerfile": "Dockerfile"
 	},
+	"runArgs": [
+		"--shm-size=1.5g"
+	],
 	"customizations": {
 		"vscode": {
 			"extensions": [
