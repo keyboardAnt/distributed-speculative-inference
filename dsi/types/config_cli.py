@@ -6,10 +6,10 @@ from pydantic import BaseModel, Field
 from dsi.types.config_run import ConfigRun
 
 
-class RunType(enum.Enum):
-    analytic = 1
-    analytic_heatmap = 2
-    thread_pool = 3
+class RunType(str, enum.Enum):
+    analytic = "analytic"
+    analytic_heatmap = "analytic_heatmap"
+    thread_pool = "thread_pool"
 
 
 class ConfigCLI(BaseModel):
