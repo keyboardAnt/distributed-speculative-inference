@@ -1,5 +1,5 @@
 from dsi.analytic.common import get_num_accepted_tokens
-from dsi.types.results import ResultSI
+from dsi.types.result import ResultSI
 from dsi.types.run import Run
 
 

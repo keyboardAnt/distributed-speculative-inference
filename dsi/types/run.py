@@ -1,5 +1,5 @@
 from dsi.types.config_run import ConfigRun
-from dsi.types.results import Result
+from dsi.types.result import Result
 from dsi.utils import set_random_seed
 
 

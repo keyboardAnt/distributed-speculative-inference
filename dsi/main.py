@@ -9,7 +9,7 @@ from omegaconf import OmegaConf
 
 from dsi.analytic.si import RunSI
 from dsi.types.config_cli import ConfigCLI, RunType
-from dsi.types.results import ResultSI
+from dsi.types.result import ResultSI
 from dsi.vis.iters_dist import PlotIters
 
 log = logging.getLogger(__name__)

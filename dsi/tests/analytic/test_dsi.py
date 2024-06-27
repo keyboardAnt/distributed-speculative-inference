@@ -3,8 +3,8 @@ import pytest
 from dsi.analytic.dsi import RunDSI
 from dsi.analytic.si import RunSI
 from dsi.types.config_run import ConfigRunDSI
-from dsi.types.exceptions import NumOfTargetServersInsufficientError
-from dsi.types.results import Result
+from dsi.types.exception import NumOfTargetServersInsufficientError
+from dsi.types.result import Result
 
 
 def test_dsi_result_shapes():
