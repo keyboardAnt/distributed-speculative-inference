@@ -1,7 +1,7 @@
 import pytest
 
 from dsi.types.config_run import ConfigRunDSI
-from dsi.types.exceptions import NumOfTargetServersInsufficientError
+from dsi.types.exception import NumOfTargetServersInsufficientError
 
 
 @pytest.fixture(params=[0.0, 0.01, 0.1, 0.5, 0.9, 0.99, 1.0])

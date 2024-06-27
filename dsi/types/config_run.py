@@ -3,7 +3,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from dsi.types.exceptions import NumOfTargetServersInsufficientError
+from dsi.types.exception import NumOfTargetServersInsufficientError
 
 
 class ConfigRun(BaseModel):

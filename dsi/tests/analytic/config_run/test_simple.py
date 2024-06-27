@@ -2,7 +2,7 @@ import pytest
 from pydantic import ValidationError
 
 from dsi.types.config_run import ConfigRun, ConfigRunDSI
-from dsi.types.exceptions import NumOfTargetServersInsufficientError
+from dsi.types.exception import NumOfTargetServersInsufficientError
 
 
 def test_si_acceptance_rate():
