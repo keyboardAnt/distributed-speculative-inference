@@ -1,11 +1,8 @@
 {
 	"name": "poetry3-poetry-pyenv",
 	"build": {
-		"dockerfile": "../docker/Dockerfile"
+		"dockerfile": "Dockerfile"
 	},
-	"runArgs": [
-		"--shm-size=10g"
-	],
 	"postCreateCommand": "poetry install",
 	"customizations": {
 		"vscode": {
