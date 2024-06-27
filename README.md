@@ -4,13 +4,19 @@ The code used in the paper "[Distributed Speculative Inference of Large Language
 
 ## Installation
 
+Either use the devcontainer (recommended) or
+
 1. Install poetry ([official documentation](https://python-poetry.org/docs/#installation)).
 2. Install this project's environment: `poetry install`
+
+Then:
+
 3. Activate poetry's virtual environment: `poetry shell`
 
 ## Run
 
 - analytic simulations: `python -m dsi`
+- analytic heatmap simulations: `python -m dsi run_type=analytic_heatmap`. (- it initializes [Ray](https://docs.ray.io/en/latest/ray-core/walkthrough.html))
 - thread pool simulations: `python -m dsi run_type=thread_pool`
 
 [Hydra](https://hydra.cc/docs/intro/) manages the configuration (defined at `dsi/config.py`). For example,
