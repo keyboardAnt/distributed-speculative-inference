@@ -19,3 +19,7 @@ The code used in the paper "[Distributed Speculative Inference of Large Language
 `python -m dsi config_run.a=.5`
 
 For more sophisticated combinations of configurations, check out Hydra's documentation.
+
+## Testing
+
+- Run tests: `python -m pytest` (from the project root)
