@@ -15,7 +15,7 @@ from dsi.vis.iters_dist import PlotIters
 log = logging.getLogger(__name__)
 
 
-@hydra.main(version_base=None, config_path="conf", config_name="config")
+@hydra.main(version_base=None, config_name="config")
 def main(cfg: ConfigCLI) -> None:
     log.info(OmegaConf.to_yaml(cfg))
     log.info("Working directory: %s", os.getcwd())
