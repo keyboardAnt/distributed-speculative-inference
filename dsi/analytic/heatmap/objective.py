@@ -4,22 +4,15 @@ import pandas as pd
 from dsi.analytic.dsi import RunDSI
 from dsi.analytic.si import RunSI
 from dsi.configs.config_run import ConfigRunDSI
-from dsi.types.result import Result
-
-
-class Column:
-    cost_nonsi = "cost_nonspec"
-    cost_si = "cost_spec"
-    cost_dsi = "cost_fed"
-    speedup_dsi_vs_si = "speedup_fed_vs_spec"
-    speedup_dsi_vs_nonsi = "speedup_fed_vs_nonspec"
-    speedup_si_vs_nonsi = "speedup_spec_vs_nonspec"
-
+from dsi.types.result import HeatmapColumn, Result
 
 enrichments: dict[str, callable] = {
-    Column.speedup_dsi_vs_si: lambda df: df[Column.cost_si] / df[Column.cost_dsi],
-    Column.speedup_dsi_vs_nonsi: lambda df: df[Column.cost_nonsi] / df[Column.cost_dsi],
-    Column.speedup_si_vs_nonsi: lambda df: df[Column.cost_nonsi] / df[Column.cost_si],
+    HeatmapColumn.speedup_dsi_vs_si: lambda df: df[HeatmapColumn.cost_si]
+    / df[HeatmapColumn.cost_dsi],
+    HeatmapColumn.speedup_dsi_vs_nonsi: lambda df: df[HeatmapColumn.cost_nonsi]
+    / df[HeatmapColumn.cost_dsi],
+    HeatmapColumn.speedup_si_vs_nonsi: lambda df: df[HeatmapColumn.cost_nonsi]
+    / df[HeatmapColumn.cost_si],
 }
 
 
@@ -50,9 +43,9 @@ def get_all_latencies(c: float, a: float, k: int) -> dict[str, float]:
     # speedup_dsi_vs_nonsi: float = cost_nonsi / cost_dsi
     # speedup_si_vs_nonsi: float = cost_nonsi / cost_si
     return {
-        Column.cost_si: cost_si,
-        Column.cost_nonsi: cost_nonsi,
-        Column.cost_dsi: cost_dsi,
+        HeatmapColumn.cost_si: cost_si,
+        HeatmapColumn.cost_nonsi: cost_nonsi,
+        HeatmapColumn.cost_dsi: cost_dsi,
         # Objective.speedup_dsi_vs_si: speedup_dsi_vs_si,
         # Objective.speedup_dsi_vs_nonsi: speedup_dsi_vs_nonsi,
         # Objective.speedup_si_vs_nonsi: speedup_si_vs_nonsi,

@@ -37,3 +37,12 @@ class ResultSIVerbose(Result):
 
     num_toks_of_last_iter_per_run: list[int] = field(default_factory=list)
     num_toks_per_iter: list[int] = field(default_factory=list)
+
+
+class HeatmapColumn:
+    cost_nonsi = "cost_nonspec"
+    cost_si = "cost_spec"
+    cost_dsi = "cost_fed"
+    speedup_dsi_vs_si = "speedup_fed_vs_spec"
+    speedup_dsi_vs_nonsi = "speedup_fed_vs_nonspec"
+    speedup_si_vs_nonsi = "speedup_spec_vs_nonspec"
