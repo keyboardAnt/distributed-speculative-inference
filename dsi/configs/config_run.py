@@ -1,9 +1,11 @@
 from math import ceil
-from typing import Any
 
 from pydantic import BaseModel, Field
 
-from dsi.types.exception import NumOfTargetServersInsufficientError
+from dsi.types.exception import (
+    DrafterSlowerThanTargetError,
+    NumOfTargetServersInsufficientError,
+)
 
 
 class ConfigRun(BaseModel):
@@ -25,6 +27,14 @@ class ConfigRun(BaseModel):
     )
     k: int = Field(5, title="Lookahead", ge=0)
 
+    def model_post_init(self, _) -> None:
+        """
+        Verify that the drafter is not slower than the target.
+        """
+        if self.c > self.failure_cost:
+            msg: str = f"{self.c=} > {self.failure_cost=}"
+            raise DrafterSlowerThanTargetError(msg)
+
 
 class ConfigRunDSI(ConfigRun):
     """
@@ -38,7 +48,7 @@ class ConfigRunDSI(ConfigRun):
         ge=1,
     )
 
-    def model_post_init(self, __context: Any) -> None:
+    def model_post_init(self, _) -> None:
         """
         Verify that there are enough target servers so that threads never wait to be executed.
         NOTE: `None` number of target servers means infinity.

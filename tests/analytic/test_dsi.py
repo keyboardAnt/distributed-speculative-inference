@@ -34,3 +34,4 @@ def test_dsi_faster_than_si(c: float, failure_cost: float, a: float, k: int):
         assert (
             cost_dsi <= cost_si
         ), f"DSI is never slower than SI. DSI: {cost_dsi}, SI: {cost_si}"
+        assert config.S * c < cost_dsi <= config.S * failure_cost

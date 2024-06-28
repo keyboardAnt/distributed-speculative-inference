@@ -2,7 +2,10 @@ import pytest
 from pydantic import ValidationError
 
 from dsi.configs.config_run import ConfigRun, ConfigRunDSI
-from dsi.types.exception import NumOfTargetServersInsufficientError
+from dsi.types.exception import (
+    DrafterSlowerThanTargetError,
+    NumOfTargetServersInsufficientError,
+)
 
 
 def test_si_acceptance_rate():
@@ -29,12 +32,20 @@ def test_drafter_latency():
     for config_run_cls in [ConfigRun, ConfigRunDSI]:
         for c in invalid_c:
             with pytest.raises((ValidationError, NumOfTargetServersInsufficientError)):
-                config_run_cls(c=c)
+                config_run_cls(c=c, failure_cost=c + 0.01)
         for c in valid_c:
-            try:
-                config_run_cls(c=c)
-            except NumOfTargetServersInsufficientError:
-                pass
+            config_run_cls(c=c, failure_cost=c + 0.01, num_target_servers=None)
+
+
+@pytest.mark.parametrize("c", [0.01, 0.1, 0.8, 0.99, 1.0, 1.01, 2.0, 1000])
+@pytest.mark.parametrize("failure_cost", [0.01, 0.1, 0.8, 0.99, 1.0, 1.01, 2.0, 1000])
+def test_drafter_latency_vs_target_latency(c: float, failure_cost: float):
+    for config_run_cls in [ConfigRun, ConfigRunDSI]:
+        if c <= failure_cost:
+            config_run_cls(c=c, failure_cost=failure_cost, num_target_servers=None)
+        else:
+            with pytest.raises(DrafterSlowerThanTargetError):
+                config_run_cls(c=c, failure_cost=failure_cost, num_target_servers=None)
 
 
 def test_num_of_tokens_to_generate():
@@ -57,10 +68,7 @@ def test_num_of_repeats():
 
 def test_lookahead():
     for config_run_cls in [ConfigRun, ConfigRunDSI]:
-        with pytest.raises((ValidationError, NumOfTargetServersInsufficientError)):
-            config_run_cls(k=-1)
-        try:
-            config_run_cls(k=0)
-            config_run_cls(k=1)
-        except NumOfTargetServersInsufficientError:
-            pass
+        with pytest.raises(ValidationError):
+            config_run_cls(k=-1, num_target_servers=None)
+        config_run_cls(k=0, num_target_servers=None)
+        config_run_cls(k=1, num_target_servers=None)
