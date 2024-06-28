@@ -4,7 +4,7 @@ import logging
 import numpy as np
 import pandas as pd
 
-from dsi.types.config_run import ConfigRunDSI
+from dsi.configs.config_run import ConfigRunDSI
 from dsi.types.exception import NumOfTargetServersInsufficientError
 
 log = logging.getLogger(__name__)
@@ -30,7 +30,7 @@ def is_row_valid(row: pd.Series, verbose: bool = False) -> bool:
     return is_config_valid(c=row[Param.c], k=row[Param.k], verbose=verbose)
 
 
-def get_df_confs() -> pd.DataFrame:
+def get_df_heatmap_params() -> pd.DataFrame:
     """
     Generate a pandas dataframe with all the configurations of c, a, k that are valid for DSI.
     """

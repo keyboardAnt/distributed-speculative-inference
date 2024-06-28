@@ -3,7 +3,7 @@ import enum
 from hydra.core.config_store import ConfigStore
 from pydantic import BaseModel, Field
 
-from dsi.types.config_run import ConfigRun
+from dsi.configs.config_run import ConfigRun
 
 
 class RunType(str, enum.Enum):

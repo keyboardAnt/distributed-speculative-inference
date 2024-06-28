@@ -2,7 +2,7 @@ import numpy as np
 
 from dsi.analytic.dsi import RunDSI
 from dsi.analytic.si import RunSI
-from dsi.types.config_run import ConfigRun, ConfigRunDSI
+from dsi.configs.config_run import ConfigRun, ConfigRunDSI
 from dsi.types.exception import NumOfTargetServersInsufficientError
 from dsi.types.result import Result
 

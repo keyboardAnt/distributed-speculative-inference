@@ -5,12 +5,12 @@ import pandas as pd
 import ray
 
 from dsi.analytic.heatmap.objective import calc_all
-from dsi.analytic.heatmap.params import Param, get_df_confs
+from dsi.configs.config_heatmap import Param, get_df_heatmap_params
 
 
 class RayManager:
     def __init__(self) -> None:
-        self._confs: pd.DataFrame = get_df_confs()
+        self._confs: pd.DataFrame = get_df_heatmap_params()
         self._results_raw: None | list[tuple[int, dict[str, float]]] = None
         self.result: pd.DataFrame = self._confs.copy(deep=True)
 

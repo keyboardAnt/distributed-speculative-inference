@@ -1,6 +1,6 @@
 import pytest
 
-from dsi.types.config_run import ConfigRunDSI
+from dsi.configs.config_run import ConfigRunDSI
 from dsi.types.exception import NumOfTargetServersInsufficientError
 
 

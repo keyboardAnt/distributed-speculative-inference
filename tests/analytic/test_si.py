@@ -1,7 +1,7 @@
 import pytest
 
 from dsi.analytic.si import RunSI
-from dsi.types.config_run import ConfigRun
+from dsi.configs.config_run import ConfigRun
 from dsi.types.result import ResultSI
 
 
