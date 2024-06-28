@@ -27,7 +27,7 @@ class ConfigRun(BaseModel):
     )
     k: int = Field(5, title="Lookahead", ge=0)
 
-    def model_post_init(self, _) -> None:
+    def model_post_init(self, __context) -> None:
         """
         Verify that the drafter is not slower than the target.
         """
@@ -48,11 +48,12 @@ class ConfigRunDSI(ConfigRun):
         ge=1,
     )
 
-    def model_post_init(self, _) -> None:
+    def model_post_init(self, __context) -> None:
         """
         Verify that there are enough target servers so that threads never wait to be executed.
         NOTE: `None` number of target servers means infinity.
         """
+        super().model_post_init(__context)
         if self.num_target_servers is None:
             return
         num_target_servers_required: int = ceil(
