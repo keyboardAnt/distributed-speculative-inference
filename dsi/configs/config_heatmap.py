@@ -3,6 +3,7 @@ import logging
 
 import numpy as np
 import pandas as pd
+from pydantic import BaseModel
 
 from dsi.configs.config_run import ConfigRunDSI
 from dsi.types.exception import NumOfTargetServersInsufficientError
@@ -30,23 +31,33 @@ def is_row_valid(row: pd.Series, verbose: bool = False) -> bool:
     return is_config_valid(c=row[Param.c], k=row[Param.k], verbose=verbose)
 
 
-def get_df_heatmap_params() -> pd.DataFrame:
+class ConfigHeatmap(BaseModel):
+    # ndim: int = 200
+    ndim: int = 10
+    c_min: float = 0.01
+    a_min: float = 0.01
+    a_max: float = 0.99
+    k_step: int = 1
+
+
+def get_df_heatmap_params(config: None | ConfigHeatmap = None) -> pd.DataFrame:
     """
     Generate a pandas dataframe with all the configurations of c, a, k that are valid for DSI.
     """
-    # ndim: int = 200
-    ndim: int = 10
-    c_vals: list[float] = np.linspace(0, 1, ndim + 1).tolist()
-    c_vals[0] = 0.01
-    a_vals: list[float] = np.linspace(0, 1, ndim + 1).tolist()
-    a_vals[0] = 0.01
-    a_vals[-1] = 0.99
-    k_step: int = 1
-    ks_space: list[int] = np.arange(1, 1 + k_step * ndim, k_step, dtype=int).tolist()
+    if not config:
+        config = ConfigHeatmap()
+    c_vals: np.ndarray = np.linspace(0, 1, config.ndim + 1)
+    c_vals = np.where(c_vals <= config.c_min, config.c_min, c_vals)
+    a_vals: np.ndarray = np.linspace(0, 1, config.ndim + 1)
+    a_vals = np.where(a_vals <= config.a_min, config.a_min, a_vals)
+    a_vals = np.where(a_vals >= config.a_max, config.a_max, a_vals)
+    ks_space: np.ndarray = np.arange(
+        1, 1 + config.k_step * config.ndim, config.k_step, dtype=int
+    )
 
     # pandas dataframe for c, a, k
     df_params: pd.DataFrame = pd.DataFrame(
-        list(itertools.product(c_vals, a_vals, ks_space)),
+        list(itertools.product(c_vals.tolist(), a_vals.tolist(), ks_space.tolist())),
         columns=[Param.c, Param.a, Param.k],
     )
     df_params[Param.k] = df_params[Param.k].astype(int)
