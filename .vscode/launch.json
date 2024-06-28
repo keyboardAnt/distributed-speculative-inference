@@ -5,11 +5,20 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "dsi",
+            "name": "analytic: si",
             "type": "debugpy",
             "request": "launch",
             "module": "dsi",
             "args": []
+        },
+        {
+            "name": "analytic: heatmap",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "dsi",
+            "args": [
+                "run_type=analytic_heatmap"
+            ]
         }
     ]
 }
