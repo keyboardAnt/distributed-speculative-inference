@@ -8,7 +8,7 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from omegaconf import OmegaConf
 
-from dsi.analytic.grid.ray_manager import RayManager
+from dsi.analytic.heatmap.ray_manager import RayManager
 from dsi.analytic.si import RunSI
 from dsi.types.config_cli import ConfigCLI, RunType
 from dsi.types.result import ResultSI

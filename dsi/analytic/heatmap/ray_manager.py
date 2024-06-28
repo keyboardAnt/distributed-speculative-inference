@@ -47,7 +47,7 @@ class RayManager:
             print(f"Creating directory {dirpath}")
             os.makedirs(dirpath)
         now: str = datetime.now().strftime("%Y%m%d-%H%M%S")
-        filename: str = f"gridsearch-{now}.csv"
+        filename: str = f"heatmap-{now}.csv"
         filepath: str = os.path.join(dirpath, filename)
         self.result.to_csv(filepath)
         print(f"Results stored in {filepath}")
