@@ -3,7 +3,10 @@ import pytest
 from dsi.analytic.dsi import RunDSI
 from dsi.analytic.si import RunSI
 from dsi.configs.config_run import ConfigRunDSI
-from dsi.types.exception import NumOfTargetServersInsufficientError
+from dsi.types.exception import (
+    DrafterSlowerThanTargetError,
+    NumOfTargetServersInsufficientError,
+)
 from dsi.types.result import Result
 
 
@@ -24,7 +27,7 @@ def test_dsi_result_shapes():
 def test_dsi_faster_than_si(c: float, failure_cost: float, a: float, k: int):
     try:
         config = ConfigRunDSI(c=c, failure_cost=failure_cost, a=a, k=k)
-    except NumOfTargetServersInsufficientError:
+    except (NumOfTargetServersInsufficientError, DrafterSlowerThanTargetError):
         return
     si = RunSI(config)
     si_res: Result = si.run()
