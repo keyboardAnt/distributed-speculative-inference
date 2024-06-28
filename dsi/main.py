@@ -27,10 +27,10 @@ def main(cfg: ConfigCLI) -> None:
     )
     if cfg.run_type == RunType.analytic:
         res_si: ResultSI = RunSI(cfg.config_run).run()
-        plot_static: PlotIters = PlotIters(
+        plot_si: PlotIters = PlotIters(
             result=res_si, suptitle=f"Latency of SI (lookahead={cfg.config_run.k})"
         )
-        plot_static.plot()
+        plot_si.plot()
     elif cfg.run_type == RunType.analytic_heatmap:
         tmanager: RayManager = RayManager()
         df_heatmap: pd.DataFrame = tmanager.run()
