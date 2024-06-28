@@ -34,7 +34,8 @@ def get_df_confs() -> pd.DataFrame:
     """
     Generate a pandas dataframe with all the configurations of c, a, k that are valid for DSI.
     """
-    ndim: int = 200
+    # ndim: int = 200
+    ndim: int = 10
     c_vals: list[float] = np.linspace(0, 1, ndim + 1).tolist()
     c_vals[0] = 0.01
     a_vals: list[float] = np.linspace(0, 1, ndim + 1).tolist()

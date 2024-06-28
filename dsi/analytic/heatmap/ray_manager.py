@@ -4,8 +4,8 @@ from datetime import datetime
 import pandas as pd
 import ray
 
-from dsi.analytic.grid.objective import calc_all
-from dsi.analytic.grid.params import Param, get_df_confs
+from dsi.analytic.heatmap.objective import calc_all
+from dsi.analytic.heatmap.params import Param, get_df_confs
 
 
 class RayManager:
