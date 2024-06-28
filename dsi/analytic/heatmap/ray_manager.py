@@ -15,9 +15,10 @@ class RayManager:
         self.result: pd.DataFrame = self._confs.copy(deep=True)
 
     def run(self) -> pd.DataFrame:
+        # NOTE: Ray discovers and utilizes all available resources by default
         ray.init(
-            ignore_reinit_error=True
-        )  # Ray discovers and utilizes all available resources by default
+            ignore_reinit_error=True,
+        )
         futures = [
             self._process_row.remote(index=index, row=row)
             for index, row in self._confs.iterrows()

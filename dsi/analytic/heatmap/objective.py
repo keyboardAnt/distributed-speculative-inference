@@ -19,13 +19,13 @@ def calc_all(c: float, a: float, k: int) -> dict[str, float]:
     """
     Executes all the experiments, analyzes their results, and returns the results.
     """
-    config_si: ConfigRun = ConfigRun(a=a, c=c, k=k)
-    config_dsi: ConfigRunDSI = ConfigRunDSI(
+    config_si = ConfigRun(a=a, c=c, k=k)
+    config_dsi = ConfigRunDSI(
         a=a,
         c=c,
         k=k,
     )
-    run_si: RunSI = RunSI(config=config_si)
+    run_si = RunSI(config=config_si)
     res_si: Result = run_si.run()
     cost_si: float = np.array(res_si.cost_per_run).mean()
     # try:
@@ -34,7 +34,7 @@ def calc_all(c: float, a: float, k: int) -> dict[str, float]:
     #     cost_dsi: float = np.array(res_dsi.cost_per_run).mean()
     # except NumOfTargetServersInsufficientError:
     #     cost_dsi: float = np.nan
-    run_dsi: RunDSI = RunDSI(config=config_dsi)
+    run_dsi = RunDSI(config=config_dsi)
     res_dsi: Result = run_dsi.run()
     cost_dsi: float = np.array(res_dsi.cost_per_run).mean()
     cost_nonsi: float = config_si.failure_cost * config_si.S
