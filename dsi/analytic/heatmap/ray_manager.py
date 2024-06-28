@@ -4,7 +4,7 @@ from datetime import datetime
 import pandas as pd
 import ray
 
-from dsi.analytic.heatmap.objective import calc_all
+from dsi.analytic.heatmap.objective import get_all_latencies
 from dsi.analytic.heatmap.params import Param, get_df_heatmap_params
 
 
@@ -34,7 +34,7 @@ class RayManager:
         c: float = row[Param.c]
         a: float = row[Param.a]
         k: int = int(row[Param.k])
-        all_analytic: dict[str, float] = calc_all(c=c, a=a, k=k)
+        all_analytic: dict[str, float] = get_all_latencies(c=c, a=a, k=k)
         return index, all_analytic
 
     def _merge_results(self) -> None:
