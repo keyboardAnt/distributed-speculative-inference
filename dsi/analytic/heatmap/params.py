@@ -3,8 +3,8 @@ import logging
 
 import numpy as np
 import pandas as pd
-from pydantic import BaseModel
 
+from dsi.configs.config_heatmap import ConfigHeatmap
 from dsi.configs.config_run import ConfigRunDSI
 from dsi.types.exception import NumOfTargetServersInsufficientError
 
@@ -29,15 +29,6 @@ def is_config_valid(c: float, k: int, verbose: bool) -> bool:
 
 def is_row_valid(row: pd.Series, verbose: bool = False) -> bool:
     return is_config_valid(c=row[Param.c], k=row[Param.k], verbose=verbose)
-
-
-class ConfigHeatmap(BaseModel):
-    # ndim: int = 200
-    ndim: int = 10
-    c_min: float = 0.01
-    a_min: float = 0.01
-    a_max: float = 0.99
-    k_step: int = 1
 
 
 def get_df_heatmap_params(config: None | ConfigHeatmap = None) -> pd.DataFrame:
