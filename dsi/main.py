@@ -8,7 +8,8 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from omegaconf import OmegaConf
 
-from dsi.analytic.heatmap.ray_manager import RayManager
+from dsi.analytic.heatmap.dist.ray_manager import RayManager
+from dsi.analytic.heatmap.enrich import enrich
 from dsi.analytic.si import RunSI
 from dsi.configs.config_cli import ConfigCLI, RunType
 from dsi.types.result import ResultSI
@@ -39,6 +40,7 @@ def main(cfg: ConfigCLI) -> None:
         log.info(df_heatmap.head())
         log.info("df_heatmap.describe():")
         log.info(df_heatmap.describe())
+        enrich(df_heatmap)
     elif cfg.run_type == RunType.thread_pool:
         raise NotImplementedError
     else:
