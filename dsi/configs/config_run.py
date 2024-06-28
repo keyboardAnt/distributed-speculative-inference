@@ -31,17 +31,20 @@ class ConfigRunDSI(ConfigRun):
     ConfigRunDSI extends ConfigRun for DSI.
     """
 
-    num_target_servers: int = Field(
+    num_target_servers: None | int = Field(
         7,
         title="The number of target servers",
-        description="The maximal number of target servers at any point in time",
+        description="The maximal number of target servers at any point in time. None means infinity.",
         ge=1,
     )
 
     def model_post_init(self, __context: Any) -> None:
         """
         Verify that there are enough target servers so that threads never wait to be executed.
+        NOTE: `None` number of target servers means infinity.
         """
+        if self.num_target_servers is None:
+            return
         num_target_servers_required: int = ceil(
             self.failure_cost / (max(1, self.k) * self.c)
         )
