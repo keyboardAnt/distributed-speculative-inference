@@ -1,10 +1,6 @@
 import pandas as pd
 
-from dsi.analytic.heatmap.config_heatmap import (
-    ConfigHeatmap,
-    Param,
-    get_df_heatmap_params,
-)
+from dsi.analytic.heatmap.params import ConfigHeatmap, Param, get_df_heatmap_params
 
 
 def test_get_df_heatmap_params():
