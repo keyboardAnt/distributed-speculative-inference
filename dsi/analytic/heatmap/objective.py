@@ -28,27 +28,14 @@ def get_all_latencies(c: float, a: float, k: int) -> dict[str, float]:
     run_si = RunSI(config)
     res_si: Result = run_si.run()
     cost_si: float = np.array(res_si.cost_per_run).mean()
-    # TODO(Nadav): Remove the following commented-out code.
-    # try:
-    #     run_dsi: RunDSI = RunDSI(config=config_dsi)
-    #     res_dsi: Result = run_dsi.run()
-    #     cost_dsi: float = np.array(res_dsi.cost_per_run).mean()
-    # except NumOfTargetServersInsufficientError:
-    #     cost_dsi: float = np.nan
     run_dsi = RunDSI(config)
     res_dsi: Result = run_dsi.run()
     cost_dsi: float = np.array(res_dsi.cost_per_run).mean()
     cost_nonsi: float = config.failure_cost * config.S
-    # speedup_dsi_vs_si: float = cost_si / cost_dsi
-    # speedup_dsi_vs_nonsi: float = cost_nonsi / cost_dsi
-    # speedup_si_vs_nonsi: float = cost_nonsi / cost_si
     return {
         HeatmapColumn.cost_si: cost_si,
         HeatmapColumn.cost_nonsi: cost_nonsi,
         HeatmapColumn.cost_dsi: cost_dsi,
-        # Objective.speedup_dsi_vs_si: speedup_dsi_vs_si,
-        # Objective.speedup_dsi_vs_nonsi: speedup_dsi_vs_nonsi,
-        # Objective.speedup_si_vs_nonsi: speedup_si_vs_nonsi,
     }
 
 
