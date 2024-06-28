@@ -33,12 +33,12 @@ def main(cfg: ConfigCLI) -> None:
         plot_static.plot()
     elif cfg.run_type == RunType.analytic_heatmap:
         tmanager: RayManager = RayManager()
-        res_grid: pd.DataFrame = tmanager.run()
+        df_heatmap: pd.DataFrame = tmanager.run()
         tmanager.store(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir)
-        log.info("res_grid.head():")
-        log.info(res_grid.head())
-        log.info("res_grid.describe():")
-        log.info(res_grid.describe())
+        log.info("df_heatmap.head():")
+        log.info(df_heatmap.head())
+        log.info("df_heatmap.describe():")
+        log.info(df_heatmap.describe())
     elif cfg.run_type == RunType.thread_pool:
         raise NotImplementedError
     else:
