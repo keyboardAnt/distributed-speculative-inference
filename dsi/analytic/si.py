@@ -10,7 +10,6 @@ class RunSI(Run):
         return Result()
 
     def _run_single(self) -> Result:
-        result = Result()
         total_cost: float = 0
         toks_left: int = self.config.S
         num_iters: int = 0
@@ -22,6 +21,7 @@ class RunSI(Run):
                 acceptance_rate=self.config.a, lookahead=curr_k
             )
             toks_left -= num_accepted + 1
-        result.cost_per_run = [total_cost]
-        result.num_iters_per_run = [num_iters]
-        return result
+        return Result(
+            cost_per_run=[total_cost],
+            num_iters_per_run=[num_iters],
+        )

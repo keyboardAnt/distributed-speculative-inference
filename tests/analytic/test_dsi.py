@@ -1,3 +1,5 @@
+from math import ceil
+
 import numpy as np
 import pytest
 
@@ -42,10 +44,12 @@ def test_dsi_faster_than_si(c: float, failure_cost: float, a: float, k: int):
         for num_iters in res.num_iters_per_run:
             assert num_iters >= num_iterations_min
     for cost_si, cost_dsi in zip(si_res.cost_per_run, dsi_res.cost_per_run):
-        assert (
-            cost_dsi <= cost_si
+        assert cost_dsi <= cost_si or np.isclose(
+            cost_si, cost_dsi
         ), f"DSI is never slower than SI. DSI: {cost_dsi}, SI: {cost_si}"
         cost_min: float = (num_iterations_min - 1) * config.c + config.failure_cost
-        cost_max: float = config.S * config.failure_cost
+        cost_max: float = (
+            config.S * config.failure_cost + ceil(config.S / config.k) * config.c
+        )
         assert cost_min <= cost_dsi or np.isclose(cost_min, cost_dsi)
         assert cost_dsi <= cost_max or np.isclose(cost_max, cost_dsi)

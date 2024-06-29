@@ -17,7 +17,6 @@ class RunDSI(Run):
 
     def _run_single(self) -> Result:
         print(f"{self.config=}")
-        result = Result()
         total_cost: float = 0
         toks_left: int = self.config.S
         num_iters: int = 0
@@ -28,26 +27,21 @@ class RunDSI(Run):
             num_iters += 1
             if toks_left == 1:
                 total_cost += self.config.failure_cost
+                print(f"BREAK: {total_cost=}")
                 break
+            halt_feasible: bool = toks_left <= self.config.k + 1
+            print(f"{halt_feasible=}")
             curr_k: int = min(self.config.k, toks_left - 1)
             num_accepted: int = get_num_accepted_drafts(
                 acceptance_rate=self.config.a, lookahead=curr_k
             )
             print(f"{curr_k=}, {num_accepted=}")
-            # nonsi_fwds: int = min(toks_left, num_accepted + 1)
-            # cost_nonsi: float = nonsi_fwds * self.config.failure_cost
-            cost_dsi = curr_k * self.config.c
-            toks_left -= num_accepted
-            if num_accepted < curr_k:
-                print(f"{num_accepted=}, {curr_k=}, {num_accepted < curr_k=}")
-                cost_dsi += self.config.failure_cost
-                toks_left -= 1
-            if toks_left == 0:
-                cost_dsi += self.config.failure
-            # print(f"{cost_nonsi=}, {cost_dsi=}")
-            # total_cost += min(cost_nonsi, cost_dsi)
-            total_cost += cost_dsi
+            total_cost += curr_k * self.config.c
+            toks_left -= num_accepted + 1
+            if num_accepted < curr_k or halt_feasible:
+                total_cost += self.config.failure_cost
             print(f"AFTER: {total_cost=}")
-        result.cost_per_run = [total_cost]
-        result.num_iters_per_run = [num_iters]
-        return result
+        return Result(
+            cost_per_run=[total_cost],
+            num_iters_per_run=[num_iters],
+        )
