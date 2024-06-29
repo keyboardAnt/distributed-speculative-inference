@@ -30,10 +30,10 @@ def test_dsi_faster_than_si(c: float, failure_cost: float, a: float, k: int):
     except (NumOfTargetServersInsufficientError, DrafterSlowerThanTargetError):
         return
     si = RunSI(config)
-    si_res: Result = si.run()
     dsi = RunDSI(config)
-    res: Result = dsi.run()
-    for cost_si, cost_dsi in zip(si_res.cost_per_run, res.cost_per_run):
+    si_res: Result = si.run()
+    dsi_res: Result = dsi.run()
+    for cost_si, cost_dsi in zip(si_res.cost_per_run, dsi_res.cost_per_run):
         assert (
             cost_dsi <= cost_si
         ), f"DSI is never slower than SI. DSI: {cost_dsi}, SI: {cost_si}"
