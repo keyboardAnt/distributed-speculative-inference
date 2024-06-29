@@ -9,7 +9,7 @@ from dsi.types.result import HeatmapColumn
 @pytest.mark.parametrize("a", [0.01, 0.1, 0.5, 0.8, 0.99])
 @pytest.mark.parametrize("k", [1, 2, 5, 20, 99997, 100003])
 def test_get_all_latencies(c: float, a: float, k: int):
-    result: dict[str, float] = get_all_latencies(c, a, k)
+    result: dict[str, float] = get_all_latencies(c, a, k, num_target_servers=None)
     assert isinstance(result, dict)
     assert HeatmapColumn.cost_si in result
     assert HeatmapColumn.cost_nonsi in result

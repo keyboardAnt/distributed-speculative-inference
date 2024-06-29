@@ -68,7 +68,8 @@ def test_num_of_repeats():
 
 def test_lookahead():
     for config_run_cls in [ConfigRun, ConfigRunDSI]:
-        with pytest.raises(ValidationError):
-            config_run_cls(k=-1, num_target_servers=None)
-        config_run_cls(k=0, num_target_servers=None)
+        k_invalid: list[int] = [-1, 0]
+        for k in k_invalid:
+            with pytest.raises(ValidationError):
+                config_run_cls(k=k)
         config_run_cls(k=1, num_target_servers=None)

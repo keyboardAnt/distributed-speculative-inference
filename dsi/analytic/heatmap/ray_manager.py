@@ -34,7 +34,10 @@ class RayManager:
         c: float = row[Param.c]
         a: float = row[Param.a]
         k: int = int(row[Param.k])
-        all_analytic: dict[str, float] = get_all_latencies(c=c, a=a, k=k)
+        num_target_servers: int = int(row[Param.num_target_servers])
+        all_analytic: dict[str, float] = get_all_latencies(
+            c=c, a=a, k=k, num_target_servers=num_target_servers
+        )
         return index, all_analytic
 
     def _merge_results(self) -> None:

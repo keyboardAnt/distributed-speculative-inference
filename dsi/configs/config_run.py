@@ -19,13 +19,14 @@ class ConfigRun(BaseModel):
         description="c=0 requires infinitly many target servers",
         gt=0,
     )
-    failure_cost: float = Field(1.0, title="The latency of the target", ge=0)
     a: float = Field(0.9, title="The acceptance rate", ge=0, le=1)
-    S: int = Field(1000, title="The number of tokens to generate", ge=1)
+    k: int = Field(5, title="Lookahead", ge=1)
+    failure_cost: float = Field(1.0, title="The latency of the target", ge=0)
+    # S: int = Field(1000, title="The number of tokens to generate", ge=1)
+    S: int = Field(4, title="The number of tokens to generate", ge=1)
     num_repeats: int = Field(
         5, title="The number of times that a single run repeats the simulation", ge=1
     )
-    k: int = Field(5, title="Lookahead", ge=0)
 
     def model_post_init(self, __context) -> None:
         """

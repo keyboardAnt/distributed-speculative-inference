@@ -12,7 +12,7 @@ from dsi.analytic.heatmap.objective import enrich
 from dsi.analytic.heatmap.ray_manager import RayManager
 from dsi.analytic.si import RunSI
 from dsi.configs.config_cli import ConfigCLI, RunType
-from dsi.types.result import ResultSI
+from dsi.types.result import Result
 from dsi.vis.iters_dist import PlotIters
 
 log = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ def main(cfg: ConfigCLI) -> None:
         hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
     )
     if cfg.run_type == RunType.analytic:
-        res_si: ResultSI = RunSI(cfg.config_run).run()
+        res_si: Result = RunSI(cfg.config_run).run()
         plot_si: PlotIters = PlotIters(
             result=res_si, suptitle=f"Latency of SI (lookahead={cfg.config_run.k})"
         )

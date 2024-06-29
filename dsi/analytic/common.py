@@ -1,9 +1,9 @@
 import numpy as np
 
 
-def get_num_accepted_tokens(acceptance_rate: float, lookahead: int) -> int:
+def get_num_accepted_drafts(acceptance_rate: float, lookahead: int) -> int:
     """
-    Sample the number of accepted tokens in SI or DSI. The number is in the range [0, inf).
+    Sample the number of accepted draft tokens in SI or DSI. The number is in the range [0, lookahead].
     """
     if acceptance_rate == 0:
         return 0

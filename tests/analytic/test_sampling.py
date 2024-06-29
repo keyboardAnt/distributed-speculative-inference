@@ -2,7 +2,7 @@ import time
 
 import numpy as np
 
-from dsi.analytic.common import get_num_accepted_tokens
+from dsi.analytic.common import get_num_accepted_drafts
 
 
 def test_get_num_accepted_tokens_acceptance_rate_zero():
@@ -10,7 +10,7 @@ def test_get_num_accepted_tokens_acceptance_rate_zero():
     latencies: list[float] = []
     for lookahead in lookaheads:
         start_time: float = time.time()
-        num_accepted_tokens: int = get_num_accepted_tokens(
+        num_accepted_tokens: int = get_num_accepted_drafts(
             acceptance_rate=0, lookahead=lookahead
         )
         end_time: float = time.time()
@@ -29,7 +29,7 @@ def test_get_num_accepted_tokens_acceptance_rate_one():
     latencies: list[float] = []
     for lookahead in lookaheads:
         start_time: float = time.time()
-        num_accepted_tokens: int = get_num_accepted_tokens(
+        num_accepted_tokens: int = get_num_accepted_drafts(
             acceptance_rate=1, lookahead=lookahead
         )
         end_time: float = time.time()
@@ -50,7 +50,7 @@ def test_get_num_accepted_tokens_acceptance_rate_random():
     for acceptance_rate in acceptance_rates:
         for lookahead in lookaheads:
             start_time: float = time.time()
-            num_accepted_tokens: int = get_num_accepted_tokens(
+            num_accepted_tokens: int = get_num_accepted_drafts(
                 acceptance_rate=acceptance_rate, lookahead=lookahead
             )
             end_time: float = time.time()

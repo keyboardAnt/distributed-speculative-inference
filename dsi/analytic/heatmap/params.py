@@ -15,6 +15,7 @@ class Param:
     c = "c"
     a = "a"
     k = "k"
+    num_target_servers = "num_target_servers"
 
 
 def is_config_valid(c: float, k: int, verbose: bool) -> bool:
@@ -46,11 +47,12 @@ def get_df_heatmap_params(config: None | ConfigHeatmap = None) -> pd.DataFrame:
         1, 1 + config.k_step * config.ndim, config.k_step, dtype=int
     )
 
-    # pandas dataframe for c, a, k
+    # pandas dataframe for c, a, k, num_target_servers
     df_params: pd.DataFrame = pd.DataFrame(
         list(itertools.product(c_vals.tolist(), a_vals.tolist(), ks_space.tolist())),
         columns=[Param.c, Param.a, Param.k],
     )
+    df_params[Param.num_target_servers] = config.num_target_servers
     df_params[Param.k] = df_params[Param.k].astype(int)
     df_params = df_params.drop_duplicates()
     is_valid_mask = df_params.apply(is_row_valid, axis=1)

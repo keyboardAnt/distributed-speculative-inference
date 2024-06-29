@@ -1,7 +1,4 @@
-import pytest
-
-from dsi.types.exception import IncompatibleAppendError
-from dsi.types.result import Result, ResultSI
+from dsi.types.result import Result
 
 
 def test_appending_compatible_objects():
@@ -12,10 +9,14 @@ def test_appending_compatible_objects():
 
 
 def test_type_safety():
-    si = ResultSI(cost_per_run=[30.0], num_iters_per_run=[1])
-    r = Result(cost_per_run=[10.0, 20.0])
-    with pytest.raises(IncompatibleAppendError):
-        si.extend(r)
+    r1 = Result(cost_per_run=[30.0], num_iters_per_run=[1])
+    r2 = Result(cost_per_run=[10.0, 20.0])
+    r1.extend(r2)
+    assert r1.cost_per_run == [30.0, 10.0, 20.0]
+    assert r1.num_iters_per_run == [1]
+    r2.extend(r1)
+    assert r2.cost_per_run == [10.0, 20.0, 30.0, 10.0, 20.0]
+    assert r2.num_iters_per_run == [1]
 
 
 def test_appending_empty_lists():
@@ -33,8 +34,8 @@ def test_appending_to_empty_lists():
 
 
 def test_subclass_compatibility():
-    si1 = ResultSI(cost_per_run=[10.0], num_iters_per_run=[1])
-    si2 = ResultSI(cost_per_run=[20.0], num_iters_per_run=[2])
+    si1 = Result(cost_per_run=[10.0], num_iters_per_run=[1])
+    si2 = Result(cost_per_run=[20.0], num_iters_per_run=[2])
     si1.extend(si2)
     assert si1.cost_per_run == [10.0, 20.0]
     assert si1.num_iters_per_run == [1, 2]
