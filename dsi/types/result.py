@@ -34,21 +34,6 @@ class Result:
                 current_list.extend(appending_list)
 
 
-@dataclass
-class ResultVerbose(Result):
-    """
-    Extends ResultSI with the following:
-    Args:
-        num_toks_of_last_iter_per_run: The number of tokens in the last iteration for each run
-        num_toks_per_iter: The number of tokens in each iteration, across all runs
-
-    TODO(#13).
-    """
-
-    num_toks_of_last_iter_per_run: list[int] = field(default_factory=list)
-    num_toks_per_iter: list[int] = field(default_factory=list)
-
-
 class HeatmapColumn:
     cost_nonsi = "cost_nonspec"
     cost_si = "cost_spec"
