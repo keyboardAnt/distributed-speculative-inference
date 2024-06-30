@@ -5,8 +5,9 @@ def generate_num_accepted_drafts(
     acceptance_rate: float, lookahead: int, max_num_samples: int
 ):
     """
-    Generator that samples the number of accepted draft tokens in SI or DSI using the specified
-    acceptance rate and lookahead. It samples S times at once and then yields each sample one by one.
+    Generator that samples the number of accepted draft tokens in SI or
+    DSI using the specified acceptance rate and lookahead. It samples
+    S times at once and then yields each sample one by one.
 
     :param acceptance_rate: The rate of acceptance for draft tokens.
     :param lookahead: The maximum possible number of accepted drafts.
@@ -23,5 +24,4 @@ def generate_num_accepted_drafts(
         samples = np.minimum(samples, lookahead)
 
     # Yield each sample one by one
-    for sample in samples:
-        yield sample
+    yield from samples

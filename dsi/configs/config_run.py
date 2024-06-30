@@ -44,13 +44,17 @@ class ConfigRunDSI(ConfigRun):
     num_target_servers: None | int = Field(
         7,
         title="The number of target servers",
-        description="The maximal number of target servers at any point in time. None means infinity.",
+        description=(
+            "The maximal number of target servers at any point in time."
+            " None means infinity."
+        ),
         ge=1,
     )
 
     def model_post_init(self, __context) -> None:
         """
-        Verify that there are enough target servers so that threads never wait to be executed.
+        Verify that there are enough target servers so that threads never wait
+        to be executed.
         NOTE: `None` number of target servers means infinity.
         """
         super().model_post_init(__context)
@@ -60,5 +64,8 @@ class ConfigRunDSI(ConfigRun):
             self.failure_cost / (max(1, self.k) * self.c)
         )
         if self.num_target_servers < num_target_servers_required:
-            msg: str = f"num_target_servers={self.num_target_servers} < num_target_servers_required={num_target_servers_required}"
+            msg: str = (
+                f"num_target_servers={self.num_target_servers}"
+                " < num_target_servers_required={num_target_servers_required}"
+            )
             raise NumOfTargetServersInsufficientError(msg)

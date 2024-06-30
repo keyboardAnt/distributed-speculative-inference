@@ -22,9 +22,10 @@ def test_get_num_accepted_tokens_acceptance_rate_zero():
         ), "For an acceptance rate of 0, the number of accepted tokens must be 0."
         latencies.append(end_time - start_time)
     latencies_array: np.ndarray = np.array(latencies)
-    assert np.allclose(
-        latencies_array, latencies_array.mean(), atol=1e-2
-    ), "The latency of sampling the number of accepted tokens should not depend on the lookahead."
+    assert np.allclose(latencies_array, latencies_array.mean(), atol=1e-2), (
+        "The latency of sampling the number of accepted tokens should not depend on"
+        " the lookahead."
+    )
 
 
 def test_get_num_accepted_tokens_acceptance_rate_one():
@@ -37,14 +38,16 @@ def test_get_num_accepted_tokens_acceptance_rate_one():
         )
         num_accepted_tokens: int = next(sampler)
         end_time: float = time.time()
-        assert (
-            num_accepted_tokens == lookahead
-        ), "For an acceptance rate of 1, the number of accepted tokens must be equal to the lookahead."
+        assert num_accepted_tokens == lookahead, (
+            "For an acceptance rate of 1, the number of accepted tokens must be equal"
+            " to the lookahead."
+        )
         latencies.append(end_time - start_time)
     latencies_array = np.array(latencies)
-    assert np.allclose(
-        latencies_array, latencies_array.mean(), atol=1e-2
-    ), "The latency of sampling the number of accepted tokens should not depend on the lookahead."
+    assert np.allclose(latencies_array, latencies_array.mean(), atol=1e-2), (
+        "The latency of sampling the number of accepted tokens should not depend on"
+        " the lookahead."
+    )
 
 
 def test_get_num_accepted_tokens_acceptance_rate_random():
@@ -61,14 +64,16 @@ def test_get_num_accepted_tokens_acceptance_rate_random():
             )
             num_accepted_tokens: int = next(sampler)
             end_time: float = time.time()
-            assert (
-                0 <= num_accepted_tokens <= lookahead
-            ), "For any acceptance rate, the number of accepted tokens must be in the range [0, lookahead]."
+            assert 0 <= num_accepted_tokens <= lookahead, (
+                "For any acceptance rate, the number of accepted tokens must be in the"
+                " range [0, lookahead]."
+            )
             latencies.append(end_time - start_time)
     latencies_array = np.array(latencies)
-    assert np.allclose(
-        latencies_array, latencies_array.mean(), atol=1e-2
-    ), "The latency of sampling the number of accepted tokens should not depend on the acceptance rate or lookahead."
+    assert np.allclose(latencies_array, latencies_array.mean(), atol=1e-2), (
+        "The latency of sampling the number of accepted tokens should not depend on"
+        " the acceptance rate or lookahead."
+    )
 
 
 def test_samplers_alignment():

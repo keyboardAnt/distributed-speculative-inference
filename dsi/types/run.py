@@ -25,8 +25,7 @@ class Run:
     @final
     def run(self) -> Result:
         set_random_seed()
-        for i in range(self.config.num_repeats):
-            self._init_sampler()
+        for _ in range(self.config.num_repeats):
             self._init_sampler()
             self.result.extend(self._run_single())
         return self.result

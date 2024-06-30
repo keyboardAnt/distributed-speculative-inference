@@ -34,7 +34,8 @@ def is_row_valid(row: pd.Series, verbose: bool = False) -> bool:
 
 def get_df_heatmap_params(config: None | ConfigHeatmap = None) -> pd.DataFrame:
     """
-    Generate a pandas dataframe with all the configurations of c, a, k that are valid for DSI.
+    Generate a pandas dataframe with all the configurations of c, a, k that are valid
+    for DSI.
     """
     if not config:
         config = ConfigHeatmap()
