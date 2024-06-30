@@ -8,13 +8,13 @@ from dsi.configs.config_run import ConfigRunDSI
 
 
 class RunType(str, enum.Enum):
-    analytic = "analytic"
-    analytic_heatmap = "analytic_heatmap"
-    thread_pool = "thread_pool"
+    offline = "offline"
+    offline_heatmap = "offline_heatmap"
+    online = "online"
 
 
 class ConfigCLI(BaseModel):
-    run_type: RunType = RunType.analytic
+    run_type: RunType = RunType.offline
     config_run: ConfigRunDSI = Field(default_factory=ConfigRunDSI)
     config_heatmap: ConfigHeatmap = Field(default_factory=ConfigHeatmap)
 

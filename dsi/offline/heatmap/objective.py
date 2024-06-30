@@ -1,9 +1,9 @@
 import numpy as np
 import pandas as pd
 
-from dsi.analytic.dsi import RunDSI
-from dsi.analytic.si import RunSI
 from dsi.configs.config_run import ConfigRunDSI
+from dsi.offline.dsi import RunDSI
+from dsi.offline.si import RunSI
 from dsi.types.result import HeatmapColumn, Result
 
 enrichments: dict[str, callable] = {

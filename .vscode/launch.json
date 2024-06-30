@@ -5,19 +5,19 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "analytic: si",
+            "name": "offline: si and dsi",
             "type": "debugpy",
             "request": "launch",
             "module": "dsi",
             "args": []
         },
         {
-            "name": "analytic: heatmap",
+            "name": "offline: heatmap",
             "type": "debugpy",
             "request": "launch",
             "module": "dsi",
             "args": [
-                "run_type=analytic_heatmap"
+                "run_type=offline"
             ]
         }
     ]

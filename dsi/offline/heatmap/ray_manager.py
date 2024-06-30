@@ -5,8 +5,8 @@ from datetime import datetime
 import pandas as pd
 import ray
 
-from dsi.analytic.heatmap.objective import get_all_latencies
-from dsi.analytic.heatmap.params import Param, get_df_heatmap_params
+from dsi.offline.heatmap.objective import get_all_latencies
+from dsi.offline.heatmap.params import Param, get_df_heatmap_params
 
 log = logging.getLogger(__name__)
 

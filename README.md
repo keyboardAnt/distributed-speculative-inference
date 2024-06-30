@@ -15,9 +15,11 @@ Then:
 
 ## Run
 
-- analytic simulations: `python -m dsi`
-- analytic heatmap simulations: `python -m dsi run_type=analytic_heatmap`. (- it initializes [Ray](https://docs.ray.io/en/latest/ray-core/walkthrough.html))
-- thread pool simulations: `python -m dsi run_type=thread_pool`
+There are two types of runs: offline (measuring time units) and online (measuring wall time).
+
+- offline simulations: `python -m dsi`
+- heatmap of offline simulations: `python -m dsi run_type=offline_heatmap`. (- it initializes [Ray](https://docs.ray.io/en/latest/ray-core/walkthrough.html))
+- online simulations (implemented with a thread pool): `python -m dsi run_type=online`
 
 [Hydra](https://hydra.cc/docs/intro/) manages the configuration (defined at `dsi/config.py`). For example,
 - to set the drafter latency (`c`) to 5%: `python -m dsi config_run.c=.05`

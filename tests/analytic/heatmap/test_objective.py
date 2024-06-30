@@ -1,8 +1,8 @@
 import numpy as np
 import pytest
 
-from dsi.analytic.heatmap.objective import get_all_latencies
 from dsi.configs.config_run import ConfigRunDSI
+from dsi.offline.heatmap.objective import get_all_latencies
 from dsi.types.result import HeatmapColumn
 
 
