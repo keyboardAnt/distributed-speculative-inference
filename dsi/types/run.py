@@ -10,7 +10,6 @@ class Run:
     def __init__(self, config: ConfigRun) -> None:
         self.config: ConfigRun = config
         self.result: Result = self._get_empty_result()
-        set_random_seed()
         self._sampler: None | Generator = None
 
     def _get_empty_result(self) -> Result:
@@ -25,6 +24,7 @@ class Run:
 
     @final
     def run(self) -> Result:
+        set_random_seed()
         for i in range(self.config.num_repeats):
             self._init_sampler()
             print(
@@ -32,6 +32,8 @@ class Run:
             )
             print(f"{self.config=}")
             print(f"{i=}")
+            print(f"{list(self._sampler)=}")
+            self._init_sampler()
             self.result.extend(self._run_single())
         return self.result
 
