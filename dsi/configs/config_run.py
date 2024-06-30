@@ -60,7 +60,5 @@ class ConfigRunDSI(ConfigRun):
             self.failure_cost / (max(1, self.k) * self.c)
         )
         if self.num_target_servers < num_target_servers_required:
-            msg: str = (
-                f"num_target_servers={self.num_target_servers} < num_target_servers_required={num_target_servers_required}"
-            )
+            msg: str = f"num_target_servers={self.num_target_servers} < num_target_servers_required={num_target_servers_required}"
             raise NumOfTargetServersInsufficientError(msg)
