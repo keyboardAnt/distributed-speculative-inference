@@ -5,7 +5,6 @@ from dsi.analytic.dsi import RunDSI
 from dsi.analytic.si import RunSI
 from dsi.configs.config_run import ConfigRunDSI
 from dsi.types.result import HeatmapColumn, Result
-from dsi.utils import set_random_seed
 
 enrichments: dict[str, callable] = {
     HeatmapColumn.speedup_dsi_vs_si: lambda df: df[HeatmapColumn.cost_si]
@@ -31,9 +30,7 @@ def get_all_latencies(
     )
     si = RunSI(config)
     dsi = RunDSI(config)
-    set_random_seed()
     res_si: Result = si.run()
-    set_random_seed()
     res_dsi: Result = dsi.run()
     cost_si: float = np.array(res_si.cost_per_run).mean()
     cost_dsi: float = np.array(res_dsi.cost_per_run).mean()

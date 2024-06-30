@@ -1,8 +1,10 @@
 import time
+from typing import Generator
 
 import numpy as np
 
-from dsi.analytic.common import get_num_accepted_drafts
+from dsi.analytic.common import generate_num_accepted_drafts
+from dsi.utils import set_random_seed
 
 
 def test_get_num_accepted_tokens_acceptance_rate_zero():
@@ -10,9 +12,10 @@ def test_get_num_accepted_tokens_acceptance_rate_zero():
     latencies: list[float] = []
     for lookahead in lookaheads:
         start_time: float = time.time()
-        num_accepted_tokens: int = get_num_accepted_drafts(
-            acceptance_rate=0, lookahead=lookahead
+        sampler: Generator = generate_num_accepted_drafts(
+            acceptance_rate=0, lookahead=lookahead, max_num_samples=1000
         )
+        num_accepted_tokens: int = next(sampler)
         end_time: float = time.time()
         assert (
             num_accepted_tokens == 0
@@ -29,9 +32,10 @@ def test_get_num_accepted_tokens_acceptance_rate_one():
     latencies: list[float] = []
     for lookahead in lookaheads:
         start_time: float = time.time()
-        num_accepted_tokens: int = get_num_accepted_drafts(
-            acceptance_rate=1, lookahead=lookahead
+        sampler: Generator = generate_num_accepted_drafts(
+            acceptance_rate=1, lookahead=lookahead, max_num_samples=1000
         )
+        num_accepted_tokens: int = next(sampler)
         end_time: float = time.time()
         assert (
             num_accepted_tokens == lookahead
@@ -50,9 +54,12 @@ def test_get_num_accepted_tokens_acceptance_rate_random():
     for acceptance_rate in acceptance_rates:
         for lookahead in lookaheads:
             start_time: float = time.time()
-            num_accepted_tokens: int = get_num_accepted_drafts(
-                acceptance_rate=acceptance_rate, lookahead=lookahead
+            sampler: Generator = generate_num_accepted_drafts(
+                acceptance_rate=acceptance_rate,
+                lookahead=lookahead,
+                max_num_samples=1000,
             )
+            num_accepted_tokens: int = next(sampler)
             end_time: float = time.time()
             assert (
                 0 <= num_accepted_tokens <= lookahead
@@ -62,3 +69,36 @@ def test_get_num_accepted_tokens_acceptance_rate_random():
     assert np.allclose(
         latencies_array, latencies_array.mean(), atol=1e-2
     ), "The latency of sampling the number of accepted tokens should not depend on the acceptance rate or lookahead."
+
+
+def test_samplers_alignment():
+    num_samplers = 5000  # Reduced for debugging
+    S = 10
+    samplers = []
+    print("Testing with seed reset:")
+    for i in range(num_samplers):
+        set_random_seed()
+        sampler = generate_num_accepted_drafts(
+            acceptance_rate=0.5, lookahead=10, max_num_samples=S
+        )
+        samplers.append(sampler)
+        print(
+            f"Sampler {i}: First item: {next(sampler)}"
+        )  # Print first item to check initial sequence
+
+    all_samples = [list(sampler) for sampler in samplers]
+    assert all(
+        samples == all_samples[0] for samples in all_samples[1:]
+    ), "With seed reset, all samplers should yield the same samples."
+
+    print("Testing without seed reset:")
+    samplers = [
+        generate_num_accepted_drafts(
+            acceptance_rate=0.5, lookahead=10, max_num_samples=S
+        )
+        for _ in range(num_samplers)
+    ]
+    all_samples = [list(sampler) for sampler in samplers]
+    assert any(
+        samples != all_samples[0] for samples in all_samples[1:]
+    ), "Without seed reset, samplers should yield different samples."

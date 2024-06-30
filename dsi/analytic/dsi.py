@@ -1,4 +1,3 @@
-from dsi.analytic.common import get_num_accepted_drafts
 from dsi.configs.config_run import ConfigRunDSI
 from dsi.types.result import Result
 from dsi.types.run import Run
@@ -16,7 +15,6 @@ class RunDSI(Run):
         super().__init__(config)
 
     def _run_single(self) -> Result:
-        print(f"{self.config=}")
         total_cost: float = 0
         toks_left: int = self.config.S
         num_iters: int = 0
@@ -32,13 +30,11 @@ class RunDSI(Run):
             halt_feasible: bool = toks_left <= self.config.k + 1
             print(f"{halt_feasible=}")
             curr_k: int = min(self.config.k, toks_left - 1)
-            num_accepted: int = get_num_accepted_drafts(
-                acceptance_rate=self.config.a, lookahead=curr_k
-            )
+            num_accepted: int = next(self._sampler)
             print(f"{curr_k=}, {num_accepted=}")
             total_cost += curr_k * self.config.c
             toks_left -= num_accepted + 1
-            if num_accepted < curr_k or halt_feasible:
+            if (num_accepted < curr_k) or halt_feasible:
                 total_cost += self.config.failure_cost
             print(f"AFTER: {total_cost=}")
         return Result(

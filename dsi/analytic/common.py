@@ -1,12 +1,37 @@
 import numpy as np
 
+# def get_num_accepted_drafts(acceptance_rate: float, lookahead: int) -> int:
+#     """
+#     Sample the number of accepted draft tokens in SI or DSI. The number is in the range [0, lookahead].
+#     """
+#     if acceptance_rate == 0:
+#         return 0
+#     if acceptance_rate == 1:
+#         return lookahead
+#     return min(lookahead, np.random.geometric(1 - acceptance_rate) - 1)
 
-def get_num_accepted_drafts(acceptance_rate: float, lookahead: int) -> int:
+
+def generate_num_accepted_drafts(
+    acceptance_rate: float, lookahead: int, max_num_samples: int
+):
     """
-    Sample the number of accepted draft tokens in SI or DSI. The number is in the range [0, lookahead].
+    Generator that samples the number of accepted draft tokens in SI or DSI using the specified
+    acceptance rate and lookahead. It samples S times at once and then yields each sample one by one.
+
+    :param acceptance_rate: The rate of acceptance for draft tokens.
+    :param lookahead: The maximum possible number of accepted drafts.
+    :param S: The number of samples to generate.
     """
     if acceptance_rate == 0:
-        return 0
-    if acceptance_rate == 1:
-        return lookahead
-    return min(lookahead, np.random.geometric(1 - acceptance_rate) - 1)
+        samples = [0] * max_num_samples
+    elif acceptance_rate == 1:
+        samples = [lookahead] * max_num_samples
+    else:
+        # Sample S values from the geometric distribution and adjust them
+        samples = np.random.geometric(1 - acceptance_rate, size=max_num_samples) - 1
+        # Ensure no value exceeds the lookahead limit
+        samples = np.minimum(samples, lookahead)
+
+    # Yield each sample one by one
+    for sample in samples:
+        yield sample

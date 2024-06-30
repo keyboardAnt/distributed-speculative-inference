@@ -11,7 +11,6 @@ from dsi.types.exception import (
     NumOfTargetServersInsufficientError,
 )
 from dsi.types.result import Result
-from dsi.utils import set_random_seed
 
 
 def test_dsi_result_shapes():
@@ -35,9 +34,7 @@ def test_dsi_faster_than_si(c: float, failure_cost: float, a: float, k: int):
         return
     si = RunSI(config)
     dsi = RunDSI(config)
-    set_random_seed()
     si_res: Result = si.run()
-    set_random_seed()
     dsi_res: Result = dsi.run()
     num_iterations_min: int = config.S // (config.k + 1)
     for res in [si_res, dsi_res]:
