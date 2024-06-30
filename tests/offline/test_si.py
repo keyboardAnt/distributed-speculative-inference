@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from dsi.configs.config_run import ConfigRun
-from dsi.offline.si import RunSI
+from dsi.offline.run.si import RunSI
 from dsi.types.result import Result
 
 

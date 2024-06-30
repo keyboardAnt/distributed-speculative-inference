@@ -9,10 +9,10 @@ from matplotlib import pyplot as plt
 from omegaconf import OmegaConf
 
 from dsi.configs.config_cli import ConfigCLI, RunType
-from dsi.offline.dsi import RunDSI
 from dsi.offline.heatmap.objective import enrich
 from dsi.offline.heatmap.ray_manager import RayManager
-from dsi.offline.si import RunSI
+from dsi.offline.run.dsi import RunDSI
+from dsi.offline.run.si import RunSI
 from dsi.types.result import Result
 from dsi.vis.iters_dist import PlotIters
 
