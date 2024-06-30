@@ -31,7 +31,7 @@ jobs:
         poetry run ruff check --output-format=github .
     - uses: isort/isort-action@master
       with:
-        options: --profile black
+        configuration: --profile black --check-only --diff
     - uses: psf/black@stable
       with:
         options: "--check --verbose"
