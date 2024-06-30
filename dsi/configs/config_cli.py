@@ -4,7 +4,7 @@ from hydra.core.config_store import ConfigStore
 from pydantic import BaseModel, Field
 
 from dsi.configs.config_heatmap import ConfigHeatmap
-from dsi.configs.config_run import ConfigRunDSI
+from dsi.configs.config_run import ConfigRun
 
 
 class RunType(str, enum.Enum):
@@ -15,12 +15,12 @@ class RunType(str, enum.Enum):
 
 class ConfigCLI(BaseModel):
     run_type: RunType = RunType.analytic
-    config_run: ConfigRunDSI | ConfigHeatmap = Field(default_factory=ConfigRunDSI)
+    config_run: ConfigRun | ConfigHeatmap = Field(default_factory=ConfigRun)
 
     def model_post_init(self, __context) -> None:
         super().model_post_init(__context)
         if self.run_type == RunType.analytic:
-            assert isinstance(self.config_run, ConfigRunDSI)
+            assert isinstance(self.config_run, ConfigRun)
         elif self.run_type == RunType.analytic_heatmap:
             assert isinstance(self.config_run, ConfigHeatmap)
         elif self.run_type == RunType.thread_pool:

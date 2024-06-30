@@ -8,7 +8,7 @@ from dsi.types.exception import (
 )
 
 
-class ConfigRunDSI(BaseModel):
+class ConfigRun(BaseModel):
     """ConfigRun includes all the parameters needed for an experiment.
     Each experiment simulates an algorithm multiple times.
     """
@@ -36,7 +36,7 @@ class ConfigRunDSI(BaseModel):
             raise DrafterSlowerThanTargetError(msg)
 
 
-class ConfigRunDSI(ConfigRunDSI):
+class ConfigRunDSI(ConfigRun):
     """
     ConfigRunDSI extends ConfigRun for DSI.
     """

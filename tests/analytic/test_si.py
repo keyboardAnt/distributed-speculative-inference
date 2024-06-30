@@ -2,12 +2,12 @@ import numpy as np
 import pytest
 
 from dsi.analytic.si import RunSI
-from dsi.configs.config_run import ConfigRunDSI
+from dsi.configs.config_run import ConfigRun
 from dsi.types.result import Result
 
 
 def test_si_result_shapes():
-    config = ConfigRunDSI(num_repeats=7)
+    config = ConfigRun(num_repeats=7)
     si = RunSI(config)
     res: Result = si.run()
     assert len(res.cost_per_run) == 7
@@ -18,7 +18,7 @@ def test_si_result_shapes():
 @pytest.mark.parametrize("k", [1, 3, 7, 10, 1000])
 @pytest.mark.parametrize("S", [1, 10, 100, 1000])
 def test_si_result_cost(a: float, k: int, S: int):
-    config = ConfigRunDSI(a=1, k=k, S=S)
+    config = ConfigRun(a=1, k=k, S=S)
     si = RunSI(config)
     res: Result = si.run()
     cost_per_iter_max: float = config.k * config.c + config.failure_cost
