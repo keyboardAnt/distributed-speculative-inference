@@ -8,6 +8,7 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from omegaconf import OmegaConf
 
+from dsi.analytic.dsi import RunDSI
 from dsi.analytic.heatmap.objective import enrich
 from dsi.analytic.heatmap.ray_manager import RayManager
 from dsi.analytic.si import RunSI
@@ -27,7 +28,12 @@ def main(cfg: ConfigCLI) -> None:
         hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
     )
     if cfg.run_type == RunType.analytic:
+        log.info("Running analytic simulation of SI and DSI...")
         res_si: Result = RunSI(cfg.config_run).run()
+        res_dsi: Result = RunDSI(cfg.config_run).run()
+        log.info("res_si: %s", res_si)
+        log.info("res_dsi: %s", res_dsi)
+        log.info("Plotting SI...")
         plot_si: PlotIters = PlotIters(
             result=res_si, suptitle=f"Latency of SI (lookahead={cfg.config_run.k})"
         )
