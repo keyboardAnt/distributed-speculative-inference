@@ -1,3 +1,4 @@
+import logging
 import os
 from datetime import datetime
 
@@ -6,6 +7,8 @@ import ray
 
 from dsi.analytic.heatmap.objective import get_all_latencies
 from dsi.analytic.heatmap.params import Param, get_df_heatmap_params
+
+log = logging.getLogger(__name__)
 
 
 class RayManager:
@@ -48,10 +51,10 @@ class RayManager:
     def store(self, dirpath: str) -> None:
         """Store the parsed results in the given directory."""
         if not os.path.exists(dirpath):
-            print(f"Creating directory {dirpath}")
+            log.info(f"Creating directory {dirpath}")
             os.makedirs(dirpath)
         now: str = datetime.now().strftime("%Y%m%d-%H%M%S")
         filename: str = f"heatmap-{now}.csv"
         filepath: str = os.path.join(dirpath, filename)
         self.result.to_csv(filepath)
-        print(f"Results stored in {filepath}")
+        log.info(f"Results stored in {filepath}")

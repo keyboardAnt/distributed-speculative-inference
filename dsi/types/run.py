@@ -27,12 +27,6 @@ class Run:
         set_random_seed()
         for i in range(self.config.num_repeats):
             self._init_sampler()
-            print(
-                f"======================{self.__class__.__name__}======================"
-            )
-            print(f"{self.config=}")
-            print(f"{i=}")
-            print(f"{list(self._sampler)=}")
             self._init_sampler()
             self.result.extend(self._run_single())
         return self.result

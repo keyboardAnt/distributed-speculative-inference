@@ -19,24 +19,17 @@ class RunDSI(Run):
         toks_left: int = self.config.S
         num_iters: int = 0
         while toks_left > 0:
-            print("------------START---", f"{num_iters=}")
-            print(f"{toks_left=}")
-            print(f"BEFORE: {total_cost=}")
             num_iters += 1
             if toks_left == 1:
                 total_cost += self.config.failure_cost
-                print(f"BREAK: {total_cost=}")
                 break
             halt_feasible: bool = toks_left <= self.config.k + 1
-            print(f"{halt_feasible=}")
             curr_k: int = min(self.config.k, toks_left - 1)
             num_accepted: int = next(self._sampler)
-            print(f"{curr_k=}, {num_accepted=}")
             total_cost += curr_k * self.config.c
             toks_left -= num_accepted + 1
             if (num_accepted < curr_k) or halt_feasible:
                 total_cost += self.config.failure_cost
-            print(f"AFTER: {total_cost=}")
         return Result(
             cost_per_run=[total_cost],
             num_iters_per_run=[num_iters],
