@@ -13,12 +13,16 @@ numpy = "^1.26.4"
 matplotlib = "^3.9.0"
 pandas = "^2.2.2"
 hydra-core = "^1.3.2"
+pydantic = "^2.7.4"
+ray = "^2.31.0"
 
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.4.8"
 pytest = "^8.2.2"
 pre-commit = "^3.7.1"
+black = "^24.4.2"
+isort = "^5.13.2"
 
 [build-system]
 requires = ["poetry-core"]
