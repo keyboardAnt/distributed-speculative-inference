@@ -39,7 +39,7 @@ class GetLatencies:
         self.config = ConfigLatency()
 
     def load_model_tokenizer(self, name):
-        print(f"Loading: {name}...   {self.config.compiled=}")
+        print(f"Loading: {name}...   {self.config.compiled_model=}")
         extra = {"torch_dtype": torch.bfloat16}
         if name in self.config.model_revision:
             extra["revision"] = self.config.model_revision[name]
@@ -47,7 +47,7 @@ class GetLatencies:
         model = AutoModelForCausalLM.from_pretrained(
             name,
             device_map="auto",
-            attn_implementation=self.config.flash_attn_impl
+            attn_implementation=self.config.flash_attn_impl,
             **extra
             )
         tokenizer = AutoTokenizer.from_pretrained(name)
@@ -93,10 +93,10 @@ class GetLatencies:
 
     def run(self):
         ds_to_examples = {}
-        for ds_kwargs in self.config.datasets:
+        for ds_kwargs in self.config.all_datasets:
             ds_to_examples[ds_kwargs["path"]] = self.get_random_prompted_examples(ds_kwargs)
         
-        for model_family, ds_list in self.latency_config.pairs_to_ds.items():
+        for model_family, ds_list in self.config.pairs_to_ds.items():
             model_family_res = defaultdict(list)
             for model_name in model_family:
                 model, tokenizer = self.load_model_tokenizer(model_name)
