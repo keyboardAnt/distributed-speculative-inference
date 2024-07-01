@@ -4,7 +4,7 @@ from typing import Dict, List, Tuple
 
 
 class ConfigLatency:
-    """ConfigLatency includes all the parameters needed for measuring the latencies 
+    """Includes all the parameters needed for measuring the latencies 
     of different model pairs tied to different datasets.
     """
 
@@ -57,6 +57,7 @@ class ConfigLatency:
     save_latencies: bool = Field(True, title="Whether to save the latencies to json")
     
 def get_prompt(dataset, ex):
+    """Get the input prompt for the given dataset and example."""
     if dataset == "samsum":
         prompt = ex["dialogue"].strip("\n")
         prompt = f"Summarize this dialog:\n{prompt}\n---\nSummary:\n"
