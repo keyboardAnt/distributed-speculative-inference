@@ -2,6 +2,12 @@
 
 The code used in the paper "[Distributed Speculative Inference of Large Language Models](https://arxiv.org/abs/2405.14105)" (arXiv, May 2024).
 
+The library includes four experiments:
+1. Estimating the acceptance rate of off-the-shelf LLMs
+2. Estimating the forward latency of off-the-shelf LLMs
+3. Estimating the speedup of DSI (compared to SI and non-SI) by measuring wall time, based on 1 and 2
+4. Estimating the speedup of DSI (compared to SI and non-SI) by measuring time units
+
 ## Installation
 
 Either use the devcontainer (recommended) or
@@ -13,9 +19,9 @@ Then:
 
 3. Activate poetry's virtual environment: `poetry shell`
 
-## Run
+## Running experiments
 
-There are two types of runs: offline (measuring time units) and online (measuring wall time).
+There are two types of runs: offline (measuring time units or acceptance rate) and online (measuring wall time).
 
 - offline simulations: `python -m dsi`
 - heatmap of offline simulations: `python -m dsi type=offline_heatmap`. (- it initializes [Ray](https://docs.ray.io/en/latest/ray-core/walkthrough.html))
@@ -30,6 +36,10 @@ For help, use:
 `python -m dsi --help`
 
 For more sophisticated combinations of configurations, check out Hydra's documentation.
+
+## Visualizing results
+
+By default, running new experiments will also visualize the results. To visualize existing results (pre-computed), provide their path: `python -m dsi type=offline_heatmap load_results="results/offline/heatmap/heatmap-20240702-012750.csv"`
 
 ## Testing
 
