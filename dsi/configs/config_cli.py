@@ -1,5 +1,3 @@
-import enum
-
 from hydra.core.config_store import ConfigStore
 from pydantic import BaseModel, Field
 
@@ -7,7 +5,7 @@ from dsi.configs.config_heatmap import ConfigHeatmap
 from dsi.configs.config_run import ConfigRunDSI
 
 
-class RunType(str, enum.Enum):
+class RunType:
     offline = "offline"
     offline_heatmap = "offline_heatmap"
     online = "online"
