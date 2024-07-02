@@ -39,7 +39,7 @@ def main(cfg: ConfigCLI) -> None:
         )
         plot_si.plot()
     elif cfg.run_type == RunType.offline_heatmap:
-        tmanager: RayManager = RayManager()
+        tmanager: RayManager = RayManager(cfg.config_heatmap)
         df_heatmap: pd.DataFrame = tmanager.run()
         enrich_inplace(df_heatmap)
         tmanager.store(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir)

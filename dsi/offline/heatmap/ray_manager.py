@@ -5,6 +5,7 @@ from datetime import datetime
 import pandas as pd
 import ray
 
+from dsi.configs.config_heatmap import ConfigHeatmap
 from dsi.offline.heatmap.objective import get_all_latencies
 from dsi.offline.heatmap.params import Param, get_df_heatmap_params
 
@@ -12,10 +13,10 @@ log = logging.getLogger(__name__)
 
 
 class RayManager:
-    def __init__(self) -> None:
-        self._confs: pd.DataFrame = get_df_heatmap_params()
+    def __init__(self, config: ConfigHeatmap) -> None:
+        self._df_configs: pd.DataFrame = get_df_heatmap_params(config)
         self._results_raw: None | list[tuple[int, dict[str, float]]] = None
-        self.result: pd.DataFrame = self._confs.copy(deep=True)
+        self.df_result: pd.DataFrame = self._df_configs.copy(deep=True)
 
     def run(self) -> pd.DataFrame:
         # NOTE: Ray discovers and utilizes all available resources by default
@@ -24,12 +25,12 @@ class RayManager:
         )
         futures = [
             self._process_row.remote(index=index, row=row)
-            for index, row in self._confs.iterrows()
+            for index, row in self._df_configs.iterrows()
         ]
         self._results_raw = ray.get(futures)
         ray.shutdown()
         self._merge_results()
-        return self.result
+        return self.df_result
 
     @staticmethod
     @ray.remote
@@ -46,7 +47,7 @@ class RayManager:
     def _merge_results(self) -> None:
         for i, res in self._results_raw:
             for key, val in res.items():
-                self.result.at[i, key] = val
+                self.df_result.at[i, key] = val
 
     def store(self, dirpath: str) -> None:
         """Store the parsed results in the given directory."""
@@ -56,5 +57,5 @@ class RayManager:
         now: str = datetime.now().strftime("%Y%m%d-%H%M%S")
         filename: str = f"heatmap-{now}.csv"
         filepath: str = os.path.join(dirpath, filename)
-        self.result.to_csv(filepath)
+        self.df_result.to_csv(filepath)
         log.info(f"Results stored in {filepath}")
