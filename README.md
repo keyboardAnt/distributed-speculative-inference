@@ -34,3 +34,7 @@ For more sophisticated combinations of configurations, check out Hydra's documen
 ## Testing
 
 - Run tests: `python -m pytest` (from the project root)
+
+## Stored results
+
+DVC tracks raw results stored on GDrive. To pull the result: `dvc pull`
