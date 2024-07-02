@@ -18,13 +18,13 @@ Then:
 There are two types of runs: offline (measuring time units) and online (measuring wall time).
 
 - offline simulations: `python -m dsi`
-- heatmap of offline simulations: `python -m dsi run_type=offline_heatmap`. (- it initializes [Ray](https://docs.ray.io/en/latest/ray-core/walkthrough.html))
-- online simulations (implemented with a thread pool): `python -m dsi run_type=online`
+- heatmap of offline simulations: `python -m dsi type=offline_heatmap`. (- it initializes [Ray](https://docs.ray.io/en/latest/ray-core/walkthrough.html))
+- online simulations (implemented with a thread pool): `python -m dsi type=online`
 
 [Hydra](https://hydra.cc/docs/intro/) manages the configuration (defined at `dsi/config.py`). For example,
-- to set the drafter latency (`c`) to 5%: `python -m dsi config_run.c=.05`
+- to set the drafter latency (`c`) to 5%: `python -m dsi run.c=.05`
 - to set the acceptance rate (`a`) to 50%:
-`python -m dsi config_run.a=.5`
+`python -m dsi run.a=.5`
 
 For help, use:
 `python -m dsi --help`

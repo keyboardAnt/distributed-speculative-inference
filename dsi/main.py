@@ -27,19 +27,19 @@ def main(cfg: ConfigCLI) -> None:
         "Output directory: %s",
         hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
     )
-    if cfg.run_type == RunType.offline:
+    if cfg.type == RunType.offline:
         log.info("Running offline simulation")
-        res_si: Result = RunSI(cfg.config_run).run()
+        res_si: Result = RunSI(cfg.run).run()
         log.info("res_si: %s", res_si)
-        res_dsi: Result = RunDSI(cfg.config_run).run()
+        res_dsi: Result = RunDSI(cfg.run).run()
         log.info("res_dsi: %s", res_dsi)
         log.info("Plotting SI")
         plot_si: PlotIters = PlotIters(
-            result=res_si, suptitle=f"Latency of SI (lookahead={cfg.config_run.k})"
+            result=res_si, suptitle=f"Latency of SI (lookahead={cfg.run.k})"
         )
         plot_si.plot()
-    elif cfg.run_type == RunType.offline_heatmap:
-        tmanager: RayManager = RayManager(cfg.config_heatmap)
+    elif cfg.type == RunType.offline_heatmap:
+        tmanager: RayManager = RayManager(cfg.heatmap)
         df_heatmap: pd.DataFrame = tmanager.run()
         enrich_inplace(df_heatmap)
         tmanager.store(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir)
@@ -48,13 +48,13 @@ def main(cfg: ConfigCLI) -> None:
         log.info("df_heatmap.describe():")
         log.info(df_heatmap.describe())
 
-    elif cfg.run_type == RunType.online:
+    elif cfg.type == RunType.online:
         log.info(
             "Running online simulation."
             " Implementation with a thread pool to be added."
         )
         raise NotImplementedError
     else:
-        raise ValueError(f"Invalid simulation type: {cfg.run_type}")
+        raise ValueError(f"Invalid simulation type: {cfg.type}")
     plt.show()
     log.info("Done")
