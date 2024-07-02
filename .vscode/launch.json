@@ -17,7 +17,7 @@
             "request": "launch",
             "module": "dsi",
             "args": [
-                "run_type=offline"
+                "run_type=offline_heatmap"
             ]
         }
     ]
