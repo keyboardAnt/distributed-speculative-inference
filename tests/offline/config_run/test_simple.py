@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from dsi.configs.config_run import ConfigRun, ConfigRunDSI
+from dsi.configs.run import ConfigRun, ConfigRunDSI
 from dsi.types.exception import (
     DrafterSlowerThanTargetError,
     NumOfTargetServersInsufficientError,

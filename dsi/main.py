@@ -8,7 +8,7 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from omegaconf import OmegaConf
 
-from dsi.configs.config_cli import ConfigCLI, RunType
+from dsi.configs.cli import ConfigCLI, RunType
 from dsi.offline.heatmap.objective import enrich_inplace
 from dsi.offline.heatmap.ray_manager import RayManager
 from dsi.offline.run.dsi import RunDSI

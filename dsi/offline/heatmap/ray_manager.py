@@ -5,7 +5,7 @@ from datetime import datetime
 import pandas as pd
 import ray
 
-from dsi.configs.config_heatmap import ConfigHeatmap
+from dsi.configs.heatmap import ConfigHeatmap
 from dsi.offline.heatmap.objective import get_all_latencies
 from dsi.offline.heatmap.params import Param, get_df_heatmap_params
 

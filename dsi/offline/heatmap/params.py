@@ -4,8 +4,8 @@ import logging
 import numpy as np
 import pandas as pd
 
-from dsi.configs.config_heatmap import ConfigHeatmap
-from dsi.configs.config_run import ConfigRunDSI
+from dsi.configs.heatmap import ConfigHeatmap
+from dsi.configs.run import ConfigRunDSI
 from dsi.types.exception import NumOfTargetServersInsufficientError
 
 log = logging.getLogger(__name__)
