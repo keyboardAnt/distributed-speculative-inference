@@ -1,0 +1,5 @@
+[core]
+    remote = wis-gdrive
+['remote "wis-gdrive"']
+    url = gdrive://1XBycqsOTfrhYnJ1nqnUO-p-sAeqP4zkk
+    gdrive_acknowledge_abuse = true
