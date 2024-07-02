@@ -2,6 +2,7 @@
 
 import logging
 import os
+from pathlib import Path
 
 import hydra
 import pandas as pd
@@ -13,6 +14,7 @@ from dsi.offline.heatmap.objective import enrich_inplace
 from dsi.offline.heatmap.ray_manager import RayManager
 from dsi.offline.run.dsi import RunDSI
 from dsi.offline.run.si import RunSI
+from dsi.types.df_heatmap import DataFrameHeatmap
 from dsi.types.result import Result
 from dsi.vis.iters_dist import PlotIters
 
@@ -42,9 +44,13 @@ def main(cfg: ConfigCLI) -> None:
             plot_si.plot()
         elif cfg.type == RunType.offline_heatmap:
             tmanager: RayManager = RayManager(cfg.heatmap)
-            df_heatmap: pd.DataFrame = tmanager.run()
-            enrich_inplace(df_heatmap)
-            tmanager.store(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir)
+            df_results: pd.DataFrame = tmanager.run()
+            df_heatmap: DataFrameHeatmap = enrich_inplace(df_results)
+            filepath: Path = (
+                Path(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir)
+                / "heatmap.csv"
+            )
+            df_heatmap.to_csv(filepath)
             log.info("df_heatmap.head():")
             log.info(df_heatmap.head())
             log.info("df_heatmap.describe():")

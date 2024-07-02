@@ -3,7 +3,7 @@ import pandas as pd
 from dsi.types.name import HeatmapColumn, Param
 
 
-class HeatmapDataFrame(pd.DataFrame):
+class DataFrameHeatmap(pd.DataFrame):
     @classmethod
     def from_heatmap_csv(cls, filepath):
         """
