@@ -47,4 +47,4 @@ By default, running new experiments will also visualize the results. To visualiz
 
 ## Stored results
 
-DVC tracks raw results stored on GDrive. To pull the result: `dvc pull`
+[DVC](https://dvc.org/doc) tracks raw results stored on Google Drive. To pull the result: `dvc pull`
