@@ -9,7 +9,7 @@ from matplotlib import pyplot as plt
 from omegaconf import OmegaConf
 
 from dsi.configs.config_cli import ConfigCLI, RunType
-from dsi.offline.heatmap.objective import enrich
+from dsi.offline.heatmap.objective import enrich_inplace
 from dsi.offline.heatmap.ray_manager import RayManager
 from dsi.offline.run.dsi import RunDSI
 from dsi.offline.run.si import RunSI
@@ -39,14 +39,15 @@ def main(cfg: ConfigCLI) -> None:
         )
         plot_si.plot()
     elif cfg.run_type == RunType.offline_heatmap:
-        tmanager: RayManager = RayManager()
+        tmanager: RayManager = RayManager(cfg.config_heatmap)
         df_heatmap: pd.DataFrame = tmanager.run()
+        enrich_inplace(df_heatmap)
         tmanager.store(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir)
         log.info("df_heatmap.head():")
         log.info(df_heatmap.head())
         log.info("df_heatmap.describe():")
         log.info(df_heatmap.describe())
-        enrich(df_heatmap)
+
     elif cfg.run_type == RunType.online:
         log.info(
             "Running online simulation."

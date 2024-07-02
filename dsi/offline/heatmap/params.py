@@ -32,7 +32,7 @@ def is_row_valid(row: pd.Series, verbose: bool = False) -> bool:
     return is_config_valid(c=row[Param.c], k=row[Param.k], verbose=verbose)
 
 
-def get_df_heatmap_params(config: None | ConfigHeatmap = None) -> pd.DataFrame:
+def get_df_heatmap_params(config: ConfigHeatmap) -> pd.DataFrame:
     """
     Generate a pandas dataframe with all the configurations of c, a, k that are valid
     for DSI.
