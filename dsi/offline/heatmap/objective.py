@@ -4,7 +4,8 @@ import pandas as pd
 from dsi.configs.run import ConfigRunDSI
 from dsi.offline.run.dsi import RunDSI
 from dsi.offline.run.si import RunSI
-from dsi.types.result import HeatmapColumn, Result
+from dsi.types.name import HeatmapColumn
+from dsi.types.result import Result
 
 enrichments: dict[str, callable] = {
     HeatmapColumn.speedup_dsi_vs_si: lambda df: df[HeatmapColumn.cost_si]

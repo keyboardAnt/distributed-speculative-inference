@@ -7,15 +7,9 @@ import pandas as pd
 from dsi.configs.heatmap import ConfigHeatmap
 from dsi.configs.run import ConfigRunDSI
 from dsi.types.exception import NumOfTargetServersInsufficientError
+from dsi.types.name import Param
 
 log = logging.getLogger(__name__)
-
-
-class Param:
-    c = "c"
-    a = "a"
-    k = "k"
-    num_target_servers = "num_target_servers"
 
 
 def is_config_valid(c: float, k: int, verbose: bool) -> bool:

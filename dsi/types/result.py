@@ -32,12 +32,3 @@ class Result:
             if isinstance(current_list, list):
                 appending_list = getattr(to_append, field_info.name, [])
                 current_list.extend(appending_list)
-
-
-class HeatmapColumn:
-    cost_nonsi = "cost_nonspec"
-    cost_si = "cost_spec"
-    cost_dsi = "cost_fed"
-    speedup_dsi_vs_si = "speedup_fed_vs_spec"
-    speedup_dsi_vs_nonsi = "speedup_fed_vs_nonspec"
-    speedup_si_vs_nonsi = "speedup_spec_vs_nonspec"
