@@ -5,12 +5,12 @@ from dsi.offline.heatmap.params import Param, get_df_heatmap_params
 
 
 def test_get_df_heatmap_params():
-    df_params = get_df_heatmap_params()
+    config = ConfigHeatmap(ndim=77)
+    df_params = get_df_heatmap_params(config)
     assert isinstance(df_params, pd.DataFrame)
     assert df_params[Param.c].dtype == float
     assert df_params[Param.a].dtype == float
     assert df_params[Param.k].dtype == int
-    config = ConfigHeatmap()
     assert len(df_params) > 0
     assert all(df_params[Param.c] >= config.c_min)
     assert all(df_params[Param.c] <= 1)

@@ -42,8 +42,8 @@ def get_all_latencies(
     }
 
 
-def enrich(df: pd.DataFrame) -> pd.DataFrame:
-    """Enrich the dataframe with new columns."""
+def enrich_inplace(df: pd.DataFrame) -> pd.DataFrame:
+    """Enrich the dataframe with new columns, in-place."""
     for col, func in enrichments.items():
         df[col] = func(df)
     return df

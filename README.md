@@ -26,8 +26,15 @@ There are two types of runs: offline (measuring time units) and online (measurin
 - to set the acceptance rate (`a`) to 50%:
 `python -m dsi config_run.a=.5`
 
+For help, use:
+`python -m dsi --help`
+
 For more sophisticated combinations of configurations, check out Hydra's documentation.
 
 ## Testing
 
 - Run tests: `python -m pytest` (from the project root)
+
+## Stored results
+
+DVC tracks raw results stored on GDrive. To pull the result: `dvc pull`
