@@ -1,33 +1,33 @@
-from concurrent.futures import ThreadPoolExecutor
-import numpy as np
-import logging
-from threading import current_thread
 import functools
-import time
+import logging
 import multiprocessing
-import signal
 import os
 import queue
+import signal
+import time
+from concurrent.futures import ThreadPoolExecutor
 from multiprocessing import Pipe
-from dsi.offline.run.common import generate_num_accepted_drafts
+from threading import current_thread
+
+import numpy as np
+
 
 def terminate_process(cur_pipe, sim_executor):
     """
-    killing the current threadpool and process, 
+    killing the current threadpool and process,
     """
     if sim_executor is not None:
         sim_executor.shutdown(wait=False, cancel_futures=True)
 
     cur_pid1 = cur_pipe[0].recv()
-    cur_pid2 = cur_pipe[1].recv()
+    _ = cur_pipe[1].recv()
 
     os.kill(cur_pid1, signal.SIGTERM)
 
 
-
 def fix_history(total_tokens, correct, sim_shared_dict, cur_pipe, sim_executor):
     """
-    Simulate fixing the history 
+    Simulate fixing the history
     """
     total_tokens += correct
 
@@ -44,15 +44,20 @@ def get_target_time(args, total_tokens, draft_tokens, prompt_tokens, visited):
         return args.failure_cost
     return args.failure_cost_sub
 
+
 def call_target_actual(
     args, draft_tokens, total_tokens, sim_shared_dict, cur_pipe, sim_executor
 ):
     cur_thread_name = current_thread().getName()
     # logging.error(f"{cur_thread_name=}")
-    model_id = cur_thread_name.split("_")[1] if "_" in cur_thread_name else cur_thread_name
+    model_id = (
+        cur_thread_name.split("_")[1] if "_" in cur_thread_name else cur_thread_name
+    )
 
     visited = model_id in sim_shared_dict
-    cur_target_time = get_target_time(args, total_tokens, draft_tokens, sim_shared_dict["prompt_tokens"], visited)
+    cur_target_time = get_target_time(
+        args, total_tokens, draft_tokens, sim_shared_dict["prompt_tokens"], visited
+    )
     if not visited:
         sim_shared_dict[model_id] = True
     logging.error(f"{cur_thread_name} {model_id=} {visited=}")
@@ -69,7 +74,7 @@ def call_target_actual(
 
 
 def target_done_callback(args, res):
-    if type(res) == dict:
+    if isinstance(res, dict):
         res_dict = res
     else:
         if res.cancelled():
@@ -84,7 +89,7 @@ def target_done_callback(args, res):
     sim_executor = res_dict["sim_executor"]
 
     if correct < draft_tokens:
-        logging.error(f'{correct} ARE CORRECT out of {draft_tokens}')
+        logging.error(f"{correct} ARE CORRECT out of {draft_tokens}")
         # I have "correct" correct token, plus 1
         # ONLY {correct} are correct, need to fix the history
         fix_history(total_tokens, correct, sim_shared_dict, cur_pipe, sim_executor)
@@ -95,7 +100,7 @@ def target_done_callback(args, res):
 
         if total_tokens > args.max_tokens:
             # MAX TOKENS REACHED
-            logging.error(f'MAX REACHED at {total_tokens}')
+            logging.error(f"MAX REACHED at {total_tokens}")
             sim_shared_dict["stop"] = True
             terminate_process(cur_pipe, sim_executor)
 
@@ -119,7 +124,9 @@ def call_target(
                 sim_executor=sim_executor,
             )
 
-            target_future.add_done_callback(functools.partial(target_done_callback, args))
+            target_future.add_done_callback(
+                functools.partial(target_done_callback, args)
+            )
     else:
         target_res = call_target_actual(
             args=args,
@@ -131,12 +138,14 @@ def call_target(
         )
         target_done_callback(args, target_res)
 
+
 def get_draft_time_for_first_token(args, total_tokens):
     return args.c
 
 
 def get_draft_time_for_sub_token(args, total_tokens, draft_tokens):
     return args.c_sub
+
 
 def get_number_of_correct_tokens(a, maximum_correct_tokens):
     """
@@ -156,7 +165,7 @@ def run_generate(args, total_tokens, sim_shared_dict, cur_pipe, wait_for_pipe):
     # if has to wait for the pipe to send the pid, wait for wait_for_pipe seconds
     if wait_for_pipe:
         time.sleep(wait_for_pipe)
-    
+
     if args.run_type == "federated":
         # create a LIFO threadpool
         logging.error(f"{args.num_target_servers=}")
@@ -166,7 +175,9 @@ def run_generate(args, total_tokens, sim_shared_dict, cur_pipe, wait_for_pipe):
         sim_executor = None
 
     # sample number of correct tokens
-    sim_shared_dict["correct"] = get_number_of_correct_tokens(args.a, args.maximum_correct_tokens)
+    sim_shared_dict["correct"] = get_number_of_correct_tokens(
+        args.a, args.maximum_correct_tokens
+    )
 
     logging.error(f'{sim_shared_dict["correct"]=}')
 
@@ -186,16 +197,18 @@ def run_generate(args, total_tokens, sim_shared_dict, cur_pipe, wait_for_pipe):
         # logging.error(f'DRAFT at {total_tokens+draft_tokens}')
         # generating token index {total_tokens+draft_tokens}")
 
-        # if has no history, the current time will use the target. Else use the sub-token time
+        # if has no history, first token time, else use sub-token time
         if is_first_token and draft_tokens == 0:
             current_draft_time = get_draft_time_for_first_token(args, total_tokens)
         else:
-            current_draft_time = get_draft_time_for_sub_token(args, total_tokens, draft_tokens)
+            current_draft_time = get_draft_time_for_sub_token(
+                args, total_tokens, draft_tokens
+            )
 
         time.sleep(current_draft_time)
 
         draft_tokens += 1
-        
+
         # call the target model every sl tokens.
         if draft_tokens % args.k == 0:
             call_target(
@@ -206,6 +219,7 @@ def run_generate(args, total_tokens, sim_shared_dict, cur_pipe, wait_for_pipe):
                 sim_executor=sim_executor,
                 cur_pipe=cur_pipe,
             )
+
 
 def restart_draft(args, total_tokens, sim_shared_dict, wait_for_pipe):
     """
@@ -220,7 +234,7 @@ def restart_draft(args, total_tokens, sim_shared_dict, wait_for_pipe):
             total_tokens=total_tokens,
             sim_shared_dict=sim_shared_dict,
             cur_pipe=cur_pipe,
-            wait_for_pipe=wait_for_pipe
+            wait_for_pipe=wait_for_pipe,
         ),
     )
 
