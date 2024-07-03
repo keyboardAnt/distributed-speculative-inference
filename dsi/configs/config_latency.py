@@ -51,7 +51,7 @@ class ConfigLatency:
     num_ex: int = 50 # title="Number of examples to use for each dataset")
     max_new_tokens: int = 20 # title="Maximum number of new tokens to generate")
     compiled_model: bool = False # title="Whether to compile the model")
-    flash_attn_impl: str = "flash_attention_2" # title="Flash attention implementation")     
+    flash_attn_impl: str = None # "flash_attention_2" # title="Flash attention implementation")     
     model_revision: Dict[str, str] = {
             "lmsys/vicuna-7b-v1.3": "refs/pr/4",
             "lmsys/vicuna-13b-v1.3": "refs/pr/5",
