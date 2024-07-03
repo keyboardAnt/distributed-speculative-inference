@@ -2,6 +2,7 @@ import warnings
 import json
 from collections import defaultdict
 from time import perf_counter as time
+import logging
 
 import numpy as np
 from datasets import load_dataset
@@ -9,11 +10,67 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
 from tqdm import tqdm
 
-from dsi.configs.config_latency import ConfigLatency, get_prompt
-
+from dsi.configs.config_latency import ConfigLatency
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
-    
+
+log = logging.getLogger(__name__)
+
+def get_prompt(dataset, ex):
+    """Get the input prompt for the given dataset and example."""
+    if dataset == "samsum":
+        prompt = ex["dialogue"].strip("\n")
+        prompt = f"Summarize this dialog:\n{prompt}\n---\nSummary:\n"
+    elif dataset == "cnn_dailymail":
+        prompt = ex["article"].strip("\n")
+        prompt = f"""Summarize:
+{prompt}
+Summary:
+"""
+    elif dataset == "mbpp":
+        # prompt from https://ai.meta.com/research/publications/code-llama-open-foundation-models-for-code/
+        text = ex["text"].strip("\n")
+        test_list = ex["test_list"]
+        prompt = f"""[INST]Your task is to write a Python function to solve a programming problem.
+The Python code must be between [PYTHON] and [/PYTHON] tags.
+You are given one example test from which you can infere the function signature.
+Problem: Write a Python function to get the unique elements of a list.
+Test: assert get_unique_elements([1, 2, 3, 2, 1]) == [1, 2, 3]
+[/INST]
+[PYTHON]
+def get_unique_elements(my_list):
+return list(set(my_list))
+[/PYTHON]
+[INST] Problem: {text}
+Test: {test_list[0]}
+[/INST]"""
+
+    elif dataset == "danielkorat/alpaca":
+        template_inp = """Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
+
+### Instruction:
+{instruction}
+
+### Input:
+{inp}
+
+### Response:
+"""
+        template_no_inp = """Below is an instruction that describes a task. Write a response that appropriately completes the request.
+
+### Instruction:
+{instruction}
+
+### Response:
+"""
+        if ex["input"].strip() == "":
+            prompt = template_no_inp.format(instruction=ex["instruction"])
+        else:
+            prompt = template_inp.format(instruction=ex["instruction"], inp=ex["input"])
+    else:
+        prompt = ex["prompt"].strip("\n")
+    return prompt
+
 
 def get_random_input(length, device):
     input_ids = (torch.rand(length) * 100).to(int).view(1, -1).to(device)
@@ -39,7 +96,7 @@ class GetLatencies:
         self.config = ConfigLatency()
 
     def load_model_tokenizer(self, name):
-        print(f"Loading: {name}...   {self.config.compiled_model=}")
+        log.info(f"Loading: {name}...   {self.config.compiled_model=}")
         extra = {"torch_dtype": torch.bfloat16}
         if name in self.config.model_revision:
             extra["revision"] = self.config.model_revision[name]
@@ -106,11 +163,11 @@ class GetLatencies:
                 
                 for ds_kwargs in ds_list:
                     ds_name = ds_kwargs["path"]
-                    print(model_name, ds_name)
+                    log.info(model_name, ds_name)
                     prompted_examples = ds_to_examples[ds_name]
 
                     ttft, tpot = self.timed_generate(model, tokenizer, prompted_examples)
-                    print(f"{ttft=}\n{tpot=}\n")
+                    log.info(f"{ttft=}\n{tpot=}\n")
 
                     model_family_res[ds_name].append({"model_name": model_name, "ttft": ttft, "tpot": tpot})
             
@@ -123,6 +180,5 @@ class GetLatencies:
                                     "target_name": model_res["model_name"], "target_first": model_res["ttft"], "target_sub": model_res["tpot"], 
                                     "draft_name": draft_res["model_name"], "draft_first": draft_res["ttft"], "draft_sub": draft_res["tpot"]}))
                             f.write("\n")
-                        
         return model_family_res
                     

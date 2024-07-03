@@ -1,0 +1,15 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Remote Attach",
+            "type": "debugpy",
+            "request": "attach",
+            "connect": {
+                "host": "isl-gpu38.rr.intel.com",
+                "port": 25566
+            },
+            "justMyCode": false
+        }
+    ]
+}
