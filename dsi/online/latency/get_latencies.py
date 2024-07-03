@@ -1,6 +1,5 @@
+from typing import Tuple
 import warnings
-import json
-from collections import defaultdict
 from time import perf_counter as time
 import logging
 
@@ -88,104 +87,72 @@ def get_fwd_time(model, input_ids, past_key_values=None):
     return elapsed, out
 
 
-class GetLatencies:
+class MeasureLatencies:
     """
-    Measures the latencies of different model pairs tied to different datasets.
+    Measures the generation latency for a given model and dataset.
     """
-    def __init__(self, **kwargs):
-        self.config = ConfigLatency(**kwargs)
+    def __init__(self, **config):
+        self.config = ConfigLatency(**config)
 
-    def get_all_datasets(self):
-        jsons_unique = set([json.dumps(ds, indent=4) for ds in self.config.pairs_to_ds.values()])
-        print(f"jsons_unique: {jsons_unique}")
-        return [json.loads(j) for j in jsons_unique]
-        
-    def load_model_tokenizer(self, name):
-        log.info(f"Loading: {name}...   {self.config.compiled_model=}")
-        extra = {"torch_dtype": torch.bfloat16}
-        if name in self.config.model_revision:
-            extra["revision"] = self.config.model_revision[name]
-            
+    def load_model_tokenizer(self, name, revision=None):
+        log.info(f"Loading model: {name}, compiled={self.config.compiled_model}")
+        extra_kwargs = {"torch_dtype": torch.bfloat16, "revision": revision}
+
         model = AutoModelForCausalLM.from_pretrained(
             name,
             device_map="auto",
             attn_implementation=self.config.flash_attn_impl,
-            **extra
+            **extra_kwargs
             )
         tokenizer = AutoTokenizer.from_pretrained(name)
         model = torch.compile(model) if self.config.compiled_model else model
         return model, tokenizer
 
-    def get_random_prompted_examples(self, ds_kwargs):
-        examples = load_dataset(path=ds_kwargs["path"], name=ds_kwargs.get("name"), split="test")\
+    def get_random_prompted_examples(self, dataset, subset=None, split="test"):
+        """Get random examples from the dataset and prompt them."""
+        log.info(f"Loading dataset: {dataset}, compiled={self.config.compiled_model}")
+        examples = load_dataset(path=dataset, name=subset, split=split)\
             .shuffle(seed=self.config.seed).select(range(self.config.num_ex))
-        
-        prompted_examples = []
-        for ex in tqdm(examples, desc=f"{ds_kwargs['path']}"):
-            prompt = get_prompt(ds_kwargs["path"], ex)
-            prompted_examples.append(prompt)
-            
-        return prompted_examples
+        return [get_prompt(dataset, ex) for ex in examples]
 
-    def timed_generate(self, model, tokenizer, prompted_examples):
+    def timed_generate(self, model, tokenizer, prompted_examples) -> Tuple[float, float]:
+        """Time the generation of the prompted examples, distinguishing between
+        the time to first token (ttft) and the time per output token (tpot)."""
         gen_kwargs = dict(do_sample=False, temperature=1.0, top_p=1.0, pad_token_id=tokenizer.eos_token_id)
-
         ttfts, tpots = [], []
-        for run_i in range(2):
-            warmup_run = run_i < 1
-        
-            for ex in tqdm(prompted_examples):
-                inputs = tokenizer(ex, return_tensors="pt").to(model.device)
-                ttft, _ = get_fwd_time(model=model, input_ids=inputs["input_ids"])
-                if not warmup_run:
-                    ttfts.append(ttft)
-        
-                t = time()
-                outputs = model.generate(**inputs, **gen_kwargs, max_new_tokens=self.config.max_new_tokens)
-                elapsed = time() - t
 
-                if not warmup_run:
-                    input_len = inputs["input_ids"].shape[1]
-                    new_tokens = outputs.shape[1] - input_len
-                    elapsed_after_first = elapsed - ttft
-                    tpots.append(elapsed_after_first / new_tokens)
-
+        for ex in tqdm(prompted_examples):
+            # Get the time to first token by timing the forward pass
+            inputs = tokenizer(ex, return_tensors="pt").to(model.device)
+            ttft, _ = get_fwd_time(model=model, input_ids=inputs["input_ids"])
+            ttfts.append(ttft)
+            
+            t = time()
+            outputs = model.generate(**inputs, **gen_kwargs, max_new_tokens=self.config.max_new_tokens)
+            elapsed = time() - t
+            
+            input_len = inputs["input_ids"].shape[1]
+            new_tokens = outputs.shape[1] - input_len
+            elapsed_after_first = elapsed - ttft
+            tpots.append(elapsed_after_first / new_tokens)
+            
         return np.mean(ttfts) * 1000, np.mean(tpots) * 1000
 
+    def run(self, 
+            model: str,
+            dataset: str,
+            subset: str = None,
+            split: str = "test",
+            model_revision: str = None
+            ) -> Tuple[float, float]:
+        """Run the latency measurements for the given model and dataset."""
+        examples = self.get_random_prompted_examples(dataset, subset, split)
+        model, tokenizer = self.load_model_tokenizer(model, model_revision)
 
-    def run(self):
-        ds_to_examples = {}
-        print(f"self.get_all_datasets(): {self.get_all_datasets()}")
-        for ds_kwargs in self.get_all_datasets():
-            print(f"ds_kwargs: {ds_kwargs}")
-            ds_to_examples[ds_kwargs["path"]] = self.get_random_prompted_examples(ds_kwargs)
+        # Warmup run
+        self.timed_generate(model, tokenizer, examples)
         
-        for model_family, ds_list in self.config.pairs_to_ds.items():
-            model_family_res = defaultdict(list)
-            for model_name in model_family:
-                model, tokenizer = self.load_model_tokenizer(model_name)
-
-                # Warmup
-                self.timed_generate(model, tokenizer, ds_to_examples[ds_list[0]["path"]])
-                
-                for ds_kwargs in ds_list:
-                    ds_name = ds_kwargs["path"]
-                    log.info(model_name, ds_name)
-                    prompted_examples = ds_to_examples[ds_name]
-
-                    ttft, tpot = self.timed_generate(model, tokenizer, prompted_examples)
-                    log.info(f"{ttft=}\n{tpot=}\n")
-
-                    model_family_res[ds_name].append({"model_name": model_name, "ttft": ttft, "tpot": tpot})
-            
-            if self.config.save_latencies:
-                with open("latencies.jsonl", "a") as f:
-                    for ds, ds_res in model_family_res.items():
-                        draft_res = ds_res[0]
-                        for model_res in ds_res[1:]:
-                            f.write(json.dumps({"dataset": ds, 
-                                    "target_name": model_res["model_name"], "target_first": model_res["ttft"], "target_sub": model_res["tpot"], 
-                                    "draft_name": draft_res["model_name"], "draft_first": draft_res["ttft"], "draft_sub": draft_res["tpot"]}))
-                            f.write("\n")
-        return model_family_res
-                    
+        # Measure
+        ttft, tpot = self.timed_generate(model, tokenizer, examples)
+        log.info(f"{model=} {dataset=} {subset=}\n {ttft=} {tpot=}\n")
+        return ttft, tpot
