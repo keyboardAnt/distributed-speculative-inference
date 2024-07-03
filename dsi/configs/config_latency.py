@@ -1,7 +1,5 @@
 
 from typing import Dict, List, Tuple
-# from pydantic import Field
-
 
 # Models
 sanity = (
@@ -36,30 +34,26 @@ class ConfigLatency:
     of different model pairs tied to different datasets.
     """
 
-    all_datasets: list = [cnn_dm, alpaca, mbpp, humaneval] #, title="All datasets")
+    all_datasets: list = [cnn_dm, alpaca, mbpp, humaneval]
 
     pairs_to_ds: Dict[Tuple[str], List[Dict[str, str]]] = {
-            sanity: text_datasets,
-            # phi3_models: all_datasets,
-            # vicuna_models: text_datasets,
-            # starcoder_models: code_datasets,
-        }
-    # title="Pairs tied to datasets"
-    
+            phi3_models: all_datasets,
+            vicuna_models: text_datasets,
+            starcoder_models: code_datasets,
+        }    
 
-    seed: int = 42 # title="Seed for reproducibility")
-    num_ex: int = 50 # title="Number of examples to use for each dataset")
-    max_new_tokens: int = 20 # title="Maximum number of new tokens to generate")
-    compiled_model: bool = False # title="Whether to compile the model")
-    flash_attn_impl: str = None # "flash_attention_2" # title="Flash attention implementation")     
+    seed: int = 42
+    num_ex: int = 50
+    max_new_tokens: int = 20
+    compiled_model: bool = False
+    flash_attn_impl: str = None
     model_revision: Dict[str, str] = {
             "lmsys/vicuna-7b-v1.3": "refs/pr/4",
             "lmsys/vicuna-13b-v1.3": "refs/pr/5",
             "bigcode/starcoder": "refs/pr/112",
         },
-        # title="Model revisions"
     
-    save_latencies: bool = True #, title="Whether to save the latencies to json")
+    save_latencies: bool = True
     
 def get_prompt(dataset, ex):
     """Get the input prompt for the given dataset and example."""
