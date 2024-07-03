@@ -1,4 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
+import numpy as np
 import logging
 from threading import current_thread
 import functools
@@ -6,10 +7,9 @@ import time
 import multiprocessing
 import signal
 import os
-import numpy as np
 import queue
 from multiprocessing import Pipe
-
+from dsi.offline.run.common import generate_num_accepted_drafts
 
 def terminate_process(cur_pipe, sim_executor):
     """
@@ -41,20 +41,8 @@ def get_target_time(args, total_tokens, draft_tokens, prompt_tokens, visited):
     Get the target inference time
     """
     if not visited:
-        return args.target_first
-    return args.target_sub
-
-
-def get_number_of_correct_tokens(args):
-    """
-    Sample a random number of correct tokens from the geo(1-a_rate) distribution
-    """
-    np.random.seed(seed=int(time.time()))
-    res_list = np.random.geometric(1 - args.a_rate, size=1) - 1
-    res = res_list[-1]
-
-    return res
-
+        return args.failure_cost
+    return args.failure_cost_sub
 
 def call_target_actual(
     args, draft_tokens, total_tokens, sim_shared_dict, cur_pipe, sim_executor
@@ -67,7 +55,7 @@ def call_target_actual(
     cur_target_time = get_target_time(args, total_tokens, draft_tokens, sim_shared_dict["prompt_tokens"], visited)
     if not visited:
         sim_shared_dict[model_id] = True
-    # logging.error(f"{cur_thread_name} {model_id=} {visited=}")
+    logging.error(f"{cur_thread_name} {model_id=} {visited=}")
     time.sleep(cur_target_time)
 
     return dict(
@@ -96,7 +84,7 @@ def target_done_callback(args, res):
     sim_executor = res_dict["sim_executor"]
 
     if correct < draft_tokens:
-        # logging.error(f'{correct} ARE CORRECT out of {draft_tokens}')
+        logging.error(f'{correct} ARE CORRECT out of {draft_tokens}')
         # I have "correct" correct token, plus 1
         # ONLY {correct} are correct, need to fix the history
         fix_history(total_tokens, correct, sim_shared_dict, cur_pipe, sim_executor)
@@ -119,7 +107,7 @@ def call_target(
     Call the target in a separate thread
     """
     if args.run_type == "federated":
-        # logging.error(f"SUBMIT in {draft_tokens}")
+        logging.error(f"SUBMIT in {draft_tokens}")
         if not sim_executor._shutdown:
             target_future = sim_executor.submit(
                 call_target_actual,
@@ -144,11 +132,21 @@ def call_target(
         target_done_callback(args, target_res)
 
 def get_draft_time_for_first_token(args, total_tokens):
-    return args.draft_first
+    return args.c
 
 
 def get_draft_time_for_sub_token(args, total_tokens, draft_tokens):
-    return args.draft_sub
+    return args.c_sub
+
+def get_number_of_correct_tokens(a, maximum_correct_tokens):
+    """
+    Sample a random number of correct tokens from the geo(1-a_rate) distribution
+    """
+    np.random.seed(seed=int(time.time()))
+    res_list = np.random.geometric(1 - a, size=1) - 1
+    res = min(res_list[-1], maximum_correct_tokens)
+
+    return res
 
 
 def run_generate(args, total_tokens, sim_shared_dict, cur_pipe, wait_for_pipe):
@@ -161,19 +159,16 @@ def run_generate(args, total_tokens, sim_shared_dict, cur_pipe, wait_for_pipe):
     
     if args.run_type == "federated":
         # create a LIFO threadpool
-        # logging.error(f"{args.sim_target_count=}")
-        sim_executor = ThreadPoolExecutor(max_workers=args.sim_target_count)
+        logging.error(f"{args.num_target_servers=}")
+        sim_executor = ThreadPoolExecutor(max_workers=args.num_target_servers)
         sim_executor._work_queue = queue.LifoQueue()
     else:
         sim_executor = None
 
     # sample number of correct tokens
-    correct = min(
-        get_number_of_correct_tokens(args), args.draft_tokens_until_fail
-    )  # 0 <= correct <= DRAFT_TOKENS_UNTIL_FAIL
-    sim_shared_dict["correct"] = correct
+    sim_shared_dict["correct"] = get_number_of_correct_tokens(args.a, args.maximum_correct_tokens)
 
-    # logging.error(f'{sim_shared_dict["correct"]=}')
+    logging.error(f'{sim_shared_dict["correct"]=}')
 
     draft_tokens = 0
 
@@ -202,7 +197,7 @@ def run_generate(args, total_tokens, sim_shared_dict, cur_pipe, wait_for_pipe):
         draft_tokens += 1
         
         # call the target model every sl tokens.
-        if draft_tokens % args.sl == 0:
+        if draft_tokens % args.k == 0:
             call_target(
                 args=args,
                 total_tokens=total_tokens,
