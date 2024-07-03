@@ -70,8 +70,8 @@ Test: {test_list[0]}
     else:
         prompt = ex["prompt"].strip("\n")
     return prompt
-
-
+    
+    
 def get_random_input(length, device):
     input_ids = (torch.rand(length) * 100).to(int).view(1, -1).to(device)
     input_ids_plus = torch.tensor(6).view(1,-1).to(device)
@@ -92,9 +92,14 @@ class GetLatencies:
     """
     Measures the latencies of different model pairs tied to different datasets.
     """
-    def __init__(self):
-        self.config = ConfigLatency()
+    def __init__(self, **kwargs):
+        self.config = ConfigLatency(**kwargs)
 
+    def get_all_datasets(self):
+        jsons_unique = set([json.dumps(ds, indent=4) for ds in self.config.pairs_to_ds.values()])
+        print(f"jsons_unique: {jsons_unique}")
+        return [json.loads(j) for j in jsons_unique]
+        
     def load_model_tokenizer(self, name):
         log.info(f"Loading: {name}...   {self.config.compiled_model=}")
         extra = {"torch_dtype": torch.bfloat16}
@@ -150,7 +155,9 @@ class GetLatencies:
 
     def run(self):
         ds_to_examples = {}
-        for ds_kwargs in self.config.all_datasets:
+        print(f"self.get_all_datasets(): {self.get_all_datasets()}")
+        for ds_kwargs in self.get_all_datasets():
+            print(f"ds_kwargs: {ds_kwargs}")
             ds_to_examples[ds_kwargs["path"]] = self.get_random_prompted_examples(ds_kwargs)
         
         for model_family, ds_list in self.config.pairs_to_ds.items():
