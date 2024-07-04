@@ -38,4 +38,4 @@ jobs:
         jupyter: true
     - name: Test with pytest
       run: |
-        poetry run pytest
+        poetry run pytest -vvv
