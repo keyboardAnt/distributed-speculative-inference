@@ -1,9 +1,9 @@
 import multiprocessing
 
-from dsi.configs.config_run import ConfigRunDSISim
+from dsi.configs.config_run import ConfigRunOnline, RunType
 from dsi.online.run.run import restart_draft
 
-config = ConfigRunDSISim(
+config = ConfigRunOnline(
     **{
         "failure_cost": 180.28411593660712 / 1000,
         "failure_cost_sub": 100.18306512758136 / 1000,
@@ -15,7 +15,7 @@ config = ConfigRunDSISim(
         "k": 5,
         "maximum_correct_tokens": 20,
         "num_repeats": 30,
-        "run_type": "federated",
+        "run_type": RunType.DSI,
         "total_tokens": 100,
         "wait_for_pipe": 0.1,
     }

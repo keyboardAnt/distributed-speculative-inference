@@ -1,5 +1,6 @@
 from math import ceil
 from typing import Literal
+from enum import Enum
 
 from pydantic import BaseModel, Field
 
@@ -71,8 +72,12 @@ class ConfigRunDSI(ConfigRun):
             )
             raise NumOfTargetServersInsufficientError(msg)
 
+# class syntax
+class RunType(Enum):
+    DSI = 1
+    SI = 2
 
-class ConfigRunDSISim(ConfigRunDSI):
+class ConfigRunOnline(ConfigRunDSI):
     c_sub: float = Field(
         0.01,
         title="The latency of the drafter subsequent tokens",
@@ -86,10 +91,11 @@ class ConfigRunDSISim(ConfigRunDSI):
     wait_for_pipe: float = Field(
         0.1,
         title="Wait for pid to be sent via the pipe",
+        ge=0
     )
-    run_type: Literal["federated", "livyatan"] = Field(
-        "federated",
-        title="Running federated simulation or regular speculative decoding.",
+    run_type: RunType = Field(
+        RunType.DSI,
+        title="Running DSI simulation or SI speculative decoding.",
     )
     maximum_correct_tokens: int = Field(
         20, title="The maximum number of correct tokens produced by draft", ge=0

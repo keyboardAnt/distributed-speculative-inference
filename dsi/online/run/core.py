@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 from multiprocessing import Pipe
 from threading import current_thread
 
+from dsi.configs.config_run import RunType
 import numpy as np
 
 
@@ -36,7 +37,7 @@ def fix_history(total_tokens, correct, sim_shared_dict, cur_pipe, sim_executor):
     terminate_process(cur_pipe, sim_executor)
 
 
-def get_target_time(args, total_tokens, draft_tokens, prompt_tokens, visited):
+def get_target_time(args, visited):
     """
     Get the target inference time
     """
@@ -49,15 +50,12 @@ def call_target_actual(
     args, draft_tokens, total_tokens, sim_shared_dict, cur_pipe, sim_executor
 ):
     cur_thread_name = current_thread().getName()
-    # logging.error(f"{cur_thread_name=}")
     model_id = (
         cur_thread_name.split("_")[1] if "_" in cur_thread_name else cur_thread_name
     )
 
     visited = model_id in sim_shared_dict
-    cur_target_time = get_target_time(
-        args, total_tokens, draft_tokens, sim_shared_dict["prompt_tokens"], visited
-    )
+    cur_target_time = get_target_time(args, visited)
     if not visited:
         sim_shared_dict[model_id] = True
     logging.error(f"{cur_thread_name} {model_id=} {visited=}")
@@ -111,7 +109,7 @@ def call_target(
     """
     Call the target in a separate thread
     """
-    if args.run_type == "federated":
+    if args.run_type == RunType.DSI:
         logging.error(f"SUBMIT in {draft_tokens}")
         if not sim_executor._shutdown:
             target_future = sim_executor.submit(
@@ -147,15 +145,15 @@ def get_draft_time_for_sub_token(args, total_tokens, draft_tokens):
     return args.c_sub
 
 
-def get_number_of_correct_tokens(a, maximum_correct_tokens):
-    """
-    Sample a random number of correct tokens from the geo(1-a_rate) distribution
-    """
-    np.random.seed(seed=int(time.time()))
-    res_list = np.random.geometric(1 - a, size=1) - 1
-    res = min(res_list[-1], maximum_correct_tokens)
+# def get_number_of_correct_tokens(a, maximum_correct_tokens):
+#     """
+#     Sample a random number of correct tokens from the geo(1-a_rate) distribution
+#     """
+#     np.random.seed(seed=int(time.time()))
+#     res_list = np.random.geometric(1 - a, size=1) - 1
+#     res = min(res_list[-1], maximum_correct_tokens)
 
-    return res
+#     return res
 
 
 def run_generate(args, total_tokens, sim_shared_dict, cur_pipe, wait_for_pipe):
@@ -166,18 +164,13 @@ def run_generate(args, total_tokens, sim_shared_dict, cur_pipe, wait_for_pipe):
     if wait_for_pipe:
         time.sleep(wait_for_pipe)
 
-    if args.run_type == "federated":
+    if args.run_type == RunType.DSI:
         # create a LIFO threadpool
         logging.error(f"{args.num_target_servers=}")
         sim_executor = ThreadPoolExecutor(max_workers=args.num_target_servers)
         sim_executor._work_queue = queue.LifoQueue()
     else:
         sim_executor = None
-
-    # sample number of correct tokens
-    sim_shared_dict["correct"] = get_number_of_correct_tokens(
-        args.a, args.maximum_correct_tokens
-    )
 
     logging.error(f'{sim_shared_dict["correct"]=}')
 
@@ -194,7 +187,6 @@ def run_generate(args, total_tokens, sim_shared_dict, cur_pipe, wait_for_pipe):
 
     is_first_token = sim_shared_dict["total_tokens"] == sim_shared_dict["prompt_tokens"]
     while True:
-        # logging.error(f'DRAFT at {total_tokens+draft_tokens}')
         # generating token index {total_tokens+draft_tokens}")
 
         # if has no history, first token time, else use sub-token time
