@@ -25,8 +25,7 @@ def get_config():
     )
 
 
-def test_entire_threadpool_used(get_config):
-    config = get_config()
+def test_entire_threadpool_used(config):
     total_tokens = config.total_tokens
     sim_shared_dict = multiprocessing.Manager().dict()
 
@@ -43,8 +42,7 @@ def test_entire_threadpool_used(get_config):
         assert str(i) in sim_shared_dict
 
 
-def test_single_thread_in_si(get_config):
-    config = get_config()
+def test_single_thread_in_si(config):
     config.run_type = RunType.SI
 
     total_tokens = config.total_tokens
