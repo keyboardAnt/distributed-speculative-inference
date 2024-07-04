@@ -7,7 +7,7 @@ from dsi.online.run.run import restart_draft
 
 
 @pytest.fixture
-def get_config():
+def config():
     return ConfigRunOnline(
         c=0.05725204603746534,
         a=0.94,
