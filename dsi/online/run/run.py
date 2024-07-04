@@ -14,20 +14,34 @@ class RunOnline(Run):
     def __init__(self, config: ConfigRunOnline) -> None:
         super().__init__(config)
 
-    def _run_single(self) -> Result:
-        correct_token_list: list[int] = list(
-            generate_num_accepted_drafts(
-                acceptance_rate=self.config.a,
-                lookahead=self.config.maximum_correct_tokens,
-                max_num_samples=self.config.S,
+    def get_correct_token_list(self):
+        """
+        Generate random numbers of correct tokens, until the
+         total number of tokens is less than S.
+        """
+        correct_token_list = []
+        while sum(correct_token_list) <= self.config.S:
+            correct_token_list.append(
+                list(
+                    generate_num_accepted_drafts(
+                        self.config.a, self.config.maximum_correct_tokens, 1
+                    )
+                )[0]
             )
-        )
-        sim_shared_dict = multiprocessing.Manager().dict()
-        sim_shared_dict["total_tokens"] = self.config.total_tokens
-        sim_shared_dict["prompt_tokens"] = self.config.total_tokens
+        return correct_token_list
 
-        iter_till_stop = 0
+    def _run_single(self) -> Result:
+        correct_token_list = self.get_correct_token_list()
+
+        total_tokens = self.config.total_tokens
+        sim_shared_dict = multiprocessing.Manager().dict()
+
+        sim_shared_dict["total_tokens"] = total_tokens
+        sim_shared_dict["prompt_tokens"] = total_tokens
+
         start_time = time.time()
+        iter_till_stop = 0
+
         # While the stop signal is not received, keep restarting the draft model
         while "stop" not in sim_shared_dict:
             # sample number of correct tokens
@@ -45,7 +59,7 @@ class RunOnline(Run):
         inference_time = time.time() - start_time
 
         # Remove the extra time from the final inference time count
-        inference_time -= iter_till_stop * self.config.wait_for_pipe
+        inference_time = inference_time - iter_till_stop * self.config.wait_for_pipe
 
         return Result(
             cost_per_run=[inference_time],

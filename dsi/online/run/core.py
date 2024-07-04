@@ -1,4 +1,3 @@
-import contextlib
 import functools
 import multiprocessing
 import os
@@ -8,7 +7,6 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from multiprocessing import Pipe
 from threading import current_thread
-from typing import Callable
 
 from dsi.configs.config_run import RunType
 
@@ -17,10 +15,13 @@ def terminate_process(cur_pipe, sim_executor):
     """
     killing the current threadpool and process,
     """
-    with contextlib.suppress(AttributeError):
+    if sim_executor is not None:
         sim_executor.shutdown(wait=False, cancel_futures=True)
-    pid = cur_pipe[0].recv()
-    os.kill(pid, signal.SIGTERM)
+
+    cur_pid1 = cur_pipe[0].recv()
+    _ = cur_pipe[1].recv()
+
+    os.kill(cur_pid1, signal.SIGTERM)
 
 
 def fix_history(total_tokens, correct, sim_shared_dict, cur_pipe, sim_executor):
@@ -69,21 +70,33 @@ def call_target_actual(
 
 
 def target_done_callback(args, res):
-    if res.cancelled():
-        return
-    if not isinstance(res, dict):
-        res = res.result()
-    if res["correct"] < res["draft_tokens"]:
+    if isinstance(res, dict):
+        res_dict = res
+    else:
+        if res.cancelled():
+            return
+        res_dict = res.result()
+
+    correct = res_dict["correct"]
+    draft_tokens = res_dict["draft_tokens"]
+    total_tokens = res_dict["total_tokens"]
+    sim_shared_dict = res_dict["sim_shared_dict"]
+    cur_pipe = res_dict["cur_pipe"]
+    sim_executor = res_dict["sim_executor"]
+
+    if correct < draft_tokens:
         # I have "correct" correct token, plus 1
         # ONLY {correct} are correct, need to fix the history
-        fix_history(**res)
+        fix_history(total_tokens, correct, sim_shared_dict, cur_pipe, sim_executor)
     else:
         # ALL CORRECT with {total_tokens + draft_tokens}
-        res["total_tokens"] += res["correct"]
-        if res["total_tokens"] > args.max_tokens:
+
+        total_tokens += correct
+
+        if total_tokens > args.max_tokens:
             # MAX TOKENS REACHED
-            res["sim_shared_dict"]["stop"] = True
-            terminate_process(res["cur_pipe"], res["sim_executor"])
+            sim_shared_dict["stop"] = True
+            terminate_process(cur_pipe, sim_executor)
 
 
 def call_target(
@@ -92,23 +105,30 @@ def call_target(
     """
     Call the target in a separate thread
     """
-    call_target_actual_partial: Callable = functools.partial(
-        call_target_actual,
-        args=args,
-        total_tokens=total_tokens,
-        draft_tokens=draft_tokens,
-        sim_shared_dict=sim_shared_dict,
-        cur_pipe=cur_pipe,
-        sim_executor=sim_executor,
-    )
     if args.run_type == RunType.DSI:
-        with contextlib.suppress(RuntimeError):
-            # If the executor was shutdown, new submissions will raise a RuntimeError.
-            # Otherwise, the executor has not been shutdown and we can submit the task.
-            target_future = sim_executor.submit(call_target_actual_partial)
-        target_future.add_done_callback(functools.partial(target_done_callback, args))
+        if not sim_executor._shutdown:
+            target_future = sim_executor.submit(
+                call_target_actual,
+                args=args,
+                total_tokens=total_tokens,
+                draft_tokens=draft_tokens,
+                sim_shared_dict=sim_shared_dict,
+                cur_pipe=cur_pipe,
+                sim_executor=sim_executor,
+            )
+
+            target_future.add_done_callback(
+                functools.partial(target_done_callback, args)
+            )
     elif args.run_type == RunType.SI:
-        target_res = call_target_actual_partial()
+        target_res = call_target_actual(
+            args=args,
+            total_tokens=total_tokens,
+            draft_tokens=draft_tokens,
+            sim_shared_dict=sim_shared_dict,
+            cur_pipe=cur_pipe,
+            sim_executor=sim_executor,
+        )
         target_done_callback(args, target_res)
     else:
         raise ValueError(f"Invalid run type {args.run_type}")
@@ -144,13 +164,18 @@ def run_generate(args, total_tokens, sim_shared_dict, cur_pipe, wait_for_pipe):
     is_first_token = sim_shared_dict["total_tokens"] == sim_shared_dict["prompt_tokens"]
     while True:
         # generating token index {total_tokens+draft_tokens}")
+
         # if has no history, first token time, else use sub-token time
-        current_draft_time: float = args.c_sub
         if is_first_token and draft_tokens == 0:
             current_draft_time = args.c
+        else:
+            current_draft_time = args.c_sub
+
         time.sleep(current_draft_time)
+
         draft_tokens += 1
-        # call the target model every 'lookahead' tokens
+
+        # call the target model every sl tokens.
         if draft_tokens % args.k == 0:
             call_target(
                 args=args,

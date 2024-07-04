@@ -72,9 +72,10 @@ class ConfigRunDSI(ConfigRun):
             raise NumOfTargetServersInsufficientError(msg)
 
 
+# class syntax
 class RunType(Enum):
-    SI = 1
-    DSI = 2
+    DSI = 1
+    SI = 2
 
 
 class ConfigRunOnline(ConfigRunDSI):
@@ -100,5 +101,5 @@ class ConfigRunOnline(ConfigRunDSI):
     )
 
     @property
-    def max_tokens(self) -> int:
+    def max_tokens(self) -> str:
         return self.total_tokens + self.S
