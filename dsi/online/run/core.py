@@ -58,7 +58,7 @@ def call_target_actual(
     cur_target_time = get_target_time(args, visited)
     if not visited:
         sim_shared_dict[model_id] = True
-    logging.error(f"{cur_thread_name} {model_id=} {visited=}")
+    
     time.sleep(cur_target_time)
 
     return dict(
@@ -87,7 +87,6 @@ def target_done_callback(args, res):
     sim_executor = res_dict["sim_executor"]
 
     if correct < draft_tokens:
-        logging.error(f"{correct} ARE CORRECT out of {draft_tokens}")
         # I have "correct" correct token, plus 1
         # ONLY {correct} are correct, need to fix the history
         fix_history(total_tokens, correct, sim_shared_dict, cur_pipe, sim_executor)
@@ -98,7 +97,6 @@ def target_done_callback(args, res):
 
         if total_tokens > args.max_tokens:
             # MAX TOKENS REACHED
-            logging.error(f"MAX REACHED at {total_tokens}")
             sim_shared_dict["stop"] = True
             terminate_process(cur_pipe, sim_executor)
 
@@ -110,7 +108,6 @@ def call_target(
     Call the target in a separate thread
     """
     if args.run_type == RunType.DSI:
-        logging.error(f"SUBMIT in {draft_tokens}")
         if not sim_executor._shutdown:
             target_future = sim_executor.submit(
                 call_target_actual,
@@ -125,7 +122,7 @@ def call_target(
             target_future.add_done_callback(
                 functools.partial(target_done_callback, args)
             )
-    else:
+    elif args.run_type == RunType.SI:
         target_res = call_target_actual(
             args=args,
             total_tokens=total_tokens,
@@ -135,30 +132,12 @@ def call_target(
             sim_executor=sim_executor,
         )
         target_done_callback(args, target_res)
-
-
-def get_draft_time_for_first_token(args, total_tokens):
-    return args.c
-
-
-def get_draft_time_for_sub_token(args, total_tokens, draft_tokens):
-    return args.c_sub
-
-
-# def get_number_of_correct_tokens(a, maximum_correct_tokens):
-#     """
-#     Sample a random number of correct tokens from the geo(1-a_rate) distribution
-#     """
-#     np.random.seed(seed=int(time.time()))
-#     res_list = np.random.geometric(1 - a, size=1) - 1
-#     res = min(res_list[-1], maximum_correct_tokens)
-
-#     return res
-
+    else:
+        raise ValueError(f"Invalid run type {args.run_type}")
 
 def run_generate(args, total_tokens, sim_shared_dict, cur_pipe, wait_for_pipe):
     """
-    Run the generation process
+    Run the generation process for the draft model. The target model is called every k tokens.
     """
     # if has to wait for the pipe to send the pid, wait for wait_for_pipe seconds
     if wait_for_pipe:
@@ -166,13 +145,10 @@ def run_generate(args, total_tokens, sim_shared_dict, cur_pipe, wait_for_pipe):
 
     if args.run_type == RunType.DSI:
         # create a LIFO threadpool
-        logging.error(f"{args.num_target_servers=}")
         sim_executor = ThreadPoolExecutor(max_workers=args.num_target_servers)
         sim_executor._work_queue = queue.LifoQueue()
     else:
         sim_executor = None
-
-    logging.error(f'{sim_shared_dict["correct"]=}')
 
     draft_tokens = 0
 
@@ -191,11 +167,9 @@ def run_generate(args, total_tokens, sim_shared_dict, cur_pipe, wait_for_pipe):
 
         # if has no history, first token time, else use sub-token time
         if is_first_token and draft_tokens == 0:
-            current_draft_time = get_draft_time_for_first_token(args, total_tokens)
+            current_draft_time = args.c
         else:
-            current_draft_time = get_draft_time_for_sub_token(
-                args, total_tokens, draft_tokens
-            )
+            current_draft_time = args.c_sub
 
         time.sleep(current_draft_time)
 
