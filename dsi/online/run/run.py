@@ -1,14 +1,11 @@
-import logging
 import multiprocessing
 import time
 
-from tqdm import tqdm
-
 from dsi.configs.config_run import ConfigRunOnline
+from dsi.offline.run.common import generate_num_accepted_drafts
 from dsi.online.run.core import restart_draft
 from dsi.types.result import Result
 from dsi.types.run import Run
-from dsi.offline.run.common import generate_num_accepted_drafts
 
 
 class RunOnline(Run):
@@ -19,22 +16,28 @@ class RunOnline(Run):
 
     def get_correct_token_list(self):
         """
-        Generate random numbers of correct tokens until the total number of tokens is less than S.
+        Generate random numbers of correct tokens, until the
+         total number of tokens is less than S.
         """
         correct_token_list = []
         while sum(correct_token_list) <= self.config.S:
-            correct_token_list.append(list(generate_num_accepted_drafts(self.config.a, self.config.maximum_correct_tokens, 1))[0])
+            correct_token_list.append(
+                list(
+                    generate_num_accepted_drafts(
+                        self.config.a, self.config.maximum_correct_tokens, 1
+                    )
+                )[0]
+            )
         return correct_token_list
 
     def _run_single(self) -> Result:
         correct_token_list = self.get_correct_token_list()
-        
+
         total_tokens = self.config.total_tokens
         sim_shared_dict = multiprocessing.Manager().dict()
 
         sim_shared_dict["total_tokens"] = total_tokens
         sim_shared_dict["prompt_tokens"] = total_tokens
-        
 
         start_time = time.time()
         iter_till_stop = 0
@@ -43,16 +46,16 @@ class RunOnline(Run):
         while "stop" not in sim_shared_dict:
             # sample number of correct tokens
             sim_shared_dict["correct"] = correct_token_list[iter_till_stop]
-            
+
             th = restart_draft(
                 self.config,
                 sim_shared_dict["total_tokens"],
                 sim_shared_dict,
-                self.config.wait_for_pipe
+                self.config.wait_for_pipe,
             )
             th.join()
             iter_till_stop += 1
-            
+
         inference_time = time.time() - start_time
 
         # Remove the extra time from the final inference time count

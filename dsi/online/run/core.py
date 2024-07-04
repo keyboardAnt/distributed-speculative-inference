@@ -1,5 +1,4 @@
 import functools
-import logging
 import multiprocessing
 import os
 import queue
@@ -10,7 +9,6 @@ from multiprocessing import Pipe
 from threading import current_thread
 
 from dsi.configs.config_run import RunType
-import numpy as np
 
 
 def terminate_process(cur_pipe, sim_executor):
@@ -58,7 +56,7 @@ def call_target_actual(
     cur_target_time = get_target_time(args, visited)
     if not visited:
         sim_shared_dict[model_id] = True
-    
+
     time.sleep(cur_target_time)
 
     return dict(
@@ -135,9 +133,11 @@ def call_target(
     else:
         raise ValueError(f"Invalid run type {args.run_type}")
 
+
 def run_generate(args, total_tokens, sim_shared_dict, cur_pipe, wait_for_pipe):
     """
-    Run the generation process for the draft model. The target model is called every k tokens.
+    Run the generation process for the draft model.
+    The target model is called every k tokens.
     """
     # if has to wait for the pipe to send the pid, wait for wait_for_pipe seconds
     if wait_for_pipe:

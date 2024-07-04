@@ -1,6 +1,5 @@
-from math import ceil
-from typing import Literal
 from enum import Enum
+from math import ceil
 
 from pydantic import BaseModel, Field
 
@@ -72,10 +71,12 @@ class ConfigRunDSI(ConfigRun):
             )
             raise NumOfTargetServersInsufficientError(msg)
 
+
 # class syntax
 class RunType(Enum):
     DSI = 1
     SI = 2
+
 
 class ConfigRunOnline(ConfigRunDSI):
     c_sub: float = Field(
@@ -89,9 +90,7 @@ class ConfigRunOnline(ConfigRunDSI):
     )
     total_tokens: int = Field(100, title="The number of tokens in the prompt", ge=0)
     wait_for_pipe: float = Field(
-        0.1,
-        title="Wait for pid to be sent via the pipe",
-        ge=0
+        0.1, title="Wait for pid to be sent via the pipe", ge=0
     )
     run_type: RunType = Field(
         RunType.DSI,

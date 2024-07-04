@@ -1,27 +1,28 @@
 import multiprocessing
 
+import pytest
+
 from dsi.configs.config_run import ConfigRunOnline, RunType
 from dsi.online.run.run import restart_draft
-import pytest
+
 
 @pytest.fixture
 def get_config():
     return ConfigRunOnline(
-        c=0.05725204603746534, 
-        a=0.94, 
-        k=5, 
-        failure_cost=0.18028411593660712, 
-        S=50, 
-        num_repeats=30, 
-        num_target_servers=4, 
-        c_sub=0.0033411221550777503, 
-        failure_cost_sub=0.10018306512758136, 
-        total_tokens=100, 
-        wait_for_pipe=0.1, 
-        run_type=RunType.DSI, 
-        maximum_correct_tokens=20
+        c=0.05725204603746534,
+        a=0.94,
+        k=5,
+        failure_cost=0.18028411593660712,
+        S=50,
+        num_repeats=30,
+        num_target_servers=4,
+        c_sub=0.0033411221550777503,
+        failure_cost_sub=0.10018306512758136,
+        total_tokens=100,
+        wait_for_pipe=0.1,
+        run_type=RunType.DSI,
+        maximum_correct_tokens=20,
     )
-
 
 
 def test_entire_threadpool_used(get_config):
