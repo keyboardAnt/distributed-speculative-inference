@@ -3,6 +3,9 @@
 	"build": {
 		"dockerfile": "Dockerfile"
 	},
+	"containerEnv": {
+		"HYDRA_FULL_ERROR": "1"
+	},
 	"runArgs": [
 		"--shm-size=2g"
 	],
