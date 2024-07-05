@@ -29,7 +29,7 @@ cols_to_print: dict[str, str] = {
 }
 
 
-def plot_contour(
+def _plot_contour(
     df: pd.DataFrame,
     x_col: str,
     y_col: str,
@@ -81,7 +81,7 @@ def plot_contour(
     return fig
 
 
-def get_enriched_min_speedups(df: pd.DataFrame) -> pd.DataFrame:
+def _get_enriched_min_speedups(df: pd.DataFrame) -> pd.DataFrame:
     # Set c and a as indices
     df = df.set_index(["c", "a"])
 
@@ -113,8 +113,8 @@ df: pd.DataFrame = pd.read_csv(csv_filepath, index_col=0)
 mask_ones: np.ndarray = np.ones_like(df.index, dtype=bool)
 
 
-plot_contour(
-    get_enriched_min_speedups(df[mask_ones]),
+_plot_contour(
+    _get_enriched_min_speedups(df[mask_ones]),
     "c",
     "a",
     "min_speedup_fed_vs_spec",
@@ -178,8 +178,8 @@ dirpath = (
 
 
 def plot_speedup(config: PlotSpeedupConfig) -> None:
-    fig: plt.Figure = plot_contour(
-        df=get_enriched_min_speedups(df[config.mask_fn(df)]),
+    fig: plt.Figure = _plot_contour(
+        df=_get_enriched_min_speedups(df[config.mask_fn(df)]),
         x_col="c",
         y_col="a",
         val_col=config.col_speedup,
