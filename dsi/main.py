@@ -71,7 +71,6 @@ def main(cfg: ConfigCLI) -> None:
         )
         log.info("Loading results from %s", cfg.load_results)
         raise NotImplementedError
-    # plt.show()
     filepath_plots: str = savefig(name="si_latency_and_iters_dist")
     log.info("Figure saved at %s", filepath_plots)
     log.info("Done")
