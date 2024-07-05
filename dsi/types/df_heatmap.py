@@ -21,7 +21,7 @@ class DataFrameHeatmap(pd.DataFrame):
         """
         return cls(data).validate_columns()
 
-    def validate_columns(self):
+    def validate_columns(self) -> "DataFrameHeatmap":
         """
         Validates the column names to ensure they match expected HeatmapColumn or Param
         names. Raises ValueError if any column names are invalid.
