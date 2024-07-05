@@ -5,7 +5,7 @@ from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
 
 
-def savefig(name: str, fig: None | Figure = None) -> str:
+def savefig(name: str, fig: None | Figure = None, dirpath: None | Path = None) -> str:
     """
     Stores the figure in the output directory with the given filename.
     Returns the path to the stored figure.
@@ -14,11 +14,14 @@ def savefig(name: str, fig: None | Figure = None) -> str:
     Args:
         filename: The filename of the stored figure, without the extension.
         fig: The figure to store. If None, the current figure is stored.
+        dirpath: The directory path to store the figure.
+                 If None, the output directory is used.
     """
     if fig is None:
         fig = plt.gcf()
     plt.tight_layout()
-    dirpath = Path(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir)
+    if dirpath is None:
+        dirpath = Path(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir)
     filepath: Path = (dirpath / name).with_suffix(".pdf")
     fig.savefig(filepath, dpi=300, format="pdf", bbox_inches="tight")
     return str(filepath)

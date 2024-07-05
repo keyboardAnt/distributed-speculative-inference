@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Callable, Literal
@@ -9,6 +10,10 @@ from matplotlib import ticker
 from matplotlib.colors import ListedColormap, Normalize
 from matplotlib.figure import Figure
 from pydantic import BaseModel
+
+from dsi.vis.utils import savefig
+
+log = logging.getLogger(__name__)
 
 # class VisHeatmap:
 #     def __init__(self, df: DataFrameHeatmap) -> None:
@@ -38,7 +43,7 @@ def _plot_contour(
     levels_step: float = 1.0,
     vmax: float | None = None,
     pink_idx_side: Literal["left", "right"] = "left",
-) -> plt.Figure:
+) -> Figure:
     assert levels_step <= 1, "Levels step must be less than or equal to 1"
     assert ((1 / levels_step) % 1) == 0, "Levels step must be a factor of 1"
     vmax: float = vmax or df[val_col].max()
@@ -109,19 +114,6 @@ def _get_enriched_min_speedups(df: pd.DataFrame) -> pd.DataFrame:
     return df.reset_index()
 
 
-csv_filepath = "results/offline/heatmap/heatmap-20240702-012750.csv"
-df: pd.DataFrame = pd.read_csv(csv_filepath, index_col=0)
-mask_ones: np.ndarray = np.ones_like(df.index, dtype=bool)
-
-
-_plot_contour(
-    _get_enriched_min_speedups(df[mask_ones]),
-    "c",
-    "a",
-    "min_speedup_fed_vs_spec",
-)
-
-
 def ones_fn(df: pd.DataFrame) -> pd.Series:
     return np.ones_like(df.index, dtype=bool)
 
@@ -172,11 +164,6 @@ configs: list[PlotSpeedupConfig] = [
 ]
 
 
-now = datetime.now()
-dirpath = Path(f"outputs/{now.strftime('%Y-%m-%d')}/{now.strftime('%H-%M-%S')}")
-dirpath.mkdir(parents=True)
-
-
 def plot_speedup(config: PlotSpeedupConfig) -> None:
     fig: Figure = _plot_contour(
         df=_get_enriched_min_speedups(df[config.mask_fn(df)]),
@@ -187,14 +174,38 @@ def plot_speedup(config: PlotSpeedupConfig) -> None:
         vmax=config.vmax,
         pink_idx_side=config.pink_idx_side,
     )
-    plt.tight_layout()
+
     title: str = f"{config.col_speedup} - {config.mask_fn.__name__}"
-    fig.suptitle(title)
-    filepath: str = str((dirpath / title).with_suffix(".pdf"))
-    fig.savefig(filepath, dpi=300, format="pdf", bbox_inches="tight")
-    # TODO(Nadav): Use savefig
-    # savefig(fig=fig, name=title)
+    filepath: str = savefig(fig=fig, name=title, dirpath=dirpath)
+    log.info("Figure saved at %s", filepath)
 
 
-for config in configs:
-    plot_speedup(config)
+if __name__ == "__main__":
+    now = datetime.now()
+    dirpath = Path(f"outputs/{now.strftime('%Y-%m-%d')}/{now.strftime('%H-%M-%S')}")
+    dirpath.mkdir(parents=True)
+    filepath_log: str = str(dirpath / "log.log")
+    logging.basicConfig(
+        filename=filepath_log,
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
+    log.info("Output directory: %s", dirpath)
+    csv_filepath = "results/offline/heatmap/heatmap-20240702-012750.csv"
+    log.info("Reading CSV file: %s", csv_filepath)
+    df: pd.DataFrame = pd.read_csv(csv_filepath, index_col=0)
+    log.info("Read CSV file with shape: %s", df.shape)
+    log.info("df.head():")
+    log.info(df.head())
+    mask_ones: np.ndarray = np.ones_like(df.index, dtype=bool)
+    log.info("Plotting contour minimum speedups")
+    fig: Figure = _plot_contour(
+        _get_enriched_min_speedups(df[mask_ones]),
+        "c",
+        "a",
+        "min_speedup_fed_vs_spec",
+    )
+    savefig(fig=fig, name="plot_contour_min_speedup_fed_vs_spec", dirpath=dirpath)
+    for config in configs:
+        log.info(f"Plotting speedup of {config=}")
+        plot_speedup(config)
