@@ -1,4 +1,4 @@
-from dsi.configs.run import ConfigRunDSI
+from dsi.configs.run.run import ConfigRunDSI
 from dsi.types.result import Result
 from dsi.types.run import Run
 

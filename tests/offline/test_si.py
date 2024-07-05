@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from dsi.configs.run import ConfigRun
+from dsi.configs.run.run import ConfigRun
 from dsi.offline.run.si import RunSI
 from dsi.types.result import Result
 

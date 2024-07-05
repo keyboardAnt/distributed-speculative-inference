@@ -3,8 +3,8 @@ import enum
 from hydra.core.config_store import ConfigStore
 from pydantic import BaseModel, Field, FilePath
 
-from dsi.configs.heatmap import ConfigHeatmap
-from dsi.configs.run import ConfigRunDSI
+from dsi.configs.run.heatmap import ConfigHeatmap
+from dsi.configs.run.run import ConfigRunDSI
 
 
 class RunType(str, enum.Enum):

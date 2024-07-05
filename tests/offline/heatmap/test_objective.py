@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from dsi.configs.run import ConfigRunDSI
+from dsi.configs.run.run import ConfigRunDSI
 from dsi.offline.heatmap.objective import enrich_inplace, get_all_latencies
 from dsi.types.name import HeatmapColumn
 
