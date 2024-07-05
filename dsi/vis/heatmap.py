@@ -1,4 +1,3 @@
-import os
 from datetime import datetime
 from typing import Callable, Literal
 
@@ -7,7 +6,10 @@ import numpy as np
 import pandas as pd
 from matplotlib import ticker
 from matplotlib.colors import ListedColormap, Normalize
+from matplotlib.figure import Figure
 from pydantic import BaseModel
+
+from dsi.vis.utils import savefig
 
 # class VisHeatmap:
 #     def __init__(self, df: DataFrameHeatmap) -> None:
@@ -178,7 +180,7 @@ dirpath = (
 
 
 def plot_speedup(config: PlotSpeedupConfig) -> None:
-    fig: plt.Figure = _plot_contour(
+    fig: Figure = _plot_contour(
         df=_get_enriched_min_speedups(df[config.mask_fn(df)]),
         x_col="c",
         y_col="a",
@@ -189,9 +191,10 @@ def plot_speedup(config: PlotSpeedupConfig) -> None:
     )
     title: str = f"{config.col_speedup} - {config.mask_fn.__name__}"
     # fig.suptitle(title)
-    filepath: str = os.path.join(dirpath, title)
-    plt.tight_layout()
-    fig.savefig(filepath + ".pdf", dpi=300, format="pdf", bbox_inches="tight")
+    # filepath: str = os.path.join(dirpath, title)
+    # plt.tight_layout()
+    # fig.savefig(filepath + ".pdf", dpi=300, format="pdf", bbox_inches="tight")
+    savefig(fig=fig, name=title)
 
 
 for config in configs:

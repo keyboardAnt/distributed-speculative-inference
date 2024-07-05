@@ -6,7 +6,6 @@ from pathlib import Path
 
 import hydra
 import pandas as pd
-from matplotlib import pyplot as plt
 from omegaconf import OmegaConf
 
 from dsi.configs.cli import ConfigCLI, RunType
@@ -17,6 +16,7 @@ from dsi.offline.run.si import RunSI
 from dsi.types.df_heatmap import DataFrameHeatmap
 from dsi.types.result import Result
 from dsi.vis.iters_dist import PlotIters
+from dsi.vis.utils import savefig
 
 log = logging.getLogger(__name__)
 
@@ -46,11 +46,11 @@ def main(cfg: ConfigCLI) -> None:
             tmanager: RayManager = RayManager(cfg.heatmap)
             df_results: pd.DataFrame = tmanager.run()
             df_heatmap: DataFrameHeatmap = enrich_inplace(df_results)
-            filepath: Path = (
+            filepath_heatmap: Path = (
                 Path(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir)
-                / "heatmap.csv"
-            )
-            df_heatmap.to_csv(filepath)
+                / "heatmap"
+            ).with_suffix(".csv")
+            df_heatmap.to_csv(str(filepath_heatmap))
             log.info("df_heatmap.head():")
             log.info(df_heatmap.head())
             log.info("df_heatmap.describe():")
@@ -71,5 +71,7 @@ def main(cfg: ConfigCLI) -> None:
         )
         log.info("Loading results from %s", cfg.load_results)
         raise NotImplementedError
-    plt.show()
+    # plt.show()
+    filepath_plots: str = savefig(name="si_latency_and_iters_dist")
+    log.info("Figure saved at %s", filepath_plots)
     log.info("Done")
