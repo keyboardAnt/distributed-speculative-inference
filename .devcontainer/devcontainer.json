@@ -6,7 +6,7 @@
 	"runArgs": [
 		"--shm-size=2g"
 	],
-	"postCreateCommand": "poetry install",
+	"postCreateCommand": "poetry install && poetry shell",
 	"customizations": {
 		"vscode": {
 			"extensions": [
