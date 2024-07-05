@@ -1,3 +1,6 @@
+from pathlib import Path
+
+import hydra
 import pandas as pd
 
 from dsi.types.name import HeatmapColumn, Param
@@ -36,3 +39,13 @@ class DataFrameHeatmap(pd.DataFrame):
                     " defined HeatmapColumn or Param names."
                 )
         return self
+
+    def store(self, title: str = "heatmap") -> str:
+        """
+        Stores the DataFrame in a CSV file. Returns the path to the stored file.
+        """
+        filepath: Path = (
+            Path(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir) / title
+        ).with_suffix(".csv")
+        self.to_csv(filepath)
+        return filepath

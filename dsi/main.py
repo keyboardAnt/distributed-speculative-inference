@@ -2,7 +2,6 @@
 
 import logging
 import os
-from pathlib import Path
 
 import hydra
 import pandas as pd
@@ -42,20 +41,18 @@ def main(cfg: ConfigCLI) -> None:
                 result=res_si, suptitle=f"Latency of SI (lookahead={cfg.run.k})"
             )
             plot_si.plot()
+            filepath_plots: str = savefig(name="si_latency_and_iters_dist")
+            log.info("Figure saved at %s", filepath_plots)
         elif cfg.type == RunType.offline_heatmap:
             tmanager: RayManager = RayManager(cfg.heatmap)
             df_results: pd.DataFrame = tmanager.run()
             df_heatmap: DataFrameHeatmap = enrich_inplace(df_results)
-            filepath_heatmap: Path = (
-                Path(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir)
-                / "heatmap"
-            ).with_suffix(".csv")
-            df_heatmap.to_csv(str(filepath_heatmap))
+            filepath: str = df_heatmap.store()
+            log.info("Heatmap stored at %s", filepath)
             log.info("df_heatmap.head():")
             log.info(df_heatmap.head())
             log.info("df_heatmap.describe():")
             log.info(df_heatmap.describe())
-
         elif cfg.type == RunType.online:
             log.info(
                 "Running online simulation."
@@ -71,6 +68,4 @@ def main(cfg: ConfigCLI) -> None:
         )
         log.info("Loading results from %s", cfg.load_results)
         raise NotImplementedError
-    filepath_plots: str = savefig(name="si_latency_and_iters_dist")
-    log.info("Figure saved at %s", filepath_plots)
     log.info("Done")
