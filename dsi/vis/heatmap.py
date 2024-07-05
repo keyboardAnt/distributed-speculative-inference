@@ -1,4 +1,5 @@
 from datetime import datetime
+from pathlib import Path
 from typing import Callable, Literal
 
 import matplotlib.pyplot as plt
@@ -8,8 +9,6 @@ from matplotlib import ticker
 from matplotlib.colors import ListedColormap, Normalize
 from matplotlib.figure import Figure
 from pydantic import BaseModel
-
-from dsi.vis.utils import savefig
 
 # class VisHeatmap:
 #     def __init__(self, df: DataFrameHeatmap) -> None:
@@ -174,9 +173,8 @@ configs: list[PlotSpeedupConfig] = [
 
 
 now = datetime.now()
-dirpath = (
-    f"/Users/nadavt/repos/federated-inference/outs/{now.strftime('%Y%m%d-%H%M%S')}"
-)
+dirpath = Path(f"outputs/{now.strftime('%Y-%m-%d')}/{now.strftime('%H-%M-%S')}")
+dirpath.mkdir(parents=True)
 
 
 def plot_speedup(config: PlotSpeedupConfig) -> None:
@@ -189,12 +187,13 @@ def plot_speedup(config: PlotSpeedupConfig) -> None:
         vmax=config.vmax,
         pink_idx_side=config.pink_idx_side,
     )
+    plt.tight_layout()
     title: str = f"{config.col_speedup} - {config.mask_fn.__name__}"
-    # fig.suptitle(title)
-    # filepath: str = os.path.join(dirpath, title)
-    # plt.tight_layout()
-    # fig.savefig(filepath + ".pdf", dpi=300, format="pdf", bbox_inches="tight")
-    savefig(fig=fig, name=title)
+    fig.suptitle(title)
+    filepath: str = str((dirpath / title).with_suffix(".pdf"))
+    fig.savefig(filepath, dpi=300, format="pdf", bbox_inches="tight")
+    # TODO(Nadav): Use savefig
+    # savefig(fig=fig, name=title)
 
 
 for config in configs:
