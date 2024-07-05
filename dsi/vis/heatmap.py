@@ -164,7 +164,7 @@ configs: list[PlotSpeedupConfig] = [
 ]
 
 
-def plot_speedup(config: PlotSpeedupConfig) -> None:
+def plot_speedup(config: PlotSpeedupConfig) -> str:
     fig: Figure = _plot_contour(
         df=_get_enriched_min_speedups(df[config.mask_fn(df)]),
         x_col="c",
@@ -177,7 +177,7 @@ def plot_speedup(config: PlotSpeedupConfig) -> None:
 
     title: str = f"{config.col_speedup} - {config.mask_fn.__name__}"
     filepath: str = savefig(fig=fig, name=title, dirpath=dirpath)
-    log.info("Figure saved at %s", filepath)
+    return filepath
 
 
 if __name__ == "__main__":
@@ -197,15 +197,17 @@ if __name__ == "__main__":
     log.info("Read CSV file with shape: %s", df.shape)
     log.info("df.head():")
     log.info(df.head())
-    mask_ones: np.ndarray = np.ones_like(df.index, dtype=bool)
-    log.info("Plotting contour minimum speedups")
-    fig: Figure = _plot_contour(
-        _get_enriched_min_speedups(df[mask_ones]),
-        "c",
-        "a",
-        "min_speedup_fed_vs_spec",
-    )
-    savefig(fig=fig, name="plot_contour_min_speedup_fed_vs_spec", dirpath=dirpath)
+    # log.info("Plotting contour minimum speedups")
+    # mask_ones: np.ndarray = np.ones_like(df.index, dtype=bool)
+    # fig: Figure = _plot_contour(
+    #     _get_enriched_min_speedups(df[mask_ones]),
+    #     "c",
+    #     "a",
+    #     "min_speedup_fed_vs_spec",
+    # )
+    # savefig(fig=fig, name="plot_contour_min_speedup_fed_vs_spec", dirpath=dirpath)
     for config in configs:
         log.info(f"Plotting speedup of {config=}")
-        plot_speedup(config)
+        filepath: str = plot_speedup(config)
+        log.info("Figure saved at %s", filepath)
+    log.info("Done")
