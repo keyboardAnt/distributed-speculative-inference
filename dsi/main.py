@@ -30,37 +30,38 @@ def main(cfg: ConfigCLI) -> None:
     )
     if cfg.load_results is None:
         log.info("Running new experiments")
-        if cfg.type == RunType.offline:
-            log.info("Running offline simulation")
-            res_si: Result = RunSI(cfg.run).run()
-            log.info("res_si: %s", res_si)
-            res_dsi: Result = RunDSI(cfg.run).run()
-            log.info("res_dsi: %s", res_dsi)
-            log.info("Plotting SI")
-            plot_si: PlotIters = PlotIters(
-                result=res_si, suptitle=f"Latency of SI (lookahead={cfg.run.k})"
-            )
-            plot_si.plot()
-            filepath_plots: str = savefig(name="si_latency_and_iters_dist")
-            log.info("Figure saved at %s", filepath_plots)
-        elif cfg.type == RunType.offline_heatmap:
-            tmanager: RayManager = RayManager(cfg.heatmap)
-            df_results: pd.DataFrame = tmanager.run()
-            df_heatmap: DataFrameHeatmap = enrich_inplace(df_results)
-            filepath: str = df_heatmap.store()
-            log.info("Heatmap stored at %s", filepath)
-            log.info("df_heatmap.head():")
-            log.info(df_heatmap.head())
-            log.info("df_heatmap.describe():")
-            log.info(df_heatmap.describe())
-        elif cfg.type == RunType.online:
-            log.info(
-                "Running online simulation."
-                " Implementation with a thread pool to be added."
-            )
-            raise NotImplementedError
-        else:
-            raise NotImplementedError(f"Invalid simulation type: {cfg.type}")
+        match cfg.type:
+            case RunType.offline:
+                log.info("Running offline simulation")
+                res_si: Result = RunSI(cfg.run).run()
+                log.info("res_si: %s", res_si)
+                res_dsi: Result = RunDSI(cfg.run).run()
+                log.info("res_dsi: %s", res_dsi)
+                log.info("Plotting SI")
+                plot_si: PlotIters = PlotIters(
+                    result=res_si, suptitle=f"Latency of SI (lookahead={cfg.run.k})"
+                )
+                plot_si.plot()
+                filepath_plots: str = savefig(name="si_latency_and_iters_dist")
+                log.info("Figure saved at %s", filepath_plots)
+            case RunType.offline_heatmap:
+                tmanager: RayManager = RayManager(cfg.heatmap)
+                df_results: pd.DataFrame = tmanager.run()
+                df_heatmap: DataFrameHeatmap = enrich_inplace(df_results)
+                filepath: str = df_heatmap.store()
+                log.info("Heatmap stored at %s", filepath)
+                log.info("df_heatmap.head():")
+                log.info(df_heatmap.head())
+                log.info("df_heatmap.describe():")
+                log.info(df_heatmap.describe())
+            case RunType.online:
+                log.info(
+                    "Running online simulation."
+                    " Implementation with a thread pool to be added."
+                )
+                raise NotImplementedError
+            case _:
+                raise NotImplementedError(f"Invalid simulation type: {cfg.type}")
     else:
         log.info(
             "Received a path to load existing results."
