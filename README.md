@@ -37,10 +37,6 @@ For help, use:
 
 For more sophisticated combinations of configurations, check out Hydra's documentation.
 
-## Visualizing results
-
-By default, running new experiments will also visualize the results. To visualize existing results (pre-computed), provide their path: `python -m dsi type=offline_heatmap load_results="results/offline/heatmap/heatmap-20240702-012750.csv"`
-
 ## Testing
 
 - Run tests: `python -m pytest` (from the project root)
