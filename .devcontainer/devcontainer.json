@@ -8,7 +8,7 @@
 	},
 	"runArgs": [
 		"--shm-size=2g",
-		"--memory=8g",
+		"--memory=4g",
 		"--memory-swap=12g"
 	],
 	"postCreateCommand": "poetry install",
