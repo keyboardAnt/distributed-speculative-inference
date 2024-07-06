@@ -7,7 +7,9 @@
 		"HYDRA_FULL_ERROR": "1"
 	},
 	"runArgs": [
-		"--shm-size=2g"
+		"--shm-size=2g",
+		"--memory=16g",
+		"--memory-swap=24g"
 	],
 	"postCreateCommand": "poetry install",
 	"customizations": {
