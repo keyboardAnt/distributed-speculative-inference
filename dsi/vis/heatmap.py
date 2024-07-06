@@ -11,6 +11,7 @@ from matplotlib.colors import ListedColormap, Normalize
 from matplotlib.figure import Figure
 from pydantic import BaseModel
 
+from dsi.types.df_heatmap import DataFrameHeatmap
 from dsi.vis.utils import savefig
 
 log = logging.getLogger(__name__)
@@ -193,19 +194,19 @@ if __name__ == "__main__":
     log.info("Output directory: %s", dirpath)
     csv_filepath = "results/offline/heatmap/heatmap-20240702-012750.csv"
     log.info("Reading CSV file: %s", csv_filepath)
-    df: pd.DataFrame = pd.read_csv(csv_filepath, index_col=0)
+    df: DataFrameHeatmap = DataFrameHeatmap.from_heatmap_csv(csv_filepath)
     log.info("Read CSV file with shape: %s", df.shape)
     log.info("df.head():")
     log.info(df.head())
-    # log.info("Plotting contour minimum speedups")
-    # mask_ones: np.ndarray = np.ones_like(df.index, dtype=bool)
-    # fig: Figure = _plot_contour(
-    #     _get_enriched_min_speedups(df[mask_ones]),
-    #     "c",
-    #     "a",
-    #     "min_speedup_fed_vs_spec",
-    # )
-    # savefig(fig=fig, name="plot_contour_min_speedup_fed_vs_spec", dirpath=dirpath)
+    log.info("Plotting contour minimum speedups")
+    mask_ones: np.ndarray = np.ones_like(df.index, dtype=bool)
+    fig: Figure = _plot_contour(
+        _get_enriched_min_speedups(df[mask_ones]),
+        "c",
+        "a",
+        "min_speedup_fed_vs_spec",
+    )
+    savefig(fig=fig, name="plot_contour_min_speedup_fed_vs_spec", dirpath=dirpath)
     log.info("Plotting speedups")
     log.info(f"{len(configs)=}")
     for config in configs:
