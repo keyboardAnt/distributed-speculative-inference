@@ -20,6 +20,33 @@ from dsi.vis.utils import savefig
 log = logging.getLogger(__name__)
 
 
+def offline(cfg: ConfigCLI) -> None:
+    res_si: Result = RunSI(cfg.run).run()
+    log.info("res_si: %s", res_si)
+    res_dsi: Result = RunDSI(cfg.run).run()
+    log.info("res_dsi: %s", res_dsi)
+    log.info("Plotting SI")
+    plot_si: PlotIters = PlotIters(
+        result=res_si, suptitle=f"Latency of SI (lookahead={cfg.run.k})"
+    )
+    plot_si.plot()
+    filepath_plots: str = savefig(name="si_latency_and_iters_dist")
+    log.info("Figure saved at %s", filepath_plots)
+
+
+def offline_heatmap(cfg: ConfigCLI) -> str:
+    tmanager: RayManager = RayManager(cfg.heatmap)
+    df_results: pd.DataFrame = tmanager.run()
+    df_heatmap: DataFrameHeatmap = enrich_inplace(df_results)
+    filepath: str = df_heatmap.store()
+    log.info("Heatmap stored at %s", filepath)
+    return filepath
+
+
+def online(cfg: ConfigCLI) -> None:
+    raise NotImplementedError
+
+
 @hydra.main(version_base=None, config_name="config")
 def main(cfg: ConfigCLI) -> None:
     log.info(OmegaConf.to_yaml(cfg))
@@ -28,34 +55,22 @@ def main(cfg: ConfigCLI) -> None:
         "Output directory: %s",
         hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
     )
+    heatmap_filepath: None | str = cfg.load_csv
     if cfg.load_csv is None:
-        log.info("Running new experiments")
+        log.info("Running a new experiment")
         match cfg.type:
             case RunType.offline:
-                log.info("Running offline simulation")
-                res_si: Result = RunSI(cfg.run).run()
-                log.info("res_si: %s", res_si)
-                res_dsi: Result = RunDSI(cfg.run).run()
-                log.info("res_dsi: %s", res_dsi)
-                log.info("Plotting SI")
-                plot_si: PlotIters = PlotIters(
-                    result=res_si, suptitle=f"Latency of SI (lookahead={cfg.run.k})"
-                )
-                plot_si.plot()
-                filepath_plots: str = savefig(name="si_latency_and_iters_dist")
-                log.info("Figure saved at %s", filepath_plots)
+                log.info("Running offline simulations of SI and visualizing them.")
+                offline(cfg)
             case RunType.offline_heatmap:
-                tmanager: RayManager = RayManager(cfg.heatmap)
-                df_results: pd.DataFrame = tmanager.run()
-                df_heatmap: DataFrameHeatmap = enrich_inplace(df_results)
-                filepath: str = df_heatmap.store()
-                log.info("Heatmap stored at %s", filepath)
+                log.info("Running offline heatmap experiment.")
+                heatmap_filepath: str = offline_heatmap(cfg)
             case RunType.online:
                 log.info(
-                    "Running online simulation."
+                    "Running online experiment."
                     " Implementation with a thread pool to be added."
                 )
-                raise NotImplementedError
+                online(cfg)
             case _:
                 raise NotImplementedError(f"Invalid simulation type: {cfg.type}")
     else:
@@ -63,11 +78,18 @@ def main(cfg: ConfigCLI) -> None:
             "Received a path to load existing results."
             " Visualizing them rather than running new experiments."
         )
-        log.info("Loading results from %s", cfg.load_csv)
-        df_heatmap: DataFrameHeatmap = DataFrameHeatmap.from_heatmap_csv(cfg.load_csv)
+        log.info("Loading results from %s", heatmap_filepath)
+    df_heatmap: DataFrameHeatmap = DataFrameHeatmap.from_heatmap_csv(cfg.load_csv)
     log.info(f"{df_heatmap.shape=}")
     log.info("df_heatmap.head():")
     log.info(df_heatmap.head())
     log.info("df_heatmap.describe():")
     log.info(df_heatmap.describe())
+    log.info("Plotting heatmaps")
+    # TODO
+    # log.info(f"{len(configs)=}")
+    # for config in configs:
+    #     log.info(f"Plotting speedup of {config=}")
+    #     filepath: str = plot_speedup(config)
+    #     log.info("Figure saved at %s", filepath)
     log.info("Done")
