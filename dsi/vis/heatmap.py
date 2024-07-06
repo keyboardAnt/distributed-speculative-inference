@@ -92,9 +92,10 @@ def _get_enriched_min_speedups(df: pd.DataFrame) -> pd.DataFrame:
     df = df.set_index(["c", "a"])
 
     # Cost of the baseline
-    df["cost_baseline"] = df.apply(
-        lambda row: min(row["cost_spec"], row["cost_nonspec"]), axis=1
-    )
+    # df["cost_baseline"] = df.apply(
+    #     lambda row: min(row["cost_spec"], row["cost_nonspec"]), axis=1
+    # )
+    df["cost_baseline"] = np.minimum(df["cost_spec"], df["cost_nonspec"])
 
     # Calculate the minimum costs for each group
     min_cost_fed: pd.Series = df.groupby(level=["c", "a"])["cost_fed"].transform("min")
@@ -174,7 +175,6 @@ def plot_speedup(config: PlotSpeedupConfig) -> str:
         vmax=config.vmax,
         pink_idx_side=config.pink_idx_side,
     )
-
     title: str = f"{config.col_speedup} - {config.mask_fn.__name__}"
     filepath: str = savefig(fig=fig, name=title, dirpath=dirpath)
     return filepath
@@ -206,6 +206,8 @@ if __name__ == "__main__":
     #     "min_speedup_fed_vs_spec",
     # )
     # savefig(fig=fig, name="plot_contour_min_speedup_fed_vs_spec", dirpath=dirpath)
+    log.info("Plotting speedups")
+    log.info(f"{len(configs)=}")
     for config in configs:
         log.info(f"Plotting speedup of {config=}")
         filepath: str = plot_speedup(config)
