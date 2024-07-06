@@ -3,8 +3,13 @@
 	"build": {
 		"dockerfile": "Dockerfile"
 	},
+	"containerEnv": {
+		"HYDRA_FULL_ERROR": "1"
+	},
 	"runArgs": [
-		"--shm-size=2g"
+		"--shm-size=2g",
+		"--memory=4g",
+		"--memory-swap=12g"
 	],
 	"postCreateCommand": "poetry install",
 	"customizations": {

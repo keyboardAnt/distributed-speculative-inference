@@ -2,9 +2,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from dsi.configs.config_run import ConfigRunDSI
+from dsi.configs.run.run import ConfigRunDSI
 from dsi.offline.heatmap.objective import enrich_inplace, get_all_latencies
-from dsi.types.result import HeatmapColumn
+from dsi.types.name import HeatmapColumn
 
 
 @pytest.mark.parametrize("c", [0.01, 0.1, 0.5, 0.8, 0.99])
