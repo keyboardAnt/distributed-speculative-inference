@@ -25,7 +25,7 @@ def test_dsi_result_shapes():
 @pytest.mark.parametrize("failure_cost", [0.01, 0.1, 0.5, 0.9, 0.99, 1.0, 10, 1000])
 @pytest.mark.parametrize("a", [0.0, 0.01, 0.1, 0.5, 0.9, 0.99, 1.0])
 @pytest.mark.parametrize("k", [1, 10, 100, 1000, 100000000])
-def test_dsi_faster_than_si(c: float, failure_cost: float, a: float, k: int):
+def test_dsi_faster_than_si_and_nonsi(c: float, failure_cost: float, a: float, k: int):
     try:
         config = ConfigRunDSI(c=c, failure_cost=failure_cost, a=a, k=k)
     except (NumOfTargetServersInsufficientError, DrafterSlowerThanTargetError):
@@ -46,3 +46,6 @@ def test_dsi_faster_than_si(c: float, failure_cost: float, a: float, k: int):
         cost_max: float = config.S * (config.c * config.k + config.failure_cost)
         assert cost_min <= cost_dsi or np.isclose(cost_min, cost_dsi)
         assert cost_dsi <= cost_max or np.isclose(cost_max, cost_dsi)
+    cost_nonsi: float = config.S * config.failure_cost
+    cost_per_run_dsi: np.ndarray = np.array(dsi_res.cost_per_run)
+    assert np.all(cost_per_run_dsi <= cost_nonsi), "DSI is never slower than non-SI"
