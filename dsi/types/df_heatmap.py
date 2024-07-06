@@ -13,7 +13,7 @@ class DataFrameHeatmap(pd.DataFrame):
         Factory method to create HeatmapDataFrame from a CSV file.
         Includes validation of column names against Heatmap-specific requirements.
         """
-        data = pd.read_csv(filepath)
+        data = pd.read_csv(filepath, index_col=0)
         return cls(data).validate_columns()
 
     @classmethod
