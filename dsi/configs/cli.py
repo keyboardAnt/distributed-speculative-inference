@@ -21,9 +21,9 @@ class ConfigCLI(BaseModel):
     heatmap: ConfigHeatmap = Field(
         default_factory=ConfigHeatmap, description="Configuration for the heatmap"
     )
-    load_results: None | FilePath = Field(
+    load_csv: None | FilePath = Field(
         None,
-        description="Path to the results file to load",
+        description="Path to the results CSV file to load",
     )
 
 

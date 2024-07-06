@@ -28,7 +28,7 @@ def main(cfg: ConfigCLI) -> None:
         "Output directory: %s",
         hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
     )
-    if cfg.load_results is None:
+    if cfg.load_csv is None:
         log.info("Running new experiments")
         match cfg.type:
             case RunType.offline:
@@ -50,10 +50,6 @@ def main(cfg: ConfigCLI) -> None:
                 df_heatmap: DataFrameHeatmap = enrich_inplace(df_results)
                 filepath: str = df_heatmap.store()
                 log.info("Heatmap stored at %s", filepath)
-                log.info("df_heatmap.head():")
-                log.info(df_heatmap.head())
-                log.info("df_heatmap.describe():")
-                log.info(df_heatmap.describe())
             case RunType.online:
                 log.info(
                     "Running online simulation."
@@ -67,6 +63,11 @@ def main(cfg: ConfigCLI) -> None:
             "Received a path to load existing results."
             " Visualizing them rather than running new experiments."
         )
-        log.info("Loading results from %s", cfg.load_results)
-        raise NotImplementedError
+        log.info("Loading results from %s", cfg.load_csv)
+        df_heatmap: DataFrameHeatmap = DataFrameHeatmap.from_heatmap_csv(cfg.load_csv)
+    log.info(f"{df_heatmap.shape=}")
+    log.info("df_heatmap.head():")
+    log.info(df_heatmap.head())
+    log.info("df_heatmap.describe():")
+    log.info(df_heatmap.describe())
     log.info("Done")
