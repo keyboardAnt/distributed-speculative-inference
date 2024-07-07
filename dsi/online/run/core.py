@@ -44,13 +44,21 @@ def get_target_time(args, visited):
     return args.failure_cost_sub
 
 
-def call_target_actual(
-    args, draft_tokens, total_tokens, sim_shared_dict, cur_pipe, sim_executor
-):
+def get_current_thread_name():
+    """
+    Get the current thread name in the threadpool. If thread pool does not exist, 
+    then current process name will be returned instead.
+    """
     cur_thread_name = current_thread().getName()
     model_id = (
         cur_thread_name.split("_")[1] if "_" in cur_thread_name else cur_thread_name
     )
+    return model_id
+
+def call_target_actual(
+    args, draft_tokens, total_tokens, sim_shared_dict, cur_pipe, sim_executor
+):
+    model_id = get_current_thread_name()
 
     visited = model_id in sim_shared_dict
     cur_target_time = get_target_time(args, visited)

@@ -74,8 +74,8 @@ class ConfigRunDSI(ConfigRun):
 
 # class syntax
 class RunType(Enum):
-    DSI = 1
-    SI = 2
+    SI = 1
+    DSI = 2
 
 
 class ConfigRunOnline(ConfigRunDSI):
@@ -101,5 +101,5 @@ class ConfigRunOnline(ConfigRunDSI):
     )
 
     @property
-    def max_tokens(self) -> str:
+    def max_tokens(self) -> int:
         return self.total_tokens + self.S
