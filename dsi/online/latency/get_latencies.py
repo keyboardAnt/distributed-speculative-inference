@@ -11,7 +11,6 @@ from tqdm import tqdm
 
 from dsi.configs.config_latency import ConfigLatency
 
-warnings.simplefilter(action='ignore', category=FutureWarning)
 
 log = logging.getLogger(__name__)
 
