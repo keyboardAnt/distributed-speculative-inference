@@ -23,7 +23,10 @@ class ConfigCLI(BaseModel):
     )
     load_csv: None | FilePath = Field(
         None,
-        description="Path to the results CSV file to load",
+        description=(
+            "Path to the results CSV file to load."
+            " If None, a new experiment will be run."
+        ),
     )
 
 

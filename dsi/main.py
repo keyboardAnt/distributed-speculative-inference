@@ -36,22 +36,22 @@ def offline(cfg: ConfigCLI) -> None:
 
 def offline_heatmap(cfg: ConfigCLI) -> None:
     heatmap_filepath: None | str = cfg.load_csv
-    if cfg.load_csv is None:
+    if heatmap_filepath is None:
         log.info(
             "Running a new experiment. Results will be stored at %s", heatmap_filepath
         )
+        tmanager: RayManager = RayManager(cfg.heatmap)
+        df_results: pd.DataFrame = tmanager.run()
+        df_heatmap: DataFrameHeatmap = enrich_inplace(df_results)
+        filepath: str = df_heatmap.store()
+        log.info("Heatmap stored at %s", filepath)
     else:
         log.info(
             "Received a path to load existing heatmap results."
             " Only visualizing the heatmap rather than running a new experiment."
         )
         log.info("Loading results from %s", heatmap_filepath)
-    tmanager: RayManager = RayManager(cfg.heatmap)
-    df_results: pd.DataFrame = tmanager.run()
-    df_heatmap: DataFrameHeatmap = enrich_inplace(df_results)
-    filepath: str = df_heatmap.store()
-    log.info("Heatmap stored at %s", filepath)
-    df_heatmap: DataFrameHeatmap = DataFrameHeatmap.from_heatmap_csv(cfg.load_csv)
+        df_heatmap: DataFrameHeatmap = DataFrameHeatmap.from_heatmap_csv(cfg.load_csv)
     log.info(f"{df_heatmap.shape=}")
     log.info("df_heatmap.head():")
     log.info(df_heatmap.head())
