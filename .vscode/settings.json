@@ -1,0 +1,11 @@
+{
+    "editor.formatOnSave": true,
+    "ruff.organizeImports": true,
+    "ruff.fixAll": false,
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true,
+    "files.associations": {
+        "*.dvc": "yaml",
+        "dvc.lock": "yaml"
+    },
+}

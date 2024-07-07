@@ -1,25 +1,24 @@
 {
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Remote Attach",
+            "name": "offline: si and dsi",
             "type": "debugpy",
-            "request": "attach",
-            "connect": {
-                "host": "isl-gpu38.rr.intel.com",
-                "port": 25566
-            },
-            "justMyCode": false
+            "request": "launch",
+            "module": "dsi",
+            "args": []
         },
         {
-            "name": "Python: Remote Attach",
+            "name": "offline: heatmap",
             "type": "debugpy",
-            "request": "attach",
-            "connect": {
-                "host": "isl-gpu35.rr.intel.com",
-                "port": 25566
-            },
-            "justMyCode": false
+            "request": "launch",
+            "module": "dsi",
+            "args": [
+                "run_type=offline_heatmap"
+            ]
         }
     ]
 }
