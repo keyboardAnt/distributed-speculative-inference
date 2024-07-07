@@ -13,6 +13,7 @@ on:
 
 jobs:
   ci:
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && !github.event.pull_request)
     strategy:
       fail-fast: false
       matrix:
