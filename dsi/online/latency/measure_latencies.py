@@ -20,8 +20,7 @@ class Dataset(Enum):
     CNN_DAILYMAIL = "cnn_dailymail"
     MBPP = "mbpp"
     ALPACA = "danielkorat/alpaca"
-
-
+    
 def get_prompt(dataset, ex):
     """Get the input prompt for the given dataset and example."""
     if dataset == Dataset.SAMSUM:
@@ -76,13 +75,6 @@ Test: {test_list[0]}
     else:
         prompt = ex["prompt"].strip("\n")
     return prompt
-    
-
-def get_random_input(length, device):
- input_ids = torch.randint(high=100, size=(1, length), device=device)
-    input_ids_plus = torch.tensor(6).view(1,-1).to(device)
-    return input_ids, input_ids_plus
-
 
 def get_fwd_time(model, input_ids, past_key_values=None):
     """Get the forward time of a model, with or without `past_key_values`."""
@@ -101,7 +93,7 @@ class MeasureLatencies:
     def __init__(self, **config):
         self.config = ConfigLatency(**config)
 
-    def load_model_tokenizer(self, name, revision=None):
+    def load_model_tokenizer(self, name: str, revision: str | None=None):
         log.info(f"Loading model: {name}, compiled={self.config.compiled_model}")
         extra_kwargs = {"torch_dtype": torch.bfloat16, "revision": revision}
 
@@ -114,10 +106,10 @@ class MeasureLatencies:
         model = torch.compile(model) if self.config.compiled_model else model
         return model, tokenizer
 
-    def get_random_prompted_examples(self, dataset, subset=None, split="test"):
+    def get_random_prompted_examples(self, dataset: Dataset, subset=None, split="test"):
         """Get random examples from the dataset and prompt them."""
         log.info(f"Loading dataset: {dataset}, compiled={self.config.compiled_model}")
-        examples = load_dataset(path=dataset, name=subset, split=split)\
+        examples = load_dataset(path=dataset.value, name=subset, split=split)\
             .shuffle(seed=self.config.seed).select(range(self.config.num_ex))
         return [get_prompt(dataset, ex) for ex in examples]
 
@@ -146,7 +138,7 @@ class MeasureLatencies:
 
     def run(self, 
             model: str,
-            dataset: str,
+            dataset: Dataset,
             subset: str = None,
             split: str = "test",
             model_revision: str = None
