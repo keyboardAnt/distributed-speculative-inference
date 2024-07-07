@@ -39,7 +39,9 @@ For more sophisticated combinations of configurations, check out Hydra's documen
 
 ## Testing
 
-- Run tests: `python -m pytest` (from the project root)
+[![Python tests](https://github.com/keyboardAnt/distributed-speculative-inference/actions/workflows/python-tests.yaml/badge.svg)](https://github.com/keyboardAnt/distributed-speculative-inference/actions/workflows/python-tests.yaml)
+
+Run tests: `python -m pytest` (from the project root)
 
 ## Stored results
 
