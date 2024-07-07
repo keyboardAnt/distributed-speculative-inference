@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import Tuple
 import warnings
 from time import perf_counter as time
@@ -14,18 +15,25 @@ from dsi.configs.config_latency import ConfigLatency
 
 log = logging.getLogger(__name__)
 
+class Dataset(Enum):
+    SAMSUM = "samsum"
+    CNN_DAILYMAIL = "cnn_dailymail"
+    MBPP = "mbpp"
+    ALPACA = "danielkorat/alpaca"
+
+
 def get_prompt(dataset, ex):
     """Get the input prompt for the given dataset and example."""
-    if dataset == "samsum":
+    if dataset == Dataset.SAMSUM:
         prompt = ex["dialogue"].strip("\n")
         prompt = f"Summarize this dialog:\n{prompt}\n---\nSummary:\n"
-    elif dataset == "cnn_dailymail":
+    elif dataset == Dataset.CNN_DAILYMAIL:
         prompt = ex["article"].strip("\n")
         prompt = f"""Summarize:
 {prompt}
 Summary:
 """
-    elif dataset == "mbpp":
+    elif dataset == Dataset.MBPP:
         # prompt from https://ai.meta.com/research/publications/code-llama-open-foundation-models-for-code/
         text = ex["text"].strip("\n")
         test_list = ex["test_list"]
@@ -43,7 +51,7 @@ return list(set(my_list))
 Test: {test_list[0]}
 [/INST]"""
 
-    elif dataset == "danielkorat/alpaca":
+    elif dataset == Dataset.ALPACA:
         template_inp = """Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
 
 ### Instruction:
@@ -69,7 +77,7 @@ Test: {test_list[0]}
         prompt = ex["prompt"].strip("\n")
     return prompt
     
-    
+
 def get_random_input(length, device):
     input_ids = (torch.rand(length) * 100).to(int).view(1, -1).to(device)
     input_ids_plus = torch.tensor(6).view(1,-1).to(device)
@@ -100,7 +108,6 @@ class MeasureLatencies:
         model = AutoModelForCausalLM.from_pretrained(
             name,
             device_map="auto",
-            attn_implementation=self.config.flash_attn_impl,
             **extra_kwargs
             )
         tokenizer = AutoTokenizer.from_pretrained(name)
@@ -154,4 +161,4 @@ class MeasureLatencies:
         # Measure
         ttft, tpot = self.timed_generate(model, tokenizer, examples)
         log.info(f"{model=} {dataset=} {subset=}\n {ttft=} {tpot=}\n")
-        return ttft, tpot
+        return {"ttft": ttft, "tpot": tpot}
