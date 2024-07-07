@@ -71,7 +71,7 @@ Test: {test_list[0]}
     
     
 def get_random_input(length, device):
-    input_ids = (torch.rand(length) * 100).to(int).view(1, -1).to(device)
+ input_ids = torch.randint(high=100, size=(1, length), device=device)
     input_ids_plus = torch.tensor(6).view(1,-1).to(device)
     return input_ids, input_ids_plus
 
