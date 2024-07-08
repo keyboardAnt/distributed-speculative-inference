@@ -1,14 +1,15 @@
 from math import ceil
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
+from dsi.configs.base import _Config
 from dsi.types.exception import (
     DrafterSlowerThanTargetError,
     NumOfTargetServersInsufficientError,
 )
 
 
-class ConfigRun(BaseModel):
+class ConfigRun(_Config):
     """ConfigRun includes all the parameters needed for an experiment.
     Each experiment simulates an algorithm multiple times.
     """
