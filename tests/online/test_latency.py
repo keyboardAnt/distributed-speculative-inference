@@ -1,6 +1,11 @@
-import pytest
+from unittest.mock import MagicMock, patch
 
+import pytest
+import torch
+
+from dsi.configs.experiment.latency import ConfigLatency
 from dsi.online.latency.dataset import Dataset
+from dsi.online.latency.experiment import ExperimentLatency
 from dsi.online.latency.prompts import get_prompt
 
 
@@ -75,3 +80,47 @@ def test_get_prompt_alpaca_without_input(alpaca_example_without_input):
         " Write a response that appropriately completes the request."
     )
     assert prompt.startswith(expected_start)
+
+
+@pytest.fixture(
+    params=[
+        {"compile_model": False, "num_ex": 10, "random_seed": 42, "max_new_tokens": 10},
+        {"compile_model": True, "num_ex": 5, "random_seed": 24, "max_new_tokens": 20},
+    ]
+)
+def config_latency(request):
+    return ConfigLatency(
+        dataset=Dataset.ALPACA, model="double7/vicuna-68m", **request.param
+    )
+
+
+@pytest.fixture
+def experiment_latency(config_latency):
+    return ExperimentLatency(config=config_latency)
+
+
+@pytest.fixture
+def model_tokenizer():
+    model = MagicMock()
+    tokenizer = MagicMock()
+    tokenizer.eos_token_id = 0
+    return model, tokenizer
+
+
+@patch("dsi.online.latency.experiment.AutoModelForCausalLM.from_pretrained")
+@patch("dsi.online.latency.experiment.AutoTokenizer.from_pretrained")
+def test_load_model_tokenizer(
+    mock_tokenizer, mock_model, experiment_latency, model_tokenizer
+):
+    mock_model.return_value = model_tokenizer[0]
+    mock_tokenizer.return_value = model_tokenizer[1]
+    model, tokenizer = experiment_latency._load_model_tokenizer("double7/vicuna-68m")
+    mock_model.assert_called_once_with(
+        "double7/vicuna-68m",
+        device_map="auto",
+        torch_dtype=torch.bfloat16,
+        revision=None,
+    )
+    mock_tokenizer.assert_called_once_with("double7/vicuna-68m")
+    assert model is not None
+    assert tokenizer is not None

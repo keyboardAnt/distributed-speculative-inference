@@ -35,19 +35,19 @@ class ExperimentLatency(_Experiment):
         super().__init__(config)
 
     def _load_model_tokenizer(self, name: str, revision: str | None = None):
-        log.info(f"Loading model: {name}, compiled={self.config.compiled_model}")
+        log.info(f"Loading model: {name}, compile={self.config.compile_model}")
         extra_kwargs = {"torch_dtype": torch.bfloat16, "revision": revision}
 
         model = AutoModelForCausalLM.from_pretrained(
             name, device_map="auto", **extra_kwargs
         )
         tokenizer = AutoTokenizer.from_pretrained(name)
-        model = torch.compile(model) if self.config.compiled_model else model
+        model = torch.compile(model) if self.config.compile_model else model
         return model, tokenizer
 
     def _get_random_prompted_examples(self, dataset: str, subset=None, split="test"):
         """Get random examples from the dataset and prompt them."""
-        log.info(f"Loading dataset: {dataset}, compiled={self.config.compiled_model}")
+        log.info(f"Loading dataset: {dataset}")
         examples = (
             load_dataset(path=dataset, name=subset, split=split)
             .shuffle(seed=self.config.random_seed)
@@ -91,18 +91,14 @@ class ExperimentLatency(_Experiment):
     def _get_empty_result(self) -> ResultLatency:
         return ResultLatency()
 
-    def _single_repeat(
-        self,
-        model: str,
-        dataset: str,
-        subset: str = None,
-        split: str = "test",
-        model_revision: str = None,
-    ) -> ResultLatency:
+    def _single_repeat(self) -> ResultLatency:
         """Run the latency measurements for the given model and dataset."""
-        log.info(f"Running ExperimentLatency: {model=} {dataset=} {subset=}\n")
-        examples = self._get_random_prompted_examples(dataset, subset, split)
-        model, tokenizer = self._load_model_tokenizer(model, model_revision)
+        examples = self._get_random_prompted_examples(
+            self.config.dataset, self.config.subset, self.config.split
+        )
+        model, tokenizer = self._load_model_tokenizer(
+            self.config.model, self.config.model_revision
+        )
 
         # Warmup run
         self._timed_generate(model, tokenizer, examples)

@@ -12,6 +12,9 @@ class ConfigLatency(_ConfigExperiment):
     max_new_tokens: int = Field(
         20, title="The maximum number of new tokens to generate", ge=1
     )
-    compiled_model: bool = Field(
-        False, title="Whether to torch.compile() the model", ge=1
-    )
+    compile_model: bool = Field(False, title="Whether to torch.compile() the model")
+    model: str = Field(title="The model to use for the experiment")
+    model_revision: None | str = Field(None, title="The revision of the model to use")
+    dataset: str = Field(title="The dataset to use for the experiment")
+    subset: None | str = Field(None, title="The subset of the dataset to use")
+    split: str = Field("test", title="The split of the dataset to use")
