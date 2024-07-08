@@ -15,7 +15,7 @@ class RunType(str, enum.Enum):
 
 class ConfigCLI(BaseModel):
     type: RunType = RunType.offline
-    run: ConfigDSI = Field(
+    simul: ConfigDSI = Field(
         default_factory=ConfigDSI, description="Configuration for the simulation"
     )
     heatmap: ConfigHeatmap = Field(

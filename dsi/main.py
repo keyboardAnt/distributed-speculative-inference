@@ -32,13 +32,13 @@ def main(cfg: ConfigCLI) -> None:
     match cfg.type:
         case RunType.offline:
             log.info("Running offline simulation")
-            res_si: Result = SimulSI(cfg.run).run()
+            res_si: Result = SimulSI(cfg.simul).run()
             log.info("res_si: %s", res_si)
-            res_dsi: Result = SimulDSI(cfg.run).run()
+            res_dsi: Result = SimulDSI(cfg.simul).run()
             log.info("res_dsi: %s", res_dsi)
             log.info("Plotting SI")
             plot_si: PlotIters = PlotIters(
-                result=res_si, suptitle=f"Latency of SI (lookahead={cfg.run.k})"
+                result=res_si, suptitle=f"Latency of SI (lookahead={cfg.simul.k})"
             )
             plot_si.plot()
             filepath_plots: str = savefig(name="si_latency_and_iters_dist")
