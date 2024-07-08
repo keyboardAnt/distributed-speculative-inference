@@ -3,14 +3,14 @@ from dsi.types.result import Result
 from dsi.types.simul import Simul
 
 
-class RunDSI(Simul):
+class SimulDSI(Simul):
     """
-    RunDSI simulates the DSI algorithm over multiple repeats.
+    Simulates the DSI algorithm over multiple repeats.
     """
 
     def __init__(self, config: ConfigDSI) -> None:
         """
-        NOTE: The input config is of type ConfigRunDSI.
+        NOTE: The input config is of type ConfigDSI.
         """
         super().__init__(config)
 

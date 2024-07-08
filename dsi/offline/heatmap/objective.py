@@ -2,8 +2,8 @@ import numpy as np
 import pandas as pd
 
 from dsi.configs.simul.algo import ConfigDSI
-from dsi.offline.simul.dsi import RunDSI
-from dsi.offline.simul.si import RunSI
+from dsi.offline.simul.dsi import SimulDSI
+from dsi.offline.simul.si import SimulSI
 from dsi.types.df_heatmap import DataFrameHeatmap
 from dsi.types.name import HeatmapColumn
 from dsi.types.result import Result
@@ -30,8 +30,8 @@ def get_all_latencies(
         k=k,
         num_target_servers=num_target_servers,
     )
-    si = RunSI(config)
-    dsi = RunDSI(config)
+    si = SimulSI(config)
+    dsi = SimulDSI(config)
     res_si: Result = si.run()
     res_dsi: Result = dsi.run()
     cost_si: float = np.array(res_si.cost_per_run).mean()

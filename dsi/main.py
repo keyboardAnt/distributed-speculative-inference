@@ -10,8 +10,8 @@ from omegaconf import OmegaConf
 from dsi.configs.cli import ConfigCLI, RunType
 from dsi.offline.heatmap.objective import enrich_inplace
 from dsi.offline.heatmap.ray_manager import RayManager
-from dsi.offline.simul.dsi import RunDSI
-from dsi.offline.simul.si import RunSI
+from dsi.offline.simul.dsi import SimulDSI
+from dsi.offline.simul.si import SimulSI
 from dsi.types.df_heatmap import DataFrameHeatmap
 from dsi.types.result import Result
 from dsi.vis.iters_dist import PlotIters
@@ -32,9 +32,9 @@ def main(cfg: ConfigCLI) -> None:
     match cfg.type:
         case RunType.offline:
             log.info("Running offline simulation")
-            res_si: Result = RunSI(cfg.run).run()
+            res_si: Result = SimulSI(cfg.run).run()
             log.info("res_si: %s", res_si)
-            res_dsi: Result = RunDSI(cfg.run).run()
+            res_dsi: Result = SimulDSI(cfg.run).run()
             log.info("res_dsi: %s", res_dsi)
             log.info("Plotting SI")
             plot_si: PlotIters = PlotIters(

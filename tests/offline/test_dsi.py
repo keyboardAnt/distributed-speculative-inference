@@ -2,8 +2,8 @@ import numpy as np
 import pytest
 
 from dsi.configs.simul.algo import ConfigDSI
-from dsi.offline.simul.dsi import RunDSI
-from dsi.offline.simul.si import RunSI
+from dsi.offline.simul.dsi import SimulDSI
+from dsi.offline.simul.si import SimulSI
 from dsi.types.exception import (
     DrafterSlowerThanTargetError,
     NumOfTargetServersInsufficientError,
@@ -14,7 +14,7 @@ from dsi.types.result import Result
 def test_dsi_result_shapes():
     num_repeats: int = 17
     config = ConfigDSI(num_repeats=num_repeats)
-    dsi = RunDSI(config)
+    dsi = SimulDSI(config)
     res: Result = dsi.run()
     assert (
         len(res.cost_per_run) == num_repeats
@@ -30,8 +30,8 @@ def test_dsi_faster_than_si_and_nonsi(c: float, failure_cost: float, a: float, k
         config = ConfigDSI(c=c, failure_cost=failure_cost, a=a, k=k)
     except (NumOfTargetServersInsufficientError, DrafterSlowerThanTargetError):
         return
-    si = RunSI(config)
-    dsi = RunDSI(config)
+    si = SimulSI(config)
+    dsi = SimulDSI(config)
     si_res: Result = si.run()
     dsi_res: Result = dsi.run()
     num_iterations_min: int = config.S // (config.k + 1)
