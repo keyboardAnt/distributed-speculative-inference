@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from dsi.configs.run.run import ConfigRun, ConfigRunDSI
+from dsi.configs.run.algo import ConfigDSI, ConfigSI
 from dsi.types.exception import (
     DrafterSlowerThanTargetError,
     NumOfTargetServersInsufficientError,
@@ -10,26 +10,26 @@ from dsi.types.exception import (
 
 def test_si_acceptance_rate():
     with pytest.raises(ValidationError):
-        ConfigRun(a=-0.1)
+        ConfigSI(a=-0.1)
     with pytest.raises(ValidationError):
-        ConfigRun(a=1.01)
-    ConfigRun(a=0)
-    ConfigRun(a=1)
+        ConfigSI(a=1.01)
+    ConfigSI(a=0)
+    ConfigSI(a=1)
 
 
 def test_dsi_acceptance_rate():
     with pytest.raises(ValidationError):
-        ConfigRunDSI(a=-1)
+        ConfigDSI(a=-1)
     with pytest.raises(ValidationError):
-        ConfigRunDSI(a=1.01)
-    ConfigRunDSI(a=0)
-    ConfigRunDSI(a=1.0)
+        ConfigDSI(a=1.01)
+    ConfigDSI(a=0)
+    ConfigDSI(a=1.0)
 
 
 def test_drafter_latency():
     valid_c: list[float] = [0.01, 0.5, 0.9, 1.0, 2, 10, 1000]
     invalid_c: list[float] = [0, 0.0, -0.1, -1, -1000000]
-    for config_run_cls in [ConfigRun, ConfigRunDSI]:
+    for config_run_cls in [ConfigSI, ConfigDSI]:
         for c in invalid_c:
             with pytest.raises((ValidationError, NumOfTargetServersInsufficientError)):
                 config_run_cls(c=c, failure_cost=c + 0.01)
@@ -40,7 +40,7 @@ def test_drafter_latency():
 @pytest.mark.parametrize("c", [0.01, 0.1, 0.8, 0.99, 1.0, 1.01, 2.0, 1000])
 @pytest.mark.parametrize("failure_cost", [0.01, 0.1, 0.8, 0.99, 1.0, 1.01, 2.0, 1000])
 def test_drafter_latency_vs_target_latency(c: float, failure_cost: float):
-    for config_run_cls in [ConfigRun, ConfigRunDSI]:
+    for config_run_cls in [ConfigSI, ConfigDSI]:
         if c <= failure_cost:
             config_run_cls(c=c, failure_cost=failure_cost, num_target_servers=None)
         else:
@@ -49,7 +49,7 @@ def test_drafter_latency_vs_target_latency(c: float, failure_cost: float):
 
 
 def test_num_of_tokens_to_generate():
-    for config_run_cls in [ConfigRun, ConfigRunDSI]:
+    for config_run_cls in [ConfigSI, ConfigDSI]:
         with pytest.raises(ValidationError):
             config_run_cls(S=-1)
         with pytest.raises(ValidationError):
@@ -58,7 +58,7 @@ def test_num_of_tokens_to_generate():
 
 
 def test_num_of_repeats():
-    for config_run_cls in [ConfigRun, ConfigRunDSI]:
+    for config_run_cls in [ConfigSI, ConfigDSI]:
         with pytest.raises(ValidationError):
             config_run_cls(num_repeats=-1)
         with pytest.raises(ValidationError):
@@ -67,7 +67,7 @@ def test_num_of_repeats():
 
 
 def test_lookahead():
-    for config_run_cls in [ConfigRun, ConfigRunDSI]:
+    for config_run_cls in [ConfigSI, ConfigDSI]:
         k_invalid: list[int] = [-1, 0]
         for k in k_invalid:
             with pytest.raises(ValidationError):

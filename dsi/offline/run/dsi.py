@@ -1,4 +1,4 @@
-from dsi.configs.run.run import ConfigRunDSI
+from dsi.configs.run.algo import ConfigDSI
 from dsi.types.result import Result
 from dsi.types.run import Run
 
@@ -8,7 +8,7 @@ class RunDSI(Run):
     RunDSI simulates the DSI algorithm over multiple repeats.
     """
 
-    def __init__(self, config: ConfigRunDSI) -> None:
+    def __init__(self, config: ConfigDSI) -> None:
         """
         NOTE: The input config is of type ConfigRunDSI.
         """

@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from dsi.configs.run.run import ConfigRunDSI
+from dsi.configs.run.algo import ConfigDSI
 from dsi.offline.run.dsi import RunDSI
 from dsi.offline.run.si import RunSI
 from dsi.types.exception import (
@@ -13,7 +13,7 @@ from dsi.types.result import Result
 
 def test_dsi_result_shapes():
     num_repeats: int = 17
-    config = ConfigRunDSI(num_repeats=num_repeats)
+    config = ConfigDSI(num_repeats=num_repeats)
     dsi = RunDSI(config)
     res: Result = dsi.run()
     assert (
@@ -27,7 +27,7 @@ def test_dsi_result_shapes():
 @pytest.mark.parametrize("k", [1, 10, 100, 1000, 100000000])
 def test_dsi_faster_than_si_and_nonsi(c: float, failure_cost: float, a: float, k: int):
     try:
-        config = ConfigRunDSI(c=c, failure_cost=failure_cost, a=a, k=k)
+        config = ConfigDSI(c=c, failure_cost=failure_cost, a=a, k=k)
     except (NumOfTargetServersInsufficientError, DrafterSlowerThanTargetError):
         return
     si = RunSI(config)

@@ -9,8 +9,8 @@ from dsi.types.exception import (
 )
 
 
-class ConfigRun(_Config):
-    """ConfigRun includes all the parameters needed for an experiment.
+class ConfigSI(_Config):
+    """ConfigSI includes all the parameters needed for an experiment.
     Each experiment simulates an algorithm multiple times.
     """
 
@@ -25,7 +25,7 @@ class ConfigRun(_Config):
     failure_cost: float = Field(1.0, title="The latency of the target", ge=0)
     S: int = Field(1000, title="The number of tokens to generate", ge=1)
     num_repeats: int = Field(
-        5, title="The number of times that a single run repeats the simulation", ge=1
+        5, title="The number of times to repeat the simulation", ge=1
     )
 
     def model_post_init(self, __context) -> None:
@@ -37,9 +37,9 @@ class ConfigRun(_Config):
             raise DrafterSlowerThanTargetError(msg)
 
 
-class ConfigRunDSI(ConfigRun):
+class ConfigDSI(ConfigSI):
     """
-    ConfigRunDSI extends ConfigRun for DSI.
+    ConfigDSI extends ConfigSI for DSI.
     """
 
     num_target_servers: None | int = Field(

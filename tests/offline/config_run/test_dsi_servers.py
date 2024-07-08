@@ -1,6 +1,6 @@
 import pytest
 
-from dsi.configs.run.run import ConfigRunDSI
+from dsi.configs.run.algo import ConfigDSI
 from dsi.types.exception import NumOfTargetServersInsufficientError
 
 
@@ -42,7 +42,7 @@ def test_run_config_dsi_num_target_servers_insufficient(
     error, and will raise an error if there are not enough target servers.
     """
     with pytest.raises(NumOfTargetServersInsufficientError):
-        ConfigRunDSI(
+        ConfigDSI(
             c=c,
             failure_cost=failure_cost,
             a=a,
@@ -51,7 +51,7 @@ def test_run_config_dsi_num_target_servers_insufficient(
             k=k,
             num_target_servers=num_target_servers,
         )
-    ConfigRunDSI(
+    ConfigDSI(
         c=c,
         failure_cost=failure_cost,
         a=a,

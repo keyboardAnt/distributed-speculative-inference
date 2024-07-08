@@ -1,14 +1,14 @@
 from typing import Generator, final
 
-from dsi.configs.run.run import ConfigRun
+from dsi.configs.run.algo import ConfigSI
 from dsi.offline.run.common import generate_num_accepted_drafts
 from dsi.types.result import Result
 from dsi.utils import set_random_seed
 
 
 class Run:
-    def __init__(self, config: ConfigRun) -> None:
-        self.config: ConfigRun = config
+    def __init__(self, config: ConfigSI) -> None:
+        self.config: ConfigSI = config
         self.result: Result = self._get_empty_result()
         self._sampler: None | Generator = None
 

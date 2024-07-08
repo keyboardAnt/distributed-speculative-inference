@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from dsi.configs.run.run import ConfigRunDSI
+from dsi.configs.run.algo import ConfigDSI
 from dsi.offline.run.dsi import RunDSI
 from dsi.offline.run.si import RunSI
 from dsi.types.df_heatmap import DataFrameHeatmap
@@ -24,7 +24,7 @@ def get_all_latencies(
     """
     Executes all the experiments, analyzes their results, and returns the results.
     """
-    config = ConfigRunDSI(
+    config = ConfigDSI(
         c=c,
         a=a,
         k=k,
