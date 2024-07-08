@@ -14,7 +14,7 @@ class RunOnline(Run):
     def __init__(self, config: ConfigRunOnline) -> None:
         super().__init__(config)
 
-    def get_correct_token_list(self):
+    def _get_correct_token_list(self):
         """
         Generate random numbers of correct tokens, until the
          total number of tokens is less than S.
@@ -31,7 +31,7 @@ class RunOnline(Run):
         return correct_token_list
 
     def _run_single(self) -> Result:
-        correct_token_list = self.get_correct_token_list()
+        correct_token_list = self._get_correct_token_list()
 
         total_tokens = self.config.total_tokens
         sim_shared_dict = multiprocessing.Manager().dict()
