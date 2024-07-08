@@ -1,1 +1,1 @@
-This directory implements a DSI Run (see `dsi/types/run.py`) using a thread pool.
+This directory implements a DSI simulation (see `dsi/types/simul.py`) using a thread pool.

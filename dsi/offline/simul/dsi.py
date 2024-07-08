@@ -39,6 +39,6 @@ class SimulDSI(Simul):
             toks += new_toks
 
         return Result(
-            cost_per_run=[cost],
-            num_iters_per_run=[iters],
+            cost_per_repeat=[cost],
+            num_iters_per_repeat=[iters],
         )

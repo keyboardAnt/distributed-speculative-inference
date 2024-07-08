@@ -19,6 +19,6 @@ class SimulSI(Simul):
             num_accepted: int = next(self._sampler)
             toks_left -= num_accepted + 1
         return Result(
-            cost_per_run=[total_cost],
-            num_iters_per_run=[num_iters],
+            cost_per_repeat=[total_cost],
+            num_iters_per_repeat=[num_iters],
         )

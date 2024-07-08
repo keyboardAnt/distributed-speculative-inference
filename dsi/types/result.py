@@ -13,8 +13,8 @@ class Result:
         num_iters_per_run: The number of iterations for each run
     """
 
-    cost_per_run: list[float] = field(default_factory=list)
-    num_iters_per_run: list[int] = field(default_factory=list)
+    cost_per_repeat: list[float] = field(default_factory=list)
+    num_iters_per_repeat: list[int] = field(default_factory=list)
 
     def extend(self, to_append: "Result"):
         """

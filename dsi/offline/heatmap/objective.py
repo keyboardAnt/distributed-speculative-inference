@@ -34,8 +34,8 @@ def get_all_latencies(
     dsi = SimulDSI(config)
     res_si: Result = si.run()
     res_dsi: Result = dsi.run()
-    cost_si: float = np.array(res_si.cost_per_run).mean()
-    cost_dsi: float = np.array(res_dsi.cost_per_run).mean()
+    cost_si: float = np.array(res_si.cost_per_repeat).mean()
+    cost_dsi: float = np.array(res_dsi.cost_per_repeat).mean()
     cost_nonsi: float = config.failure_cost * config.S
     return {
         HeatmapColumn.cost_si: cost_si,

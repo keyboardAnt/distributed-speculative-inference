@@ -15,13 +15,13 @@ class PlotIters(PlotCost):
 
     def _plot_num_iters(self, ax: plt.Axes) -> None:
         ax.hist(
-            self.result.num_iters_per_run,
+            self.result.num_iters_per_repeat,
             bins=30,
             density=True,
             color="blue",
             alpha=0.7,
         )
-        self._plot_mean(ax=ax, val=np.mean(self.result.num_iters_per_run))
+        self._plot_mean(ax=ax, val=np.mean(self.result.num_iters_per_repeat))
         ax.set_xlabel("Number of Iterations (i)")
         ax.set_ylabel("Frequency")
         ax.set_title("Iterations Distribution")

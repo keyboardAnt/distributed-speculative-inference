@@ -29,13 +29,13 @@ class PlotCost:
 
     def _plot_total_costs(self, ax: plt.Axes) -> None:
         ax.hist(
-            self.result.cost_per_run,
+            self.result.cost_per_repeat,
             bins=30,
             density=True,
             color="purple",
             alpha=0.7,
         )
-        self._plot_mean(ax=ax, val=np.mean(self.result.cost_per_run))
+        self._plot_mean(ax=ax, val=np.mean(self.result.cost_per_repeat))
         ax.set_xlabel("Total Latency")
         ax.set_ylabel("Frequency")
         ax.set_title("Total Latency Distribution")
