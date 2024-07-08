@@ -2,13 +2,13 @@ import multiprocessing
 
 import pytest
 
-from dsi.configs.run.run import ConfigRunOnline, RunType
-from dsi.online.run.run import restart_draft
+from dsi.configs.simul.online import ConfigDSIOnline, SimulType
+from dsi.online.simul.simul import restart_draft
 
 
 @pytest.fixture
 def config():
-    return ConfigRunOnline(
+    return ConfigDSIOnline(
         c=0.05725204603746534,
         a=0.94,
         k=5,
@@ -20,12 +20,12 @@ def config():
         failure_cost_sub=0.10018306512758136,
         total_tokens=100,
         wait_for_pipe=0.1,
-        run_type=RunType.DSI,
+        simul_type=SimulType.DSI,
         maximum_correct_tokens=20,
     )
 
 
-def test_entire_threadpool_used(config):
+def test_entire_threadpool_used(config: ConfigDSIOnline):
     total_tokens = config.total_tokens
     sim_shared_dict = multiprocessing.Manager().dict()
 
@@ -45,8 +45,8 @@ def test_entire_threadpool_used(config):
         assert str(i) in sim_shared_dict
 
 
-def test_single_thread_in_si(config):
-    config.run_type = RunType.SI
+def test_single_thread_in_si(config: ConfigDSIOnline):
+    config.simul_type = SimulType.SI
 
     total_tokens = config.total_tokens
     sim_shared_dict = multiprocessing.Manager().dict()
@@ -66,7 +66,7 @@ def test_single_thread_in_si(config):
     assert "MainThread" in sim_shared_dict
 
 
-def test_correct_token_count_per_iteration(config):
+def test_correct_token_count_per_iteration(config: ConfigDSIOnline):
     correct_token_list = [5, 15, 3, 7, 10, 5, 20]
 
     total_tokens = config.total_tokens

@@ -2,12 +2,12 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
 
-from dsi.types.result import Result
+from dsi.types.result import ResultSimul
 
 
 class PlotCost:
-    def __init__(self, result: Result, suptitle: str | None = None) -> None:
-        self.result: Result = result
+    def __init__(self, result: ResultSimul, suptitle: str | None = None) -> None:
+        self.result: ResultSimul = result
         self._suptitle: str | None = suptitle
         fig, axes = self._get_axes()
         self._fig: plt.Figure = fig
@@ -29,13 +29,13 @@ class PlotCost:
 
     def _plot_total_costs(self, ax: plt.Axes) -> None:
         ax.hist(
-            self.result.cost_per_run,
+            self.result.cost_per_repeat,
             bins=30,
             density=True,
             color="purple",
             alpha=0.7,
         )
-        self._plot_mean(ax=ax, val=np.mean(self.result.cost_per_run))
+        self._plot_mean(ax=ax, val=np.mean(self.result.cost_per_repeat))
         ax.set_xlabel("Total Latency")
         ax.set_ylabel("Frequency")
         ax.set_title("Total Latency Distribution")

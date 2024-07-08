@@ -1,16 +1,16 @@
-from enum import Enum
 from math import ceil
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
+from dsi.configs.base import _Config
 from dsi.types.exception import (
     DrafterSlowerThanTargetError,
     NumOfTargetServersInsufficientError,
 )
 
 
-class ConfigRun(BaseModel):
-    """ConfigRun includes all the parameters needed for an experiment.
+class ConfigSI(_Config):
+    """ConfigSI includes all the parameters needed for an experiment.
     Each experiment simulates an algorithm multiple times.
     """
 
@@ -24,9 +24,6 @@ class ConfigRun(BaseModel):
     k: int = Field(5, title="Lookahead", ge=1)
     failure_cost: float = Field(1.0, title="The latency of the target", ge=0)
     S: int = Field(1000, title="The number of tokens to generate", ge=1)
-    num_repeats: int = Field(
-        5, title="The number of times that a single run repeats the simulation", ge=1
-    )
 
     def model_post_init(self, __context) -> None:
         """
@@ -37,9 +34,9 @@ class ConfigRun(BaseModel):
             raise DrafterSlowerThanTargetError(msg)
 
 
-class ConfigRunDSI(ConfigRun):
+class ConfigDSI(ConfigSI):
     """
-    ConfigRunDSI extends ConfigRun for DSI.
+    ConfigDSI extends ConfigSI for DSI.
     """
 
     num_target_servers: None | int = Field(
@@ -70,36 +67,3 @@ class ConfigRunDSI(ConfigRun):
                 " < num_target_servers_required={num_target_servers_required}"
             )
             raise NumOfTargetServersInsufficientError(msg)
-
-
-# class syntax
-class RunType(Enum):
-    SI = 1
-    DSI = 2
-
-
-class ConfigRunOnline(ConfigRunDSI):
-    c_sub: float = Field(
-        0.01,
-        title="The latency of the drafter subsequent tokens",
-        description="c=0 requires infinitly many target servers",
-        gt=0,
-    )
-    failure_cost_sub: float = Field(
-        0.1, title="The latency of the target subsequent tokens", ge=0
-    )
-    total_tokens: int = Field(100, title="The number of tokens in the prompt", ge=0)
-    wait_for_pipe: float = Field(
-        0.1, title="Wait for pid to be sent via the pipe", ge=0
-    )
-    run_type: RunType = Field(
-        RunType.DSI,
-        title="Running DSI simulation or SI speculative decoding.",
-    )
-    maximum_correct_tokens: int = Field(
-        20, title="The maximum number of correct tokens produced by draft", ge=0
-    )
-
-    @property
-    def max_tokens(self) -> int:
-        return self.total_tokens + self.S

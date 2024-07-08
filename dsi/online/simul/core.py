@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 from multiprocessing import Pipe
 from threading import current_thread
 
-from dsi.configs.run.run import RunType
+from dsi.configs.simul.online import ConfigDSIOnline, SimulType
 
 
 def terminate_process(cur_pipe, sim_executor):
@@ -106,15 +106,34 @@ def target_done_callback(args, res):
 
 
 def call_target(
-    args, total_tokens, draft_tokens, sim_shared_dict, sim_executor, cur_pipe
+    args: ConfigDSIOnline,
+    total_tokens,
+    draft_tokens,
+    sim_shared_dict,
+    sim_executor,
+    cur_pipe,
 ):
     """
     Call the target in a separate thread
     """
-    if args.run_type == RunType.DSI:
-        if not sim_executor._shutdown:
-            target_future = sim_executor.submit(
-                call_target_actual,
+    match args.simul_type:
+        case SimulType.DSI:
+            if not sim_executor._shutdown:
+                target_future = sim_executor.submit(
+                    call_target_actual,
+                    args=args,
+                    total_tokens=total_tokens,
+                    draft_tokens=draft_tokens,
+                    sim_shared_dict=sim_shared_dict,
+                    cur_pipe=cur_pipe,
+                    sim_executor=sim_executor,
+                )
+
+                target_future.add_done_callback(
+                    functools.partial(target_done_callback, args)
+                )
+        case SimulType.SI:
+            target_res = call_target_actual(
                 args=args,
                 total_tokens=total_tokens,
                 draft_tokens=draft_tokens,
@@ -122,25 +141,14 @@ def call_target(
                 cur_pipe=cur_pipe,
                 sim_executor=sim_executor,
             )
-
-            target_future.add_done_callback(
-                functools.partial(target_done_callback, args)
-            )
-    elif args.run_type == RunType.SI:
-        target_res = call_target_actual(
-            args=args,
-            total_tokens=total_tokens,
-            draft_tokens=draft_tokens,
-            sim_shared_dict=sim_shared_dict,
-            cur_pipe=cur_pipe,
-            sim_executor=sim_executor,
-        )
-        target_done_callback(args, target_res)
-    else:
-        raise ValueError(f"Invalid run type {args.run_type}")
+            target_done_callback(args, target_res)
+        case _:
+            raise ValueError(f"Invalid run type {args.simul_type}")
 
 
-def run_generate(args, total_tokens, sim_shared_dict, cur_pipe, wait_for_pipe):
+def run_generate(
+    args: ConfigDSIOnline, total_tokens, sim_shared_dict, cur_pipe, wait_for_pipe
+):
     """
     Run the generation process for the draft model.
     The target model is called every k tokens.
@@ -149,7 +157,7 @@ def run_generate(args, total_tokens, sim_shared_dict, cur_pipe, wait_for_pipe):
     if wait_for_pipe:
         time.sleep(wait_for_pipe)
 
-    if args.run_type == RunType.DSI:
+    if args.simul_type == SimulType.DSI:
         # create a LIFO threadpool
         sim_executor = ThreadPoolExecutor(max_workers=args.num_target_servers)
         sim_executor._work_queue = queue.LifoQueue()

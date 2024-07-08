@@ -1,20 +1,20 @@
-from dsi.configs.run.run import ConfigRunDSI
-from dsi.types.result import Result
-from dsi.types.run import Run
+from dsi.configs.simul.offline import ConfigDSI
+from dsi.types.result import ResultSimul
+from dsi.types.simul import Simul
 
 
-class RunDSI(Run):
+class SimulDSI(Simul):
     """
-    RunDSI simulates the DSI algorithm over multiple repeats.
+    Simulates the DSI algorithm over multiple repeats.
     """
 
-    def __init__(self, config: ConfigRunDSI) -> None:
+    def __init__(self, config: ConfigDSI) -> None:
         """
-        NOTE: The input config is of type ConfigRunDSI.
+        NOTE: The input config is of type ConfigDSI.
         """
         super().__init__(config)
 
-    def _run_single(self) -> Result:
+    def _single_repeat(self) -> ResultSimul:
         cost: float = 0
         toks: int = 0
         iters: int = 0
@@ -38,7 +38,7 @@ class RunDSI(Run):
             cost += min(si, nonsi)
             toks += new_toks
 
-        return Result(
-            cost_per_run=[cost],
-            num_iters_per_run=[iters],
+        return ResultSimul(
+            cost_per_repeat=[cost],
+            num_iters_per_repeat=[iters],
         )

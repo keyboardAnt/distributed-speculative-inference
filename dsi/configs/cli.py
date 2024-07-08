@@ -3,8 +3,8 @@ import enum
 from hydra.core.config_store import ConfigStore
 from pydantic import BaseModel, Field, FilePath
 
-from dsi.configs.run.heatmap import ConfigHeatmap
-from dsi.configs.run.run import ConfigRunDSI
+from dsi.configs.simul.heatmap import ConfigHeatmap
+from dsi.configs.simul.offline import ConfigDSI
 
 
 class RunType(str, enum.Enum):
@@ -15,8 +15,8 @@ class RunType(str, enum.Enum):
 
 class ConfigCLI(BaseModel):
     type: RunType = RunType.offline
-    run: ConfigRunDSI = Field(
-        default_factory=ConfigRunDSI, description="Configuration for the simulation"
+    simul: ConfigDSI = Field(
+        default_factory=ConfigDSI, description="Configuration for the simulation"
     )
     heatmap: ConfigHeatmap = Field(
         default_factory=ConfigHeatmap, description="Configuration for the heatmap"

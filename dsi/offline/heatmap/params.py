@@ -4,8 +4,8 @@ import logging
 import numpy as np
 import pandas as pd
 
-from dsi.configs.run.heatmap import ConfigHeatmap
-from dsi.configs.run.run import ConfigRunDSI
+from dsi.configs.simul.heatmap import ConfigHeatmap
+from dsi.configs.simul.offline import ConfigDSI
 from dsi.types.exception import NumOfTargetServersInsufficientError
 from dsi.types.name import Param
 
@@ -14,7 +14,7 @@ log = logging.getLogger(__name__)
 
 def is_config_valid(c: float, k: int, verbose: bool) -> bool:
     try:
-        ConfigRunDSI(c=c, k=k)
+        ConfigDSI(c=c, k=k)
         return True
     except NumOfTargetServersInsufficientError as e:
         if verbose:

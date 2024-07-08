@@ -10,10 +10,10 @@ from omegaconf import OmegaConf
 from dsi.configs.cli import ConfigCLI, RunType
 from dsi.offline.heatmap.objective import enrich_inplace
 from dsi.offline.heatmap.ray_manager import RayManager
-from dsi.offline.run.dsi import RunDSI
-from dsi.offline.run.si import RunSI
+from dsi.offline.simul.dsi import SimulDSI
+from dsi.offline.simul.si import SimulSI
 from dsi.types.df_heatmap import DataFrameHeatmap
-from dsi.types.result import Result
+from dsi.types.result import ResultSimul
 from dsi.vis.iters_dist import PlotIters
 from dsi.vis.utils import savefig
 
@@ -32,13 +32,13 @@ def main(cfg: ConfigCLI) -> None:
     match cfg.type:
         case RunType.offline:
             log.info("Running offline simulation")
-            res_si: Result = RunSI(cfg.run).run()
+            res_si: ResultSimul = SimulSI(cfg.simul).run()
             log.info("res_si: %s", res_si)
-            res_dsi: Result = RunDSI(cfg.run).run()
+            res_dsi: ResultSimul = SimulDSI(cfg.simul).run()
             log.info("res_dsi: %s", res_dsi)
             log.info("Plotting SI")
             plot_si: PlotIters = PlotIters(
-                result=res_si, suptitle=f"Latency of SI (lookahead={cfg.run.k})"
+                result=res_si, suptitle=f"Latency of SI (lookahead={cfg.simul.k})"
             )
             plot_si.plot()
             filepath_plots: str = savefig(name="si_latency_and_iters_dist")
@@ -61,4 +61,3 @@ def main(cfg: ConfigCLI) -> None:
             raise NotImplementedError
         case _:
             raise NotImplementedError(f"Invalid simulation type: {cfg.type}")
-    log.info("Done")

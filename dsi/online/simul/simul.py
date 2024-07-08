@@ -1,17 +1,18 @@
 import multiprocessing
 import time
 
-from dsi.configs.run.run import ConfigRunOnline
-from dsi.offline.run.common import generate_num_accepted_drafts
-from dsi.online.run.core import restart_draft
-from dsi.types.result import Result
-from dsi.types.run import Run
+from dsi.configs.simul.online import ConfigDSIOnline
+from dsi.offline.simul.common import generate_num_accepted_drafts
+from dsi.online.simul.core import restart_draft
+from dsi.types.result import ResultSimul
+from dsi.types.simul import Simul
 
 
-class RunOnline(Run):
-    """Run simulated multi-threaded speculative inference."""
+class SimulOnline(Simul):
+    """Simulates multi-threaded speculative inference."""
 
-    def __init__(self, config: ConfigRunOnline) -> None:
+    def __init__(self, config: ConfigDSIOnline) -> None:
+        self.config: ConfigDSIOnline
         super().__init__(config)
 
     def _get_correct_token_list(self):
@@ -30,7 +31,7 @@ class RunOnline(Run):
             )
         return correct_token_list
 
-    def _run_single(self) -> Result:
+    def _single_repeat(self) -> ResultSimul:
         correct_token_list = self._get_correct_token_list()
 
         total_tokens = self.config.total_tokens
@@ -61,7 +62,7 @@ class RunOnline(Run):
         # Remove the extra time from the final inference time count
         inference_time -= iter_till_stop * self.config.wait_for_pipe
 
-        return Result(
+        return ResultSimul(
             cost_per_run=[inference_time],
             num_iters_per_run=[iter_till_stop],
         )
