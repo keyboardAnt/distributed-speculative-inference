@@ -2,7 +2,7 @@ from math import ceil
 
 from pydantic import Field
 
-from dsi.configs.base import _Config
+from dsi.configs.experiment.base import _Config
 from dsi.types.exception import (
     DrafterSlowerThanTargetError,
     NumOfTargetServersInsufficientError,

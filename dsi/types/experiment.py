@@ -3,7 +3,7 @@ from typing import final
 
 from tqdm import tqdm
 
-from dsi.configs.base import _Config
+from dsi.configs.experiment.base import _Config
 from dsi.types.result import ResultSimul, _Result
 from dsi.utils import set_random_seed
 
