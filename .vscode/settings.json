@@ -8,4 +8,7 @@
         "*.dvc": "yaml",
         "dvc.lock": "yaml"
     },
+    "editor.rulers": [
+        88
+    ],
 }

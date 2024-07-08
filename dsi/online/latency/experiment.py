@@ -1,6 +1,5 @@
 import logging
 from time import perf_counter as time
-from typing import Tuple
 
 import numpy as np
 import torch
@@ -9,7 +8,6 @@ from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from dsi.configs.experiment.latency import ConfigLatency
-from dsi.online.latency.dataset import Dataset
 from dsi.online.latency.prompts import get_prompt
 from dsi.types.experiment import _Experiment
 from dsi.types.result import ResultLatency
@@ -58,9 +56,7 @@ class ExperimentLatency(_Experiment):
         prompted_examples = [get_prompt(dataset, ex) for ex in examples]
         return prompted_examples
 
-    def _timed_generate(
-        self, model, tokenizer, prompted_examples
-    ) -> ResultLatency:
+    def _timed_generate(self, model, tokenizer, prompted_examples) -> ResultLatency:
         """Time the generation of the prompted examples, distinguishing between
         the time to first token (ttft) and the time per output token (tpot)."""
         gen_kwargs = dict(
@@ -91,10 +87,10 @@ class ExperimentLatency(_Experiment):
         mean_ttft = np.mean(ttfts) * 1000
         mean_tpot = np.mean(tpots) * 1000
         return ResultLatency(ttft=[mean_ttft], tpot=[mean_tpot])
-    
+
     def _get_empty_result(self) -> ResultLatency:
         return ResultLatency()
-    
+
     def _single_repeat(
         self,
         model: str,
@@ -102,7 +98,7 @@ class ExperimentLatency(_Experiment):
         subset: str = None,
         split: str = "test",
         model_revision: str = None,
-    ) ->  ResultLatency:
+    ) -> ResultLatency:
         """Run the latency measurements for the given model and dataset."""
         log.info(f"Running ExperimentLatency: {model=} {dataset=} {subset=}\n")
         examples = self._get_random_prompted_examples(dataset, subset, split)
