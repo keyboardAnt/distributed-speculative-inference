@@ -3,14 +3,14 @@ from typing import final
 
 from tqdm import tqdm
 
-from dsi.configs.experiment.base import _Config
+from dsi.configs.experiment.base import _ConfigExperiment
 from dsi.types.result import ResultSimul, _Result
 from dsi.utils import set_random_seed
 
 
 class _Experiment(ABC):
-    def __init__(self, config: _Config) -> None:
-        self.config: _Config = config
+    def __init__(self, config: _ConfigExperiment) -> None:
+        self.config: _ConfigExperiment = config
         self.result: _Result = self._get_empty_result()
 
     @abstractmethod

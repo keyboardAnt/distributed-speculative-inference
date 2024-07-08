@@ -2,14 +2,14 @@ from math import ceil
 
 from pydantic import Field
 
-from dsi.configs.experiment.base import _Config
+from dsi.configs.experiment.base import _ConfigExperiment
 from dsi.types.exception import (
     DrafterSlowerThanTargetError,
     NumOfTargetServersInsufficientError,
 )
 
 
-class ConfigSI(_Config):
+class ConfigSI(_ConfigExperiment):
     """ConfigSI includes all the parameters needed for an experiment.
     Each experiment simulates an algorithm multiple times.
     """
