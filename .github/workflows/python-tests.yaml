@@ -6,9 +6,14 @@ name: Python tests
 on:
   pull_request:
     branches: [ "main" ]
+  push:
+    branches-ignore:
+      - "main"
+  workflow_dispatch: {}
 
 jobs:
   ci:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name
     strategy:
       fail-fast: false
       matrix:
@@ -38,4 +43,4 @@ jobs:
         jupyter: true
     - name: Test with pytest
       run: |
-        poetry run pytest
+        poetry run pytest -vvv

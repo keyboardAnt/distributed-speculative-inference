@@ -13,15 +13,16 @@ def generate_num_accepted_drafts(
     :param lookahead: The maximum possible number of accepted drafts.
     :param S: The number of samples to generate.
     """
-    if acceptance_rate == 0:
-        samples = [0] * max_num_samples
-    elif acceptance_rate == 1:
-        samples = [lookahead] * max_num_samples
-    else:
-        # Sample S values from the geometric distribution and adjust them
-        samples = np.random.geometric(1 - acceptance_rate, size=max_num_samples) - 1
-        # Ensure no value exceeds the lookahead limit
-        samples = np.minimum(samples, lookahead)
+    match acceptance_rate:
+        case 0:
+            samples = [0] * max_num_samples
+        case 1:
+            samples = [lookahead] * max_num_samples
+        case _:
+            # Sample S values from the geometric distribution and adjust them
+            samples = np.random.geometric(1 - acceptance_rate, size=max_num_samples) - 1
+            # Ensure no value exceeds the lookahead limit
+            samples = np.minimum(samples, lookahead)
 
     # Yield each sample one by one
     yield from samples

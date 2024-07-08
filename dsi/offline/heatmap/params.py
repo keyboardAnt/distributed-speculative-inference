@@ -4,18 +4,12 @@ import logging
 import numpy as np
 import pandas as pd
 
-from dsi.configs.config_heatmap import ConfigHeatmap
-from dsi.configs.config_run import ConfigRunDSI
+from dsi.configs.run.heatmap import ConfigHeatmap
+from dsi.configs.run.run import ConfigRunDSI
 from dsi.types.exception import NumOfTargetServersInsufficientError
+from dsi.types.name import Param
 
 log = logging.getLogger(__name__)
-
-
-class Param:
-    c = "c"
-    a = "a"
-    k = "k"
-    num_target_servers = "num_target_servers"
 
 
 def is_config_valid(c: float, k: int, verbose: bool) -> bool:
@@ -32,7 +26,7 @@ def is_row_valid(row: pd.Series, verbose: bool = False) -> bool:
     return is_config_valid(c=row[Param.c], k=row[Param.k], verbose=verbose)
 
 
-def get_df_heatmap_params(config: None | ConfigHeatmap = None) -> pd.DataFrame:
+def get_df_heatmap_params(config: ConfigHeatmap) -> pd.DataFrame:
     """
     Generate a pandas dataframe with all the configurations of c, a, k that are valid
     for DSI.

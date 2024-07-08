@@ -1,10 +1,12 @@
 import numpy as np
 import pandas as pd
 
-from dsi.configs.config_run import ConfigRunDSI
+from dsi.configs.run.run import ConfigRunDSI
 from dsi.offline.run.dsi import RunDSI
 from dsi.offline.run.si import RunSI
-from dsi.types.result import HeatmapColumn, Result
+from dsi.types.df_heatmap import DataFrameHeatmap
+from dsi.types.name import HeatmapColumn
+from dsi.types.result import Result
 
 enrichments: dict[str, callable] = {
     HeatmapColumn.speedup_dsi_vs_si: lambda df: df[HeatmapColumn.cost_si]
@@ -42,8 +44,8 @@ def get_all_latencies(
     }
 
 
-def enrich(df: pd.DataFrame) -> pd.DataFrame:
-    """Enrich the dataframe with new columns."""
+def enrich_inplace(df: pd.DataFrame) -> DataFrameHeatmap:
+    """Enrich the dataframe with new columns, in-place."""
     for col, func in enrichments.items():
         df[col] = func(df)
-    return df
+    return DataFrameHeatmap.from_dataframe(df)
