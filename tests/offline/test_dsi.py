@@ -46,10 +46,10 @@ def test_dsi_faster_than_si_and_nonsi(c: float, failure_cost: float, a: float, k
         cost_max: float = config.S * (config.c * config.k + config.failure_cost)
         assert cost_min <= cost_dsi or np.isclose(cost_min, cost_dsi)
         assert cost_dsi <= cost_max or np.isclose(cost_max, cost_dsi)
-    dsi_cost_per_run_arr: np.ndarray = np.array(dsi_res.cost_per_repeat)
+    dsi_cost_per_repeat_arr: np.ndarray = np.array(dsi_res.cost_per_repeat)
     cost_nonsi: float = config.S * config.failure_cost
-    diff: np.ndarray = dsi_cost_per_run_arr - cost_nonsi
+    diff: np.ndarray = dsi_cost_per_repeat_arr - cost_nonsi
     assert (diff <= 0).all() or np.isclose(diff[diff > 0], 0).all(), (
         "DSI is never slower than non-SI."
-        f" DSI: {dsi_cost_per_run_arr}, non-SI: {cost_nonsi}"
+        f" DSI: {dsi_cost_per_repeat_arr}, non-SI: {cost_nonsi}"
     )

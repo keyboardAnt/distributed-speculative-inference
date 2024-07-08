@@ -9,8 +9,8 @@ from dsi.types.exception import IncompatibleAppendError
 class Result:
     """
     Args:
-        cost_per_run: The total latency for each run
-        num_iters_per_run: The number of iterations for each run
+        cost_per_repeat: The total latency for each repeat
+        num_iters_per_repeat: The number of iterations for each repeat
     """
 
     cost_per_repeat: list[float] = field(default_factory=list)

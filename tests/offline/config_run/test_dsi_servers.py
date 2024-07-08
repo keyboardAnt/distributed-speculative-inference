@@ -28,7 +28,7 @@ def num_repeats(request):
         (0.011, 1.0, 10, 9),
     ],
 )
-def test_run_config_dsi_num_target_servers_insufficient(
+def test_config_dsi_num_target_servers_insufficient(
     c: float,
     failure_cost: float,
     k: int,
