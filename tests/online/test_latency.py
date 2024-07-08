@@ -7,6 +7,7 @@ from dsi.configs.experiment.latency import ConfigLatency
 from dsi.online.latency.dataset import Dataset
 from dsi.online.latency.experiment import ExperimentLatency
 from dsi.online.latency.prompts import get_prompt
+from dsi.types.result import ResultLatency
 
 
 @pytest.fixture
@@ -82,45 +83,85 @@ def test_get_prompt_alpaca_without_input(alpaca_example_without_input):
     assert prompt.startswith(expected_start)
 
 
-@pytest.fixture(
-    params=[
-        {"compile_model": False, "num_ex": 10, "random_seed": 42, "max_new_tokens": 10},
-        {"compile_model": True, "num_ex": 5, "random_seed": 24, "max_new_tokens": 20},
-    ]
-)
-def config_latency(request):
+@pytest.fixture
+def config():
     return ConfigLatency(
-        dataset=Dataset.ALPACA, model="double7/vicuna-68m", **request.param
+        model="double7/vicuna-68m",
+        dataset=Dataset.ALPACA,
+        compile_model=False,
+        num_ex=5,
+        max_new_tokens=5,
+        random_seed=42,
     )
 
 
 @pytest.fixture
-def experiment_latency(config_latency):
-    return ExperimentLatency(config=config_latency)
+def model_mock():
+    model = MagicMock()
+    model.generate = MagicMock(return_value=MagicMock(shape=(1, 51)))
+    return model
 
 
 @pytest.fixture
-def model_tokenizer():
-    model = MagicMock()
+def tokenizer_mock():
     tokenizer = MagicMock()
     tokenizer.eos_token_id = 0
-    return model, tokenizer
+    return tokenizer
 
 
+@patch("dsi.online.latency.experiment.load_dataset")
 @patch("dsi.online.latency.experiment.AutoModelForCausalLM.from_pretrained")
 @patch("dsi.online.latency.experiment.AutoTokenizer.from_pretrained")
-def test_load_model_tokenizer(
-    mock_tokenizer, mock_model, experiment_latency, model_tokenizer
+@patch("dsi.online.latency.experiment.torch.compile")
+def test_single_repeat_without_compile_model(
+    torch_compile_mock,
+    tokenizer_from_pretrained_mock,
+    model_from_pretrained_mock,
+    load_dataset_mock,
+    config,
+    model_mock,
+    tokenizer_mock,
 ):
-    mock_model.return_value = model_tokenizer[0]
-    mock_tokenizer.return_value = model_tokenizer[1]
-    model, tokenizer = experiment_latency._load_model_tokenizer("double7/vicuna-68m")
-    mock_model.assert_called_once_with(
-        "double7/vicuna-68m",
-        device_map="auto",
-        torch_dtype=torch.bfloat16,
-        revision=None,
+    load_dataset_mock.return_value.shuffle.return_value.select.return_value = [
+        {"input": "test", "instruction": "summarize this input"}
+    ] * config.num_ex
+    model_from_pretrained_mock.return_value = model_mock
+    tokenizer_from_pretrained_mock.return_value = tokenizer_mock
+
+    experiment = ExperimentLatency(config)
+    result = experiment._single_repeat()
+
+    load_dataset_mock.assert_called_with(path=config.dataset, name=None, split="test")
+    model_from_pretrained_mock.assert_called_with(
+        config.model, device_map="auto", torch_dtype=torch.bfloat16, revision=None
     )
-    mock_tokenizer.assert_called_once_with("double7/vicuna-68m")
-    assert model is not None
-    assert tokenizer is not None
+    tokenizer_from_pretrained_mock.assert_called_with(config.model)
+    torch_compile_mock.assert_not_called()
+    assert isinstance(result, ResultLatency)
+
+
+@patch("dsi.online.latency.experiment.load_dataset")
+@patch("dsi.online.latency.experiment.AutoModelForCausalLM.from_pretrained")
+@patch("dsi.online.latency.experiment.AutoTokenizer.from_pretrained")
+@patch("dsi.online.latency.experiment.torch.compile")
+def test_single_repeat_with_compile_model(
+    torch_compile_mock,
+    tokenizer_from_pretrained_mock,
+    model_from_pretrained_mock,
+    load_dataset_mock,
+    config,
+    model_mock,
+    tokenizer_mock,
+):
+    config.compile_model = True
+    load_dataset_mock.return_value.shuffle.return_value.select.return_value = [
+        {"input": "test", "instruction": "summarize this input"}
+    ] * config.num_ex
+    model_from_pretrained_mock.return_value = model_mock
+    tokenizer_from_pretrained_mock.return_value = tokenizer_mock
+
+    experiment = ExperimentLatency(config)
+    result = experiment._single_repeat()
+
+    torch_compile_mock.assert_called_once_with(model_mock)
+    assert isinstance(result, ResultLatency)

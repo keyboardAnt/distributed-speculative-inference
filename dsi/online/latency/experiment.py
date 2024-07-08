@@ -17,10 +17,12 @@ log = logging.getLogger(__name__)
 
 def get_fwd_time(model, input_ids, past_key_values=None):
     """Get the forward time of a model, with or without `past_key_values`."""
-    torch.cuda.synchronize()
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()
     t = time()
     out = model(input_ids=input_ids, past_key_values=past_key_values)
-    torch.cuda.synchronize()
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()
     elapsed = time() - t
     return elapsed, out
 
@@ -97,7 +99,7 @@ class ExperimentLatency(_Experiment):
             self.config.dataset, self.config.subset, self.config.split
         )
         model, tokenizer = self._load_model_tokenizer(
-            self.config.model, self.config.model_revision
+            self.config.model, self.config.revision
         )
 
         # Warmup run
