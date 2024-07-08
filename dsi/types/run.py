@@ -1,6 +1,6 @@
 from typing import Generator, final
 
-from dsi.configs.run.algo import ConfigSI
+from dsi.configs.simul.algo import ConfigSI
 from dsi.offline.run.common import generate_num_accepted_drafts
 from dsi.types.result import Result
 from dsi.utils import set_random_seed

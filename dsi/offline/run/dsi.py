@@ -1,4 +1,4 @@
-from dsi.configs.run.algo import ConfigDSI
+from dsi.configs.simul.algo import ConfigDSI
 from dsi.types.result import Result
 from dsi.types.run import Run
 

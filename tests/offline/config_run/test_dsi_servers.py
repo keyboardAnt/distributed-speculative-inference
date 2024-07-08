@@ -1,6 +1,6 @@
 import pytest
 
-from dsi.configs.run.algo import ConfigDSI
+from dsi.configs.simul.algo import ConfigDSI
 from dsi.types.exception import NumOfTargetServersInsufficientError
 
 
