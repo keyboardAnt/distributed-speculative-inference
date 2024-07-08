@@ -13,7 +13,7 @@ from dsi.offline.heatmap.ray_manager import RayManager
 from dsi.offline.simul.dsi import SimulDSI
 from dsi.offline.simul.si import SimulSI
 from dsi.types.df_heatmap import DataFrameHeatmap
-from dsi.types.result import Result
+from dsi.types.result import ResultSimul
 from dsi.vis.iters_dist import PlotIters
 from dsi.vis.utils import savefig
 
@@ -32,9 +32,9 @@ def main(cfg: ConfigCLI) -> None:
     match cfg.type:
         case RunType.offline:
             log.info("Running offline simulation")
-            res_si: Result = SimulSI(cfg.simul).run()
+            res_si: ResultSimul = SimulSI(cfg.simul).run()
             log.info("res_si: %s", res_si)
-            res_dsi: Result = SimulDSI(cfg.simul).run()
+            res_dsi: ResultSimul = SimulDSI(cfg.simul).run()
             log.info("res_dsi: %s", res_dsi)
             log.info("Plotting SI")
             plot_si: PlotIters = PlotIters(
@@ -61,4 +61,3 @@ def main(cfg: ConfigCLI) -> None:
             raise NotImplementedError
         case _:
             raise NotImplementedError(f"Invalid simulation type: {cfg.type}")
-    log.info("Done")

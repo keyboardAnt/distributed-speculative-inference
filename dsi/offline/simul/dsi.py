@@ -1,5 +1,5 @@
 from dsi.configs.simul.offline import ConfigDSI
-from dsi.types.result import Result
+from dsi.types.result import ResultSimul
 from dsi.types.simul import Simul
 
 
@@ -14,7 +14,7 @@ class SimulDSI(Simul):
         """
         super().__init__(config)
 
-    def _run_single(self) -> Result:
+    def _single_repeat(self) -> ResultSimul:
         cost: float = 0
         toks: int = 0
         iters: int = 0
@@ -38,7 +38,7 @@ class SimulDSI(Simul):
             cost += min(si, nonsi)
             toks += new_toks
 
-        return Result(
+        return ResultSimul(
             cost_per_repeat=[cost],
             num_iters_per_repeat=[iters],
         )

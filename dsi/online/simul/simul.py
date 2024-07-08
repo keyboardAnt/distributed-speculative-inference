@@ -4,7 +4,7 @@ import time
 from dsi.configs.simul.online import ConfigDSIOnline
 from dsi.offline.simul.common import generate_num_accepted_drafts
 from dsi.online.simul.core import restart_draft
-from dsi.types.result import Result
+from dsi.types.result import ResultSimul
 from dsi.types.simul import Simul
 
 
@@ -31,7 +31,7 @@ class SimulOnline(Simul):
             )
         return correct_token_list
 
-    def _run_single(self) -> Result:
+    def _single_repeat(self) -> ResultSimul:
         correct_token_list = self._get_correct_token_list()
 
         total_tokens = self.config.total_tokens
@@ -62,7 +62,7 @@ class SimulOnline(Simul):
         # Remove the extra time from the final inference time count
         inference_time -= iter_till_stop * self.config.wait_for_pipe
 
-        return Result(
+        return ResultSimul(
             cost_per_run=[inference_time],
             num_iters_per_run=[iter_till_stop],
         )

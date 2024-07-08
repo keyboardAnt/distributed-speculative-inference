@@ -1,34 +1,29 @@
-from typing import Generator, final
+from typing import Generator
 
 from dsi.configs.simul.offline import ConfigSI
 from dsi.offline.simul.common import generate_num_accepted_drafts
-from dsi.types.result import Result
-from dsi.utils import set_random_seed
+from dsi.types.experiment import _Experiment
+from dsi.types.result import ResultSimul
 
 
-class Simul:
+class Simul(_Experiment):
     def __init__(self, config: ConfigSI) -> None:
-        self.config: ConfigSI = config
-        self.result: Result = self._get_empty_result()
+        self.config: ConfigSI
+        super().__init__(config)
         self._sampler: None | Generator = None
 
-    def _get_empty_result(self) -> Result:
-        return Result()
+    def _get_empty_result(self) -> ResultSimul:
+        return ResultSimul()
 
-    def _init_sampler(self) -> None:
+    def _setup_single_repeat(self) -> None:
+        """
+        Initiate the sampler generator.
+        """
         self._sampler = generate_num_accepted_drafts(
             acceptance_rate=self.config.a,
             lookahead=self.config.k,
             max_num_samples=self.config.S,
         )
 
-    @final
-    def run(self) -> Result:
-        set_random_seed(self.config.random_seed)
-        for _ in range(self.config.num_repeats):
-            self._init_sampler()
-            self.result.extend(self._run_single())
-        return self.result
-
-    def _run_single(self) -> Result:
+    def _single_repeat(self) -> ResultSimul:
         raise NotImplementedError

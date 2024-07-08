@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class _Config(BaseModel):
@@ -7,3 +7,4 @@ class _Config(BaseModel):
     """
 
     random_seed: int = 42
+    num_repeats: int = Field(5, title="The number of times to repeat the run", ge=1)

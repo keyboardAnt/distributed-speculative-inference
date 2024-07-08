@@ -6,7 +6,7 @@ from dsi.offline.simul.dsi import SimulDSI
 from dsi.offline.simul.si import SimulSI
 from dsi.types.df_heatmap import DataFrameHeatmap
 from dsi.types.name import HeatmapColumn
-from dsi.types.result import Result
+from dsi.types.result import ResultSimul
 
 enrichments: dict[str, callable] = {
     HeatmapColumn.speedup_dsi_vs_si: lambda df: df[HeatmapColumn.cost_si]
@@ -32,8 +32,8 @@ def get_all_latencies(
     )
     si = SimulSI(config)
     dsi = SimulDSI(config)
-    res_si: Result = si.run()
-    res_dsi: Result = dsi.run()
+    res_si: ResultSimul = si.run()
+    res_dsi: ResultSimul = dsi.run()
     cost_si: float = np.array(res_si.cost_per_repeat).mean()
     cost_dsi: float = np.array(res_dsi.cost_per_repeat).mean()
     cost_nonsi: float = config.failure_cost * config.S

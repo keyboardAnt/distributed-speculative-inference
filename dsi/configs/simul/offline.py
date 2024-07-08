@@ -24,9 +24,6 @@ class ConfigSI(_Config):
     k: int = Field(5, title="Lookahead", ge=1)
     failure_cost: float = Field(1.0, title="The latency of the target", ge=0)
     S: int = Field(1000, title="The number of tokens to generate", ge=1)
-    num_repeats: int = Field(
-        5, title="The number of times to repeat the simulation", ge=1
-    )
 
     def model_post_init(self, __context) -> None:
         """

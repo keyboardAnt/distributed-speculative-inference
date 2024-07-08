@@ -3,13 +3,13 @@ import pytest
 
 from dsi.configs.simul.offline import ConfigSI
 from dsi.offline.simul.si import SimulSI
-from dsi.types.result import Result
+from dsi.types.result import ResultSimul
 
 
 def test_si_result_shapes():
     config = ConfigSI(num_repeats=7)
     si = SimulSI(config)
-    res: Result = si.run()
+    res: ResultSimul = si.run()
     assert len(res.cost_per_repeat) == 7
     assert len(res.num_iters_per_repeat) == 7
 
@@ -20,7 +20,7 @@ def test_si_result_shapes():
 def test_si_result_cost(a: float, k: int, S: int):
     config = ConfigSI(a=1, k=k, S=S)
     si = SimulSI(config)
-    res: Result = si.run()
+    res: ResultSimul = si.run()
     cost_per_iter_max: float = config.k * config.c + config.failure_cost
     cost_per_iter_min: float = config.failure_cost
     for cost, num_iters in zip(res.cost_per_repeat, res.num_iters_per_repeat):

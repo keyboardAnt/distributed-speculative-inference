@@ -8,14 +8,14 @@ from dsi.types.exception import (
     DrafterSlowerThanTargetError,
     NumOfTargetServersInsufficientError,
 )
-from dsi.types.result import Result
+from dsi.types.result import ResultSimul
 
 
 def test_dsi_result_shapes():
     num_repeats: int = 17
     config = ConfigDSI(num_repeats=num_repeats)
     dsi = SimulDSI(config)
-    res: Result = dsi.run()
+    res: ResultSimul = dsi.run()
     assert (
         len(res.cost_per_repeat) == num_repeats
     ), f"expected {num_repeats} results, got {len(res.cost_per_repeat)}"
@@ -32,8 +32,8 @@ def test_dsi_faster_than_si_and_nonsi(c: float, failure_cost: float, a: float, k
         return
     si = SimulSI(config)
     dsi = SimulDSI(config)
-    si_res: Result = si.run()
-    dsi_res: Result = dsi.run()
+    si_res: ResultSimul = si.run()
+    dsi_res: ResultSimul = dsi.run()
     num_iterations_min: int = config.S // (config.k + 1)
     for res in [si_res, dsi_res]:
         for num_iters in res.num_iters_per_repeat:
