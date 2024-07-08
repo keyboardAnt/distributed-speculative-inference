@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from dsi.configs.simul.algo import ConfigDSI
+from dsi.configs.simul.offline import ConfigDSI
 from dsi.offline.simul.dsi import SimulDSI
 from dsi.offline.simul.si import SimulSI
 from dsi.types.exception import (
