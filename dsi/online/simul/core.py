@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 from multiprocessing import Pipe
 from threading import current_thread
 
-from dsi.configs.simul.online import ConfigDSIOnline, SimulType
+from dsi.configs.experiment.simul.online import ConfigDSIOnline, SimulType
 
 
 def terminate_process(cur_pipe, sim_executor):

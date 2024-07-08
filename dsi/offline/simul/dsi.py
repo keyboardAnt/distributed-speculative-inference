@@ -1,4 +1,4 @@
-from dsi.configs.simul.offline import ConfigDSI
+from dsi.configs.experiment.simul.offline import ConfigDSI
 from dsi.types.result import ResultSimul
 from dsi.types.simul import Simul
 

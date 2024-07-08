@@ -2,7 +2,7 @@ from enum import Enum
 
 from pydantic import Field
 
-from dsi.configs.simul.offline import ConfigDSI
+from dsi.configs.experiment.simul.offline import ConfigDSI
 
 
 class SimulType(Enum):

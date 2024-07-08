@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from dsi.configs.simul.offline import ConfigSI
+from dsi.configs.experiment.simul.offline import ConfigSI
 from dsi.offline.simul.si import SimulSI
 from dsi.types.result import ResultSimul
 
