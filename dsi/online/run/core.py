@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 from multiprocessing import Pipe
 from threading import current_thread
 
-from dsi.configs.config_run import RunType
+from dsi.configs.run.run import RunType
 
 
 def terminate_process(cur_pipe, sim_executor):
@@ -19,8 +19,6 @@ def terminate_process(cur_pipe, sim_executor):
         sim_executor.shutdown(wait=False, cancel_futures=True)
 
     cur_pid1 = cur_pipe[0].recv()
-    _ = cur_pipe[1].recv()
-
     os.kill(cur_pid1, signal.SIGTERM)
 
 
@@ -46,7 +44,7 @@ def get_target_time(args, visited):
 
 def get_current_thread_name():
     """
-    Get the current thread name in the threadpool. If thread pool does not exist, 
+    Get the current thread name in the threadpool. If thread pool does not exist,
     then current process name will be returned instead.
     """
     cur_thread_name = current_thread().getName()
@@ -54,6 +52,7 @@ def get_current_thread_name():
         cur_thread_name.split("_")[1] if "_" in cur_thread_name else cur_thread_name
     )
     return model_id
+
 
 def call_target_actual(
     args, draft_tokens, total_tokens, sim_shared_dict, cur_pipe, sim_executor
@@ -85,26 +84,25 @@ def target_done_callback(args, res):
             return
         res_dict = res.result()
 
-    correct = res_dict["correct"]
-    draft_tokens = res_dict["draft_tokens"]
-    total_tokens = res_dict["total_tokens"]
-    sim_shared_dict = res_dict["sim_shared_dict"]
-    cur_pipe = res_dict["cur_pipe"]
-    sim_executor = res_dict["sim_executor"]
-
-    if correct < draft_tokens:
+    if res_dict["correct"] < res_dict["draft_tokens"]:
         # I have "correct" correct token, plus 1
         # ONLY {correct} are correct, need to fix the history
-        fix_history(total_tokens, correct, sim_shared_dict, cur_pipe, sim_executor)
+        fix_history(
+            res_dict["total_tokens"],
+            res_dict["correct"],
+            res_dict["sim_shared_dict"],
+            res_dict["cur_pipe"],
+            res_dict["sim_executor"],
+        )
     else:
         # ALL CORRECT with {total_tokens + draft_tokens}
 
-        total_tokens += correct
+        res_dict["total_tokens"] += res_dict["correct"]
 
-        if total_tokens > args.max_tokens:
+        if res_dict["total_tokens"] > args.max_tokens:
             # MAX TOKENS REACHED
-            sim_shared_dict["stop"] = True
-            terminate_process(cur_pipe, sim_executor)
+            res_dict["sim_shared_dict"]["stop"] = True
+            terminate_process(res_dict["cur_pipe"], res_dict["sim_executor"])
 
 
 def call_target(

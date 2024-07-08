@@ -2,8 +2,9 @@ import multiprocessing
 
 import pytest
 
-from dsi.configs.config_run import ConfigRunOnline, RunType
+from dsi.configs.run.run import ConfigRunOnline, RunType
 from dsi.online.run.run import restart_draft
+
 
 @pytest.fixture
 def config():
@@ -30,7 +31,7 @@ def test_entire_threadpool_used(config):
 
     sim_shared_dict["total_tokens"] = total_tokens
     sim_shared_dict["prompt_tokens"] = total_tokens
-    
+
     # sample number of correct tokens
     sim_shared_dict["correct"] = 20
 
@@ -52,7 +53,7 @@ def test_single_thread_in_si(config):
 
     sim_shared_dict["total_tokens"] = total_tokens
     sim_shared_dict["prompt_tokens"] = total_tokens
-    
+
     # sample number of correct tokens
     sim_shared_dict["correct"] = 20
 
@@ -64,9 +65,10 @@ def test_single_thread_in_si(config):
 
     assert "MainThread" in sim_shared_dict
 
+
 def test_correct_token_count_per_iteration(config):
     correct_token_list = [5, 15, 3, 7, 10, 5, 20]
-    
+
     total_tokens = config.total_tokens
     sim_shared_dict = multiprocessing.Manager().dict()
 
@@ -78,8 +80,11 @@ def test_correct_token_count_per_iteration(config):
     # While the stop signal is not received, keep restarting the draft model
     while "stop" not in sim_shared_dict:
         # assert that the number of tokens is in accordance with the accepted token list
-        assert sim_shared_dict["total_tokens"] == sum(correct_token_list[:iter_till_stop]) + config.total_tokens
-        
+        assert (
+            sim_shared_dict["total_tokens"]
+            == sum(correct_token_list[:iter_till_stop]) + config.total_tokens
+        )
+
         # sample number of correct tokens
         sim_shared_dict["correct"] = correct_token_list[iter_till_stop]
 
@@ -91,5 +96,3 @@ def test_correct_token_count_per_iteration(config):
         )
         th.join()
         iter_till_stop += 1
-        
-        

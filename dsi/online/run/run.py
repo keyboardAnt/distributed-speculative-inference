@@ -1,7 +1,7 @@
 import multiprocessing
 import time
 
-from dsi.configs.config_run import ConfigRunOnline
+from dsi.configs.run.run import ConfigRunOnline
 from dsi.offline.run.common import generate_num_accepted_drafts
 from dsi.online.run.core import restart_draft
 from dsi.types.result import Result
