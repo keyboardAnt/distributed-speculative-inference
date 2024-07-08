@@ -2,7 +2,7 @@ import multiprocessing
 
 import pytest
 
-from dsi.configs.simul.online import ConfigDSIOnline, SimulType
+from dsi.configs.experiment.simul.online import ConfigDSIOnline, SimulType
 from dsi.online.simul.simul import restart_draft
 
 

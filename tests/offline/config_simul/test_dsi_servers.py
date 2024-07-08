@@ -1,6 +1,6 @@
 import pytest
 
-from dsi.configs.simul.offline import ConfigDSI
+from dsi.configs.experiment.simul.offline import ConfigDSI
 from dsi.types.exception import NumOfTargetServersInsufficientError
 
 

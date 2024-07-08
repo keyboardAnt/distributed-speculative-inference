@@ -1,6 +1,6 @@
 from typing import Generator
 
-from dsi.configs.simul.offline import ConfigSI
+from dsi.configs.experiment.simul.offline import ConfigSI
 from dsi.offline.simul.common import generate_num_accepted_drafts
 from dsi.types.experiment import _Experiment
 from dsi.types.result import ResultSimul

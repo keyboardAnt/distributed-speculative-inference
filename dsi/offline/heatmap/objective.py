@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from dsi.configs.simul.offline import ConfigDSI
+from dsi.configs.experiment.simul.offline import ConfigDSI
 from dsi.offline.simul.dsi import SimulDSI
 from dsi.offline.simul.si import SimulSI
 from dsi.types.df_heatmap import DataFrameHeatmap

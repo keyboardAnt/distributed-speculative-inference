@@ -1,7 +1,7 @@
 import multiprocessing
 import time
 
-from dsi.configs.simul.online import ConfigDSIOnline
+from dsi.configs.experiment.simul.online import ConfigDSIOnline
 from dsi.offline.simul.common import generate_num_accepted_drafts
 from dsi.online.simul.core import restart_draft
 from dsi.types.result import ResultSimul
