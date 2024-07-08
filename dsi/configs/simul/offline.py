@@ -1,4 +1,3 @@
-from enum import Enum
 from math import ceil
 
 from pydantic import Field
@@ -71,36 +70,3 @@ class ConfigDSI(ConfigSI):
                 " < num_target_servers_required={num_target_servers_required}"
             )
             raise NumOfTargetServersInsufficientError(msg)
-
-
-# class syntax
-class RunType(Enum):
-    SI = 1
-    DSI = 2
-
-
-class ConfigRunOnline(ConfigRunDSI):
-    c_sub: float = Field(
-        0.01,
-        title="The latency of the drafter subsequent tokens",
-        description="c=0 requires infinitly many target servers",
-        gt=0,
-    )
-    failure_cost_sub: float = Field(
-        0.1, title="The latency of the target subsequent tokens", ge=0
-    )
-    total_tokens: int = Field(100, title="The number of tokens in the prompt", ge=0)
-    wait_for_pipe: float = Field(
-        0.1, title="Wait for pid to be sent via the pipe", ge=0
-    )
-    run_type: RunType = Field(
-        RunType.DSI,
-        title="Running DSI simulation or SI speculative decoding.",
-    )
-    maximum_correct_tokens: int = Field(
-        20, title="The maximum number of correct tokens produced by draft", ge=0
-    )
-
-    @property
-    def max_tokens(self) -> int:
-        return self.total_tokens + self.S
