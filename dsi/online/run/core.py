@@ -172,16 +172,13 @@ def run_generate(args, total_tokens, sim_shared_dict, cur_pipe, wait_for_pipe):
         # generating token index {total_tokens+draft_tokens}")
 
         # if has no history, first token time, else use sub-token time
+        current_draft_time: float = args.c_sub
         if is_first_token and draft_tokens == 0:
             current_draft_time = args.c
-        else:
-            current_draft_time = args.c_sub
-
         time.sleep(current_draft_time)
-
         draft_tokens += 1
+        # call the target model every 'lookahead' tokens
 
-        # call the target model every sl tokens.
         if draft_tokens % args.k == 0:
             call_target(
                 args=args,

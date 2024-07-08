@@ -59,7 +59,7 @@ class RunOnline(Run):
         inference_time = time.time() - start_time
 
         # Remove the extra time from the final inference time count
-        inference_time = inference_time - iter_till_stop * self.config.wait_for_pipe
+        inference_time -= iter_till_stop * self.config.wait_for_pipe
 
         return Result(
             cost_per_run=[inference_time],
