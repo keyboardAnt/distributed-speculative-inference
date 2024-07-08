@@ -1,8 +1,8 @@
 from dsi.types.result import Result
-from dsi.types.run import Run
+from dsi.types.simul import Simul
 
 
-class RunSI(Run):
+class RunSI(Simul):
     """Run speculative inference."""
 
     def _get_empty_result(self) -> Result:

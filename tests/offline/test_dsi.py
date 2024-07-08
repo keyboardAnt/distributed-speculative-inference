@@ -2,8 +2,8 @@ import numpy as np
 import pytest
 
 from dsi.configs.simul.algo import ConfigDSI
-from dsi.offline.run.dsi import RunDSI
-from dsi.offline.run.si import RunSI
+from dsi.offline.simul.dsi import RunDSI
+from dsi.offline.simul.si import RunSI
 from dsi.types.exception import (
     DrafterSlowerThanTargetError,
     NumOfTargetServersInsufficientError,

@@ -1,12 +1,12 @@
 from typing import Generator, final
 
 from dsi.configs.simul.algo import ConfigSI
-from dsi.offline.run.common import generate_num_accepted_drafts
+from dsi.offline.simul.common import generate_num_accepted_drafts
 from dsi.types.result import Result
 from dsi.utils import set_random_seed
 
 
-class Run:
+class Simul:
     def __init__(self, config: ConfigSI) -> None:
         self.config: ConfigSI = config
         self.result: Result = self._get_empty_result()

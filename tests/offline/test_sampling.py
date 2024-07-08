@@ -3,7 +3,7 @@ from typing import Generator
 
 import numpy as np
 
-from dsi.offline.run.common import generate_num_accepted_drafts
+from dsi.offline.simul.common import generate_num_accepted_drafts
 from dsi.utils import set_random_seed
 
 

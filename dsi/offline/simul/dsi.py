@@ -1,9 +1,9 @@
 from dsi.configs.simul.algo import ConfigDSI
 from dsi.types.result import Result
-from dsi.types.run import Run
+from dsi.types.simul import Simul
 
 
-class RunDSI(Run):
+class RunDSI(Simul):
     """
     RunDSI simulates the DSI algorithm over multiple repeats.
     """

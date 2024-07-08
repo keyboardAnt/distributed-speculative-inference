@@ -2,8 +2,8 @@ import numpy as np
 import pandas as pd
 
 from dsi.configs.simul.algo import ConfigDSI
-from dsi.offline.run.dsi import RunDSI
-from dsi.offline.run.si import RunSI
+from dsi.offline.simul.dsi import RunDSI
+from dsi.offline.simul.si import RunSI
 from dsi.types.df_heatmap import DataFrameHeatmap
 from dsi.types.name import HeatmapColumn
 from dsi.types.result import Result

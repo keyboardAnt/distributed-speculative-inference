@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from dsi.configs.simul.algo import ConfigSI
-from dsi.offline.run.si import RunSI
+from dsi.offline.simul.si import RunSI
 from dsi.types.result import Result
 
 
