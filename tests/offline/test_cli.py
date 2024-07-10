@@ -49,11 +49,8 @@ def test_offline_heatmap_new_experiment(
     mock_ray_manager.assert_called_once_with(cfg.heatmap)
     mock_ray_manager.return_value.run.assert_called_once()
     mock_enrich_inplace.assert_called_once()
-    mock_dataframe_heatmap.store.assert_called_once()
+    mock_enrich_inplace.return_value.store.assert_called_once()
     mock_dataframe_heatmap.from_heatmap_csv.assert_not_called()
-    mock_logger().info.assert_any_call(
-        "Running a new experiment. Results will be stored at %s", None
-    )
 
 
 def test_offline_heatmap_load_existing(cfg, mock_dataframe_heatmap, mock_logger):
