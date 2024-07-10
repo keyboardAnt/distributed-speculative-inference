@@ -4,16 +4,20 @@ import logging
 import os
 
 import hydra
+import numpy as np
 import pandas as pd
+from matplotlib.figure import Figure
 from omegaconf import OmegaConf
 
 from dsi.configs.cli import ConfigCLI, RunType
+from dsi.configs.vis.vis import config_vis
 from dsi.offline.heatmap.objective import enrich_inplace
 from dsi.offline.heatmap.ray_manager import RayManager
 from dsi.offline.run.dsi import RunDSI
 from dsi.offline.run.si import RunSI
 from dsi.types.df_heatmap import DataFrameHeatmap
 from dsi.types.result import Result
+from dsi.vis.heatmap import _get_enriched_min_speedups, _plot_contour, plot_speedup
 from dsi.vis.iters_dist import PlotIters
 from dsi.vis.utils import savefig
 
@@ -58,12 +62,21 @@ def offline_heatmap(cfg: ConfigCLI) -> None:
     log.info("df_heatmap.describe():")
     log.info(df_heatmap.describe())
     log.info("Plotting heatmaps")
+    log.info("Plotting contour minimum speedups")
     # # TODO(Nadav)
-    # log.info(f"{len(configs)=}")
-    # for config in configs:
-    #     log.info(f"Plotting speedup of {config=}")
-    #     filepath: str = plot_speedup(config)
-    #     log.info("Figure saved at %s", filepath)
+    mask_ones: np.ndarray = np.ones_like(df_heatmap.index, dtype=bool)
+    fig: Figure = _plot_contour(
+        _get_enriched_min_speedups(df_heatmap[mask_ones]),
+        "c",
+        "a",
+        "min_speedup_fed_vs_spec",
+    )
+    savefig(fig=fig, name="plot_contour_min_speedup_fed_vs_spec")
+    log.info(f"{len(config_vis)=}")
+    for config in config_vis:
+        log.info(f"Plotting speedup of {config=}")
+        filepath: str = plot_speedup(config=config, df=df_heatmap)
+        log.info("Figure saved at %s", filepath)
 
 
 def online(cfg: ConfigCLI) -> None:
