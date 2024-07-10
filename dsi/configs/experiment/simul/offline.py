@@ -1,15 +1,16 @@
 from math import ceil
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
+from dsi.configs.experiment.base import _ConfigExperiment
 from dsi.types.exception import (
     DrafterSlowerThanTargetError,
     NumOfTargetServersInsufficientError,
 )
 
 
-class ConfigRun(BaseModel):
-    """ConfigRun includes all the parameters needed for an experiment.
+class ConfigSI(_ConfigExperiment):
+    """ConfigSI includes all the parameters needed for an experiment.
     Each experiment simulates an algorithm multiple times.
     """
 
@@ -23,9 +24,6 @@ class ConfigRun(BaseModel):
     k: int = Field(5, title="Lookahead", ge=1)
     failure_cost: float = Field(1.0, title="The latency of the target", ge=0)
     S: int = Field(1000, title="The number of tokens to generate", ge=1)
-    num_repeats: int = Field(
-        5, title="The number of times that a single run repeats the simulation", ge=1
-    )
 
     def model_post_init(self, __context) -> None:
         """
@@ -36,9 +34,9 @@ class ConfigRun(BaseModel):
             raise DrafterSlowerThanTargetError(msg)
 
 
-class ConfigRunDSI(ConfigRun):
+class ConfigDSI(ConfigSI):
     """
-    ConfigRunDSI extends ConfigRun for DSI.
+    ConfigDSI extends ConfigSI for DSI.
     """
 
     num_target_servers: None | int = Field(

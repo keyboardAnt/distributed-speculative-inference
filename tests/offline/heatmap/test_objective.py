@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from dsi.configs.run.run import ConfigRunDSI
+from dsi.configs.experiment.simul.offline import ConfigDSI
 from dsi.offline.heatmap.objective import enrich_inplace, get_all_latencies
 from dsi.types.name import HeatmapColumn
 
@@ -19,7 +19,7 @@ def test_get_all_latencies(c: float, a: float, k: int):
     assert isinstance(result[HeatmapColumn.cost_si], float)
     assert isinstance(result[HeatmapColumn.cost_nonsi], float)
     assert isinstance(result[HeatmapColumn.cost_dsi], float)
-    config = ConfigRunDSI(c=c, a=a, k=k, num_target_servers=None)
+    config = ConfigDSI(c=c, a=a, k=k, num_target_servers=None)
     print("Testing DSI's cost")
     num_iterations_min: int = config.S // (config.k + 1)
     dsi_cost_min: float = (num_iterations_min - 1) * config.c + config.failure_cost

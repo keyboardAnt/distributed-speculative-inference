@@ -3,7 +3,7 @@ from typing import Generator
 
 import numpy as np
 
-from dsi.offline.run.common import generate_num_accepted_drafts
+from dsi.offline.simul.common import generate_num_accepted_drafts
 from dsi.utils import set_random_seed
 
 
@@ -82,7 +82,7 @@ def test_samplers_alignment():
     samplers = []
     print("Testing with seed reset:")
     for i in range(num_samplers):
-        set_random_seed()
+        set_random_seed(0)
         sampler = generate_num_accepted_drafts(
             acceptance_rate=0.5, lookahead=10, max_num_samples=S
         )

@@ -27,10 +27,10 @@ There are two types of runs: offline (measuring time units or acceptance rate) a
 - heatmap of offline simulations: `python -m dsi type=offline_heatmap`. (- it initializes [Ray](https://docs.ray.io/en/latest/ray-core/walkthrough.html))
 - online simulations (implemented with a thread pool): `python -m dsi type=online`
 
-[Hydra](https://hydra.cc/docs/intro/) manages the configuration (defined at `dsi/config.py`). For example,
-- to set the drafter latency (`c`) to 5%: `python -m dsi run.c=.05`
+[Hydra](https://hydra.cc/docs/intro/) manages the configuration (defined under `dsi/config`). For example,
+- to set the drafter latency (`c`) to 5%: `python -m dsi simul.c=.05`
 - to set the acceptance rate (`a`) to 50%:
-`python -m dsi run.a=.5`
+`python -m dsi simul.a=.5`
 
 For help, use:
 `python -m dsi --help`
@@ -43,7 +43,9 @@ By default, running new experiments will also visualize the results. To visualiz
 
 ## Testing
 
-- Run tests: `python -m pytest` (from the project root)
+[![Python tests](https://github.com/keyboardAnt/distributed-speculative-inference/actions/workflows/python-tests.yaml/badge.svg)](https://github.com/keyboardAnt/distributed-speculative-inference/actions/workflows/python-tests.yaml)
+
+Run tests: `python -m pytest` (from the project root)
 
 ## Stored results
 
