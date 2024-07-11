@@ -128,7 +128,3 @@ def _get_enriched_min_speedups(df: pd.DataFrame) -> pd.DataFrame:
     df["min_cost_baseline"] = min_cost_baseline
     df["min_speedup_fed_vs_baseline"] = min_cost_baseline / min_cost_fed
     return df.reset_index()
-
-
-def ones_fn(df: pd.DataFrame) -> pd.Series:
-    return np.ones_like(df.index, dtype=bool)
