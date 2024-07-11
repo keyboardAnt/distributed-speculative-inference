@@ -1,2 +1,0 @@
-{"dataset": "cnn_dailymail", "target_name": "double7/vicuna-68m", "target_first": 3.0580899957567453, "target_sub": 2.4255030783824623, "draft_name": "double7/vicuna-68m", "draft_first": 3.0760755762457848, "draft_sub": 2.4500972663518046}
-{"dataset": "danielkorat/alpaca", "target_name": "double7/vicuna-68m", "target_first": 2.477510739117861, "target_sub": 2.4210925705402215, "draft_name": "double7/vicuna-68m", "draft_first": 2.5358250830322504, "draft_sub": 2.522348778815392}
