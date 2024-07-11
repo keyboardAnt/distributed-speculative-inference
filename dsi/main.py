@@ -15,11 +15,11 @@ from dsi.offline.heatmap.objective import enrich_inplace
 from dsi.offline.heatmap.ray_manager import RayManager
 from dsi.offline.simul.dsi import SimulDSI
 from dsi.offline.simul.si import SimulSI
+from dsi.plt.heatmap import _get_enriched_min_speedups, _plot_contour, plot_speedup
+from dsi.plt.iters_dist import PlotIters
+from dsi.plt.utils import savefig
 from dsi.types.df_heatmap import DataFrameHeatmap
 from dsi.types.result import ResultSimul
-from dsi.vis.heatmap import _get_enriched_min_speedups, _plot_contour, plot_speedup
-from dsi.vis.iters_dist import PlotIters
-from dsi.vis.utils import savefig
 
 log = logging.getLogger(__name__)
 

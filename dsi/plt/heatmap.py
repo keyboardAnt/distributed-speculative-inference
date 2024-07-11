@@ -9,8 +9,8 @@ from matplotlib.colors import ListedColormap, Normalize
 from matplotlib.figure import Figure
 
 from dsi.configs.plt.heatmap import ConfigVisHeatmap
+from dsi.plt.utils import savefig
 from dsi.types.df_heatmap import DataFrameHeatmap
-from dsi.vis.utils import savefig
 
 log = logging.getLogger(__name__)
 

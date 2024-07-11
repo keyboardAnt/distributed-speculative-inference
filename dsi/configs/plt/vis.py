@@ -1,5 +1,5 @@
 from dsi.configs.plt.heatmap import ConfigVisHeatmap
-from dsi.vis.heatmap import ones_fn
+from dsi.plt.heatmap import ones_fn
 
 config_vis: list[ConfigVisHeatmap] = [
     ConfigVisHeatmap(

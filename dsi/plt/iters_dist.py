@@ -2,7 +2,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
 
-from dsi.vis.cost_dist import PlotCost
+from dsi.plt.cost_dist import PlotCost
 
 
 class PlotIters(PlotCost):
