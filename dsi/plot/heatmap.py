@@ -9,9 +9,10 @@ from matplotlib.colors import ListedColormap, Normalize
 from matplotlib.figure import Figure
 
 from dsi.configs.plot.heatmap import ConfigPlotHeatmap
+from dsi.offline.heatmap.enrich import get_enriched_min_speedups
 from dsi.plot.utils import savefig
 from dsi.types.df_heatmap import DataFrameHeatmap
-from dsi.types.name import HeatmapColumn, Param
+from dsi.types.name import Param
 
 log = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ class PlotHeatmap:
         Save the figure and return the filepath.
         """
         fig: Figure = _plot_contour(
-            df=_get_enriched_min_speedups(self._df[config.mask_fn(self._df)]),
+            df=get_enriched_min_speedups(self._df[config.mask_fn(self._df)]),
             x_col=Param.c,
             y_col=Param.a,
             val_col=config.col_speedup,
@@ -101,39 +102,3 @@ def _plot_contour(
     ax.set_ylabel(ylabel)
 
     return fig
-
-
-def _get_enriched_min_speedups(df: pd.DataFrame) -> pd.DataFrame:
-    # Set c and a as indices
-    df = df.set_index([Param.c, Param.a])
-
-    # Cost of the baseline
-    # --- 1. Original code ---
-    # df["cost_baseline"] = df.apply(
-    #     lambda row: min(row["cost_spec"], row["cost_nonspec"]), axis=1
-    # )
-    # --- 2. Efficient calculation of min ---
-    # df["cost_baseline"] = np.minimum(df["cost_spec"], df["cost_nonspec"])
-    # --- 3. Replacing the hardcoded column names ---
-    df["cost_baseline"] = np.minimum(
-        df[HeatmapColumn.cost_si], df[HeatmapColumn.cost_nonsi]
-    )
-
-    # Calculate the minimum costs for each group
-    min_cost_fed: pd.Series = df.groupby(level=[Param.c, Param.a])[
-        HeatmapColumn.cost_dsi
-    ].transform("min")
-    min_cost_spec: pd.Series = df.groupby(level=[Param.c, Param.a])[
-        HeatmapColumn.cost_si
-    ].transform("min")
-    min_cost_baseline: pd.Series = df.groupby(level=[Param.c, Param.a])[
-        "cost_baseline"
-    ].transform("min")
-
-    # Calculate speedups using the correctly aligned min values
-    df["min_speedup_fed_vs_spec"] = min_cost_spec / min_cost_fed
-    df["min_speedup_fed_vs_nonspec"] = df["cost_nonspec"] / min_cost_fed
-    df["min_speedup_spec_vs_nonspec"] = df["cost_nonspec"] / min_cost_spec
-    df["min_cost_baseline"] = min_cost_baseline
-    df["min_speedup_fed_vs_baseline"] = min_cost_baseline / min_cost_fed
-    return df.reset_index()

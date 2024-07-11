@@ -11,8 +11,8 @@ from tqdm import tqdm
 from dsi.configs.cli import ConfigCLI, RunType
 from dsi.configs.plot.heatmap import ConfigPlotHeatmap
 from dsi.configs.plot.plots import config_plot_heatmaps
+from dsi.offline.heatmap.enrich import enrich_inplace
 from dsi.offline.heatmap.ray_manager import RayManager
-from dsi.offline.heatmap.worker import enrich_inplace
 from dsi.offline.simul.dsi import SimulDSI
 from dsi.offline.simul.si import SimulSI
 from dsi.plot.heatmap import PlotHeatmap
