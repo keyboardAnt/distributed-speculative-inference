@@ -7,7 +7,7 @@ from datasets import load_dataset
 from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from dsi.configs.experiment.latency import ConfigLatency
+from dsi.configs.experiment.latency import ConfigGen, ConfigLatency
 from dsi.online.latency.prompts import get_prompt
 from dsi.types.experiment import _Experiment
 from dsi.types.result import ResultLatency
@@ -32,39 +32,47 @@ class ExperimentLatency(_Experiment):
     Measures the generation latency for a given model and dataset.
     """
 
-    def __init__(self, config: ConfigLatency):
+    def __init__(self, config: ConfigLatency, gen_config: ConfigGen):
         self.config: ConfigLatency
         super().__init__(config)
+        self.gen_config: ConfigGen = gen_config
 
-    def _load_model_tokenizer(self, name: str, revision: str | None = None):
-        log.info(f"Loading model: {name}, compile={self.config.compile_model}")
-        extra_kwargs = {"torch_dtype": torch.bfloat16, "revision": revision}
-
-        model = AutoModelForCausalLM.from_pretrained(
-            name, device_map="auto", **extra_kwargs
+    def _load_model_tokenizer(self):
+        log.info(
+            f"Loading model: {self.config.name}, compile={self.config.compile_model}"
         )
-        tokenizer = AutoTokenizer.from_pretrained(name)
+        model = AutoModelForCausalLM.from_pretrained(
+            self.config.name,
+            device_map="auto",
+            torch_dtype=self.config.torch_dtype,
+            revision=self.config.revision,
+        )
+        tokenizer = AutoTokenizer.from_pretrained(self.config.name)
         model = torch.compile(model) if self.config.compile_model else model
         return model, tokenizer
 
-    def _get_random_prompted_examples(self, dataset: str, subset=None, split="test"):
+    def _get_random_prompted_examples(self):
         """Get random examples from the dataset and prompt them."""
-        log.info(f"Loading dataset: {dataset}")
+        log.info(f"Loading dataset: {self.config.dataset}")
         examples = (
-            load_dataset(path=dataset, name=subset, split=split)
+            load_dataset(
+                path=self.config.dataset,
+                name=self.config.subset,
+                split=self.config.split,
+            )
             .shuffle(seed=self.config.random_seed)
-            .select(range(self.config.num_ex))
+            .select(range(self.config.num_examples))
         )
-        prompted_examples = [get_prompt(dataset, ex) for ex in examples]
+        prompted_examples = [get_prompt(self.config.dataset, ex) for ex in examples]
         return prompted_examples
 
     def _timed_generate(self, model, tokenizer, prompted_examples) -> ResultLatency:
         """Time the generation of the prompted examples, distinguishing between
         the time to first token (ttft) and the time per output token (tpot)."""
         gen_kwargs = dict(
-            do_sample=False,
-            temperature=1.0,
-            top_p=1.0,
+            do_sample=self.gen_config.do_sample,
+            temperature=self.gen_config.temperature,
+            top_p=self.gen_config.top_p,
             pad_token_id=tokenizer.eos_token_id,
         )
         ttfts, tpots = [], []

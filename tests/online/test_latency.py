@@ -124,7 +124,7 @@ def test_single_repeat_without_compile_model(
 ):
     load_dataset_mock.return_value.shuffle.return_value.select.return_value = [
         {"input": "test", "instruction": "summarize this input"}
-    ] * config.num_ex
+    ] * config.num_examples
     model_from_pretrained_mock.return_value = model_mock
     tokenizer_from_pretrained_mock.return_value = tokenizer_mock
 
@@ -156,7 +156,7 @@ def test_single_repeat_with_compile_model(
     config.compile_model = True
     load_dataset_mock.return_value.shuffle.return_value.select.return_value = [
         {"input": "test", "instruction": "summarize this input"}
-    ] * config.num_ex
+    ] * config.num_examples
     model_from_pretrained_mock.return_value = model_mock
     tokenizer_from_pretrained_mock.return_value = tokenizer_mock
 
