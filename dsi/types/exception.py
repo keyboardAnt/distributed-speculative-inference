@@ -31,6 +31,15 @@ class MissingHeatmapColumnError(Exception):
         super().__init__(msg)
 
 
+class InvalidHeatmapColumnError(Exception):
+    def __init__(self, column: str):
+        msg: str = (
+            "Trying to access an invalid column of a DataFrameHeatmap."
+            f" Column '{column}' is not a valid HeatmapColumn."
+        )
+        super().__init__(msg)
+
+
 class IncompatibleAppendError(Exception):
     def __init__(self, source_type: str, target_type: str):
         prefix: str = "Attempt to append data from incompatible types. "
