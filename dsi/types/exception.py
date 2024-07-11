@@ -30,3 +30,9 @@ class IncompatibleAppendError(Exception):
             f"Source type: {source_type}, Target type: {target_type}."
         )
         super().__init__(msg)
+
+
+class HeatmapConfigInvalidAcceptanceRateRangeError(Exception):
+    def __init__(self, msg: str):
+        prefix: str = "Invalid acceptance rate range. "
+        super().__init__(prefix + msg)
