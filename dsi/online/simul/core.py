@@ -1,3 +1,4 @@
+import contextlib
 import functools
 import multiprocessing
 import os
@@ -7,6 +8,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from multiprocessing import Pipe
 from threading import current_thread
+from typing import Callable
 
 from dsi.configs.experiment.simul.online import ConfigDSIOnline, SimulType
 
@@ -116,31 +118,27 @@ def call_target(
     """
     Call the target in a separate thread
     """
+    call_target_actual_partial: Callable = functools.partial(
+        call_target_actual,
+        args=args,
+        total_tokens=total_tokens,
+        draft_tokens=draft_tokens,
+        sim_shared_dict=sim_shared_dict,
+        cur_pipe=cur_pipe,
+        sim_executor=sim_executor,
+    )
     match args.simul_type:
         case SimulType.DSI:
-            if not sim_executor._shutdown:
-                target_future = sim_executor.submit(
-                    call_target_actual,
-                    args=args,
-                    total_tokens=total_tokens,
-                    draft_tokens=draft_tokens,
-                    sim_shared_dict=sim_shared_dict,
-                    cur_pipe=cur_pipe,
-                    sim_executor=sim_executor,
-                )
-
+            with contextlib.suppress(RuntimeError):
+                # If the executor was shutdown, new submissions will raise a
+                # RuntimeError. Otherwise, the executor has not been shutdown and we
+                # can submit the task.
+                target_future = sim_executor.submit(call_target_actual_partial)
                 target_future.add_done_callback(
                     functools.partial(target_done_callback, args)
                 )
         case SimulType.SI:
-            target_res = call_target_actual(
-                args=args,
-                total_tokens=total_tokens,
-                draft_tokens=draft_tokens,
-                sim_shared_dict=sim_shared_dict,
-                cur_pipe=cur_pipe,
-                sim_executor=sim_executor,
-            )
+            target_res = call_target_actual_partial()
             target_done_callback(args, target_res)
         case _:
             raise ValueError(f"Invalid run type {args.simul_type}")
