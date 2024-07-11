@@ -10,7 +10,7 @@ from matplotlib.figure import Figure
 from omegaconf import OmegaConf
 
 from dsi.configs.cli import ConfigCLI, RunType
-from dsi.configs.vis.vis import config_vis
+from dsi.configs.plt.vis import config_vis
 from dsi.offline.heatmap.objective import enrich_inplace
 from dsi.offline.heatmap.ray_manager import RayManager
 from dsi.offline.simul.dsi import SimulDSI

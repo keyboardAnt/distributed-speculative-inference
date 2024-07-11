@@ -8,7 +8,7 @@ from matplotlib import ticker
 from matplotlib.colors import ListedColormap, Normalize
 from matplotlib.figure import Figure
 
-from dsi.configs.vis.heatmap import ConfigVisHeatmap
+from dsi.configs.plt.heatmap import ConfigVisHeatmap
 from dsi.types.df_heatmap import DataFrameHeatmap
 from dsi.vis.utils import savefig
 
