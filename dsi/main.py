@@ -10,14 +10,14 @@ from matplotlib.figure import Figure
 from omegaconf import OmegaConf
 
 from dsi.configs.cli import ConfigCLI, RunType
-from dsi.configs.plt.vis import config_vis
+from dsi.configs.plot.plots import config_plots
 from dsi.offline.heatmap.objective import enrich_inplace
 from dsi.offline.heatmap.ray_manager import RayManager
 from dsi.offline.simul.dsi import SimulDSI
 from dsi.offline.simul.si import SimulSI
-from dsi.plt.heatmap import _get_enriched_min_speedups, _plot_contour, plot_speedup
-from dsi.plt.iters_dist import PlotIters
-from dsi.plt.utils import savefig
+from dsi.plot.heatmap import _get_enriched_min_speedups, _plot_contour, plot_speedup
+from dsi.plot.iters_dist import PlotIters
+from dsi.plot.utils import savefig
 from dsi.types.df_heatmap import DataFrameHeatmap
 from dsi.types.result import ResultSimul
 
@@ -25,13 +25,13 @@ log = logging.getLogger(__name__)
 
 
 def offline(cfg: ConfigCLI) -> None:
-    res_si: ResultSimul = SimulSI(cfg.run).run()
+    res_si: ResultSimul = SimulSI(cfg.simul).run()
     log.info("res_si: %s", res_si)
-    res_dsi: ResultSimul = SimulDSI(cfg.run).run()
+    res_dsi: ResultSimul = SimulDSI(cfg.simul).run()
     log.info("res_dsi: %s", res_dsi)
     log.info("Plotting SI")
     plot_si: PlotIters = PlotIters(
-        result=res_si, suptitle=f"Latency of SI (lookahead={cfg.run.k})"
+        result=res_si, suptitle=f"Latency of SI (lookahead={cfg.simul.k})"
     )
     plot_si.plot()
     filepath_plots: str = savefig(name="si_latency_and_iters_dist")
@@ -72,8 +72,8 @@ def offline_heatmap(cfg: ConfigCLI) -> None:
         "min_speedup_fed_vs_spec",
     )
     savefig(fig=fig, name="plot_contour_min_speedup_fed_vs_spec")
-    log.info(f"{len(config_vis)=}")
-    for config in config_vis:
+    log.info(f"{len(config_plots)=}")
+    for config in config_plots:
         log.info(f"Plotting speedup of {config=}")
         filepath: str = plot_speedup(config=config, df=df_heatmap)
         log.info("Figure saved at %s", filepath)

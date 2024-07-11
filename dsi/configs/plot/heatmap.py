@@ -4,7 +4,7 @@ import pandas as pd
 from pydantic import BaseModel
 
 
-class ConfigVisHeatmap(BaseModel):
+class ConfigPlotHeatmap(BaseModel):
     col_speedup: str
     mask_fn: Callable[[pd.DataFrame], pd.Series]
     levels_step: None | float = None

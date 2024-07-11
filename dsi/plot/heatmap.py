@@ -8,8 +8,8 @@ from matplotlib import ticker
 from matplotlib.colors import ListedColormap, Normalize
 from matplotlib.figure import Figure
 
-from dsi.configs.plt.heatmap import ConfigVisHeatmap
-from dsi.plt.utils import savefig
+from dsi.configs.plot.heatmap import ConfigPlotHeatmap
+from dsi.plot.utils import savefig
 from dsi.types.df_heatmap import DataFrameHeatmap
 
 log = logging.getLogger(__name__)
@@ -126,7 +126,7 @@ col_to_masks = {
 }
 
 
-def plot_speedup(config: ConfigVisHeatmap, df: DataFrameHeatmap) -> str:
+def plot_speedup(config: ConfigPlotHeatmap, df: DataFrameHeatmap) -> str:
     fig: Figure = _plot_contour(
         df=_get_enriched_min_speedups(df[config.mask_fn(df)]),
         x_col="c",
