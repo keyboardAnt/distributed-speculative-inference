@@ -140,18 +140,3 @@ col_to_masks = {
     # "min_speedup_fed_vs_nonspec": [get_mask_fast_plot, get_mask_slow_plot],
     "min_speedup_fed_vs_nonspec": [ones_fn],
 }
-
-
-# def plot_speedup(config: ConfigPlotHeatmap, df: DataFrameHeatmap) -> str:
-#     fig: Figure = _plot_contour(
-#         df=_get_enriched_min_speedups(df[config.mask_fn(df)]),
-#         x_col="c",
-#         y_col="a",
-#         val_col=config.col_speedup,
-#         levels_step=config.levels_step,
-#         vmax=config.vmax,
-#         pink_idx_side=config.pink_idx_side,
-#     )
-#     title: str = f"{config.col_speedup} - {config.mask_fn.__name__}"
-#     filepath: str = savefig(fig=fig, name=title)
-#     return filepath
