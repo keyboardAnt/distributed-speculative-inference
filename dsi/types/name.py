@@ -1,4 +1,7 @@
-class Name:
+from enum import Enum
+
+
+class Name(str, Enum):
     @classmethod
     def get_all_valid_values(cls):
         return [

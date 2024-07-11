@@ -1,20 +1,15 @@
-from typing import Any, Callable, Literal
+from typing import Callable
 
 import pandas as pd
 from pydantic import BaseModel
 
-from dsi.types.exception import InvalidHeatmapColumnError
 from dsi.types.name import HeatmapColumn
+from dsi.types.plot import PinkIndexSide
 
 
 class ConfigPlotHeatmap(BaseModel):
-    col_speedup: str
+    col_speedup: HeatmapColumn
     mask_fn: Callable[[pd.DataFrame], pd.Series]
     levels_step: None | float = None
     vmax: None | float = None
-    pink_idx_side: Literal["left", "right"] = "left"
-
-    def model_post_init(self, __context: Any) -> None:
-        if self.col_speedup not in HeatmapColumn.get_all_valid_values():
-            raise InvalidHeatmapColumnError(self.col_speedup)
-        return super().model_post_init(__context)
+    pink_idx_side: PinkIndexSide = PinkIndexSide.left

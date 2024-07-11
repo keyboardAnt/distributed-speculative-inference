@@ -1,5 +1,4 @@
 import logging
-from typing import Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -13,6 +12,7 @@ from dsi.offline.heatmap.enrich import get_enriched_min_speedups
 from dsi.plot.utils import savefig
 from dsi.types.df_heatmap import DataFrameHeatmap
 from dsi.types.name import Param
+from dsi.types.plot import PinkIndexSide
 
 log = logging.getLogger(__name__)
 
@@ -59,7 +59,7 @@ def _plot_contour(
     val_col: str,
     levels_step: float = 1.0,
     vmax: float | None = None,
-    pink_idx_side: Literal["left", "right"] = "left",
+    pink_idx_side: PinkIndexSide = PinkIndexSide.left,
 ) -> Figure:
     assert levels_step <= 1, "Levels step must be less than or equal to 1"
     assert ((1 / levels_step) % 1) == 0, "Levels step must be a factor of 1"
