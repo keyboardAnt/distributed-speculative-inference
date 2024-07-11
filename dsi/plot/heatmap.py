@@ -132,11 +132,3 @@ def _get_enriched_min_speedups(df: pd.DataFrame) -> pd.DataFrame:
 
 def ones_fn(df: pd.DataFrame) -> pd.Series:
     return np.ones_like(df.index, dtype=bool)
-
-
-col_to_masks = {
-    "min_speedup_fed_vs_spec": [ones_fn],
-    "min_speedup_spec_vs_nonspec": [ones_fn],
-    # "min_speedup_fed_vs_nonspec": [get_mask_fast_plot, get_mask_slow_plot],
-    "min_speedup_fed_vs_nonspec": [ones_fn],
-}
