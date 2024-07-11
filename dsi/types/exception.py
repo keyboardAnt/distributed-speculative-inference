@@ -22,6 +22,15 @@ class DrafterSlowerThanTargetError(Exception):
         super().__init__(prefix + msg)
 
 
+class MissingHeatmapColumnError(Exception):
+    def __init__(self, column: str):
+        msg: str = (
+            "Missing required column in DataFrame."
+            f" Column '{column}' is required for the operation."
+        )
+        super().__init__(msg)
+
+
 class IncompatibleAppendError(Exception):
     def __init__(self, source_type: str, target_type: str):
         prefix: str = "Attempt to append data from incompatible types. "
