@@ -14,12 +14,28 @@ from dsi.types.df_heatmap import DataFrameHeatmap
 
 log = logging.getLogger(__name__)
 
-# class VisHeatmap:
-#     def __init__(self, df: DataFrameHeatmap) -> None:
-#         self._df: DataFrameHeatmap = df
 
-#     def plot(self, config: ConfigVisHeatmap):
-#         raise NotImplementedError
+class PlotHeatmap:
+    def __init__(self, df_heatmap: DataFrameHeatmap) -> None:
+        self._df: DataFrameHeatmap = df_heatmap
+
+    def plot(self, config: ConfigPlotHeatmap) -> str:
+        """
+        Plot the heatmap with the given configuration.
+        Save the figure and return the filepath.
+        """
+        fig: Figure = _plot_contour(
+            df=_get_enriched_min_speedups(self._df[config.mask_fn(self._df)]),
+            x_col="c",
+            y_col="a",
+            val_col=config.col_speedup,
+            levels_step=config.levels_step,
+            vmax=config.vmax,
+            pink_idx_side=config.pink_idx_side,
+        )
+        title: str = f"{config.col_speedup} - {config.mask_fn.__name__}"
+        filepath: str = savefig(fig=fig, name=title)
+        return filepath
 
 
 cols_to_print: dict[str, str] = {
@@ -126,16 +142,16 @@ col_to_masks = {
 }
 
 
-def plot_speedup(config: ConfigPlotHeatmap, df: DataFrameHeatmap) -> str:
-    fig: Figure = _plot_contour(
-        df=_get_enriched_min_speedups(df[config.mask_fn(df)]),
-        x_col="c",
-        y_col="a",
-        val_col=config.col_speedup,
-        levels_step=config.levels_step,
-        vmax=config.vmax,
-        pink_idx_side=config.pink_idx_side,
-    )
-    title: str = f"{config.col_speedup} - {config.mask_fn.__name__}"
-    filepath: str = savefig(fig=fig, name=title)
-    return filepath
+# def plot_speedup(config: ConfigPlotHeatmap, df: DataFrameHeatmap) -> str:
+#     fig: Figure = _plot_contour(
+#         df=_get_enriched_min_speedups(df[config.mask_fn(df)]),
+#         x_col="c",
+#         y_col="a",
+#         val_col=config.col_speedup,
+#         levels_step=config.levels_step,
+#         vmax=config.vmax,
+#         pink_idx_side=config.pink_idx_side,
+#     )
+#     title: str = f"{config.col_speedup} - {config.mask_fn.__name__}"
+#     filepath: str = savefig(fig=fig, name=title)
+#     return filepath

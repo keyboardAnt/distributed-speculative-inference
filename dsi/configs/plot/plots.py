@@ -1,7 +1,7 @@
 from dsi.configs.plot.heatmap import ConfigPlotHeatmap
 from dsi.plot.heatmap import ones_fn
 
-config_plots: list[ConfigPlotHeatmap] = [
+config_plot_heatmaps: list[ConfigPlotHeatmap] = [
     ConfigPlotHeatmap(
         col_speedup="min_speedup_fed_vs_baseline",
         mask_fn=ones_fn,

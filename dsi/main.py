@@ -10,12 +10,13 @@ from matplotlib.figure import Figure
 from omegaconf import OmegaConf
 
 from dsi.configs.cli import ConfigCLI, RunType
-from dsi.configs.plot.plots import config_plots
+from dsi.configs.plot.heatmap import ConfigPlotHeatmap
+from dsi.configs.plot.plots import config_plot_heatmaps
 from dsi.offline.heatmap.objective import enrich_inplace
 from dsi.offline.heatmap.ray_manager import RayManager
 from dsi.offline.simul.dsi import SimulDSI
 from dsi.offline.simul.si import SimulSI
-from dsi.plot.heatmap import _get_enriched_min_speedups, _plot_contour, plot_speedup
+from dsi.plot.heatmap import PlotHeatmap, _get_enriched_min_speedups, _plot_contour
 from dsi.plot.iters_dist import PlotIters
 from dsi.plot.utils import savefig
 from dsi.types.df_heatmap import DataFrameHeatmap
@@ -61,9 +62,8 @@ def offline_heatmap(cfg: ConfigCLI) -> None:
     log.info(df_heatmap.head())
     log.info("df_heatmap.describe():")
     log.info(df_heatmap.describe())
-    log.info("Plotting heatmaps")
-    log.info("Plotting contour minimum speedups")
     # # TODO(Nadav)
+    log.info("Plotting contour minimum speedups")
     mask_ones: np.ndarray = np.ones_like(df_heatmap.index, dtype=bool)
     fig: Figure = _plot_contour(
         _get_enriched_min_speedups(df_heatmap[mask_ones]),
@@ -72,10 +72,14 @@ def offline_heatmap(cfg: ConfigCLI) -> None:
         "min_speedup_fed_vs_spec",
     )
     savefig(fig=fig, name="plot_contour_min_speedup_fed_vs_spec")
-    log.info(f"{len(config_plots)=}")
-    for config in config_plots:
+    log.info("Plotting heatmaps")
+    log.info(f"{len(config_plot_heatmaps)=}")
+    plot_heatmap = PlotHeatmap(df_heatmap)
+    config: ConfigPlotHeatmap
+    for config in config_plot_heatmaps:
         log.info(f"Plotting speedup of {config=}")
-        filepath: str = plot_speedup(config=config, df=df_heatmap)
+        # filepath: str = plot_speedup(config=config, df=df_heatmap)
+        filepath: str = plot_heatmap.plot(config)
         log.info("Figure saved at %s", filepath)
 
 
