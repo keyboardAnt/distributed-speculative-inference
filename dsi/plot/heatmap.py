@@ -11,6 +11,7 @@ from matplotlib.figure import Figure
 from dsi.configs.plot.heatmap import ConfigPlotHeatmap
 from dsi.plot.utils import savefig
 from dsi.types.df_heatmap import DataFrameHeatmap
+from dsi.types.name import HeatmapColumn, Param
 
 log = logging.getLogger(__name__)
 
@@ -26,8 +27,8 @@ class PlotHeatmap:
         """
         fig: Figure = _plot_contour(
             df=_get_enriched_min_speedups(self._df[config.mask_fn(self._df)]),
-            x_col="c",
-            y_col="a",
+            x_col=Param.c,
+            y_col=Param.a,
             val_col=config.col_speedup,
             levels_step=config.levels_step,
             vmax=config.vmax,
@@ -104,20 +105,28 @@ def _plot_contour(
 
 def _get_enriched_min_speedups(df: pd.DataFrame) -> pd.DataFrame:
     # Set c and a as indices
-    df = df.set_index(["c", "a"])
+    df = df.set_index([Param.c, Param.a])
 
     # Cost of the baseline
+    # --- 1. Original code ---
     # df["cost_baseline"] = df.apply(
     #     lambda row: min(row["cost_spec"], row["cost_nonspec"]), axis=1
     # )
-    df["cost_baseline"] = np.minimum(df["cost_spec"], df["cost_nonspec"])
+    # --- 2. Efficient calculation of min ---
+    # df["cost_baseline"] = np.minimum(df["cost_spec"], df["cost_nonspec"])
+    # --- 3. Replacing the hardcoded column names ---
+    df["cost_baseline"] = np.minimum(
+        df[HeatmapColumn.cost_si], df[HeatmapColumn.cost_nonsi]
+    )
 
     # Calculate the minimum costs for each group
-    min_cost_fed: pd.Series = df.groupby(level=["c", "a"])["cost_fed"].transform("min")
-    min_cost_spec: pd.Series = df.groupby(level=["c", "a"])["cost_spec"].transform(
-        "min"
-    )
-    min_cost_baseline: pd.Series = df.groupby(level=["c", "a"])[
+    min_cost_fed: pd.Series = df.groupby(level=[Param.c, Param.a])[
+        HeatmapColumn.cost_dsi
+    ].transform("min")
+    min_cost_spec: pd.Series = df.groupby(level=[Param.c, Param.a])[
+        HeatmapColumn.cost_si
+    ].transform("min")
+    min_cost_baseline: pd.Series = df.groupby(level=[Param.c, Param.a])[
         "cost_baseline"
     ].transform("min")
 

@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 
 from dsi.configs.experiment.simul.offline import ConfigDSI
-from dsi.offline.heatmap.objective import enrich_inplace, get_all_latencies
+from dsi.offline.heatmap.worker import enrich_inplace, get_all_latencies
 from dsi.types.name import HeatmapColumn
 
 
