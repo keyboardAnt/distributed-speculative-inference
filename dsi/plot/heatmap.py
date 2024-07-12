@@ -9,21 +9,9 @@ from matplotlib.figure import Figure
 from dsi.configs.plot.heatmap import ConfigPlotHeatmap
 from dsi.plot.utils import savefig
 from dsi.types.df_heatmap import DataFrameHeatmap
-from dsi.types.name import HeatmapColumn, Param
+from dsi.types.name import Param, Print
 
 log = logging.getLogger(__name__)
-
-
-cols_to_print: dict[str, str] = {
-    Param.c: "Drafter Latency",
-    Param.a: "Acceptance Rate",
-    Param.k: "Lookahead",
-    HeatmapColumn.speedup_dsi_vs_si: "DSI Speedup over SI (x)",
-    HeatmapColumn.speedup_dsi_vs_nonsi: "DSI Speedup over non-SI (x)",
-    HeatmapColumn.min_speedup_dsi_vs_si: "DSI Speedup over SI (x)",
-    HeatmapColumn.min_speedup_dsi_vs_nonsi: "DSI Speedup over non-SI (x)",
-    HeatmapColumn.min_speedup_si_vs_nonsi: "SI Speedup over non-SI (x)",
-}
 
 
 class PlotHeatmap:
@@ -43,8 +31,8 @@ class PlotHeatmap:
         returns the filepath of the saved figure.
 
         The heatmap's x-axis and y-axis correspond to 'drafter latency' and 'acceptance
-        rate', respectively, defined in the class-level dictionary `cols_to_print`. The
-        color gradient is determined by the values in `config.val_col` (e.g., speedup
+        rate', respectively, defined in the class-level dictionary `Print`. The color
+        gradient is determined by the values in `config.val_col` (e.g., speedup
         metrics), with special coloring for values below a threshold.
 
         Args:
@@ -94,11 +82,9 @@ class PlotHeatmap:
         if len(levels) > 20:
             # reduce the size of the ticks
             cbar.ax.yaxis.set_major_locator(ticker.MaxNLocator(20))
-
-        xlabel: str = cols_to_print.get(Param.c, Param.c)
-        ylabel: str = cols_to_print.get(Param.a, Param.a)
-        ax.set_xlabel(xlabel)
-        ax.set_ylabel(ylabel)
+        name_to_print: dict[Param, str] = Print().name_to_print
+        ax.set_xlabel(name_to_print[Param.c])
+        ax.set_ylabel(name_to_print[Param.a])
         title: str = f"{config.val_col}"
         filepath: str = savefig(fig=fig, name=title)
         return filepath

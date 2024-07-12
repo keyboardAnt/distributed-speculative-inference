@@ -1,5 +1,7 @@
 from enum import Enum
 
+from pydantic import BaseModel
+
 
 class Name(str, Enum):
     @classmethod
@@ -33,3 +35,16 @@ class Param(Name):
     a = "a"
     k = "k"
     num_target_servers = "num_target_servers"
+
+
+class Print(BaseModel):
+    name_to_print: dict[Param | HeatmapColumn, str] = {
+        Param.c: "Drafter Latency",
+        Param.a: "Acceptance Rate",
+        Param.k: "Lookahead",
+        HeatmapColumn.speedup_dsi_vs_si: "DSI Speedup over SI (x)",
+        HeatmapColumn.speedup_dsi_vs_nonsi: "DSI Speedup over non-SI (x)",
+        HeatmapColumn.min_speedup_dsi_vs_si: "DSI Speedup over SI (x)",
+        HeatmapColumn.min_speedup_dsi_vs_nonsi: "DSI Speedup over non-SI (x)",
+        HeatmapColumn.min_speedup_si_vs_nonsi: "SI Speedup over non-SI (x)",
+    }
