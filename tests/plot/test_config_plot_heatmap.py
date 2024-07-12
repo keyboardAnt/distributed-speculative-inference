@@ -1,4 +1,3 @@
-import pandas as pd
 import pytest
 
 from dsi.configs.plot.heatmap import (
@@ -13,7 +12,6 @@ def test_config_plot_heatmap_valid_levels_step():
     # Test case for a valid levels_step value
     config = ConfigPlotHeatmap(
         val_col=HeatmapColumn.min_speedup_dsi_vs_si,
-        mask_fn=lambda df: pd.Series(True, index=df.index),
         levels_step=0.5,
         vmax=None,
         pink_idx_side=PinkIndexSide.left,
@@ -26,7 +24,6 @@ def test_config_plot_heatmap_invalid_levels_step():
     with pytest.raises(ConfigPlotHeatmapInvalidLevelsStepError):
         ConfigPlotHeatmap(
             val_col=HeatmapColumn.min_speedup_dsi_vs_si,
-            mask_fn=lambda df: pd.Series(True, index=df.index),
             levels_step=0.3,
             vmax=None,
             pink_idx_side=PinkIndexSide.left,
@@ -37,7 +34,6 @@ def test_config_plot_heatmap_default_values():
     # Test case for default values
     config = ConfigPlotHeatmap(
         val_col=HeatmapColumn.min_speedup_dsi_vs_si,
-        mask_fn=lambda df: pd.Series(True, index=df.index),
     )
     assert config.levels_step == 1.0
     assert config.vmax is None

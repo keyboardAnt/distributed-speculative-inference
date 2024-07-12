@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field, FilePath
 
 from dsi.configs.experiment.simul.heatmap import ConfigHeatmap
 from dsi.configs.experiment.simul.offline import ConfigDSI
+from dsi.configs.plot.plots import Plots
 
 
 class RunType(str, enum.Enum):
@@ -27,6 +28,10 @@ class ConfigCLI(BaseModel):
             "Path to the results CSV file to load."
             " If None, a new experiment will be run."
         ),
+    )
+    plots: Plots = Field(
+        default_factory=Plots,
+        description="Configuration for the plots to generate",
     )
 
 

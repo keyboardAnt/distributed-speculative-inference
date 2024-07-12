@@ -1,16 +1,15 @@
-from typing import Any, Callable
+from typing import Any
 
-import pandas as pd
-from pydantic import BaseModel, Field
+from pydantic import Field
 
+from dsi.configs.plot.base import ConfigPlot
 from dsi.types.exception import ConfigPlotHeatmapInvalidLevelsStepError
 from dsi.types.name import HeatmapColumn
 from dsi.types.plot import PinkIndexSide
 
 
-class ConfigPlotHeatmap(BaseModel):
+class ConfigPlotHeatmap(ConfigPlot):
     val_col: HeatmapColumn
-    mask_fn: Callable[[pd.DataFrame], pd.Series]
     levels_step: None | float = Field(1.0, le=1.0)
     vmax: None | float = None
     pink_idx_side: PinkIndexSide = PinkIndexSide.left

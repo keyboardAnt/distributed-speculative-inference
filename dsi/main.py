@@ -10,7 +10,6 @@ from tqdm import tqdm
 
 from dsi.configs.cli import ConfigCLI, RunType
 from dsi.configs.plot.heatmap import ConfigPlotHeatmap
-from dsi.configs.plot.plots import config_plot_heatmaps
 from dsi.offline.heatmap.enrich import enrich
 from dsi.offline.heatmap.ray_manager import RayManager
 from dsi.offline.simul.dsi import SimulDSI
@@ -63,7 +62,7 @@ def offline_heatmap(cfg: ConfigCLI) -> None:
     log.info(df_heatmap.describe())
     plot_heatmap = PlotHeatmap(df_heatmap)
     config: ConfigPlotHeatmap
-    for config in tqdm(config_plot_heatmaps, desc="Plotting heatmaps", unit="plot"):
+    for config in tqdm(cfg.plots.heatmaps, desc="Plotting heatmaps", unit="plot"):
         log.info(f"Plotting speedup of {config=}")
         filepath: str = plot_heatmap.plot(config)
         log.info("Figure saved at %s", filepath)

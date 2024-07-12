@@ -75,7 +75,7 @@ class PlotHeatmap:
         # Create plot
         fig: Figure
         ax: plt.Axes
-        fig, ax = plt.subplots(figsize=(7, 6))
+        fig, ax = plt.subplots(figsize=config.figsize)
         contour = ax.tricontourf(
             self._df[Param.c],
             self._df[Param.a],
@@ -99,6 +99,6 @@ class PlotHeatmap:
         ylabel: str = cols_to_print.get(Param.a, Param.a)
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
-        title: str = f"{config.val_col} - {config.mask_fn.__name__}"
+        title: str = f"{config.val_col}"
         filepath: str = savefig(fig=fig, name=title)
         return filepath
