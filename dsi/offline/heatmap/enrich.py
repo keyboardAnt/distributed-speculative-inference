@@ -4,18 +4,17 @@ import pandas as pd
 from dsi.types.df_heatmap import DataFrameHeatmap
 from dsi.types.name import HeatmapColumn, Param
 
-enrichments: dict[str, callable] = {
-    HeatmapColumn.speedup_dsi_vs_si: lambda df: df[HeatmapColumn.cost_si]
-    / df[HeatmapColumn.cost_dsi],
-    HeatmapColumn.speedup_dsi_vs_nonsi: lambda df: df[HeatmapColumn.cost_nonsi]
-    / df[HeatmapColumn.cost_dsi],
-    HeatmapColumn.speedup_si_vs_nonsi: lambda df: df[HeatmapColumn.cost_nonsi]
-    / df[HeatmapColumn.cost_si],
-}
-
 
 def enrich_simple_speedups(df: pd.DataFrame) -> DataFrameHeatmap:
     """Use lambda functions registered in `enrichments`."""
+    enrichments: dict[str, callable] = {
+        HeatmapColumn.speedup_dsi_vs_si: lambda df: df[HeatmapColumn.cost_si]
+        / df[HeatmapColumn.cost_dsi],
+        HeatmapColumn.speedup_dsi_vs_nonsi: lambda df: df[HeatmapColumn.cost_nonsi]
+        / df[HeatmapColumn.cost_dsi],
+        HeatmapColumn.speedup_si_vs_nonsi: lambda df: df[HeatmapColumn.cost_nonsi]
+        / df[HeatmapColumn.cost_si],
+    }
     for col, func in enrichments.items():
         df[col] = func(df)
     return DataFrameHeatmap.from_dataframe(df)
