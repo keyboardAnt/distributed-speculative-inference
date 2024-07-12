@@ -26,7 +26,6 @@ class PlotHeatmap:
         Save the figure and return the filepath.
         """
         fig: Figure = _plot_contour(
-            # df=get_enriched_min_speedups(self._df[config.mask_fn(self._df)]),
             df=self._df[config.mask_fn(self._df)],
             x_col=Param.c,
             y_col=Param.a,
