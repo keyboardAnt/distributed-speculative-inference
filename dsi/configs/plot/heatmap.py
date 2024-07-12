@@ -9,7 +9,7 @@ from dsi.types.plot import PinkIndexSide
 
 
 class ConfigPlotHeatmap(BaseModel):
-    col_speedup: HeatmapColumn
+    val_col: HeatmapColumn
     mask_fn: Callable[[pd.DataFrame], pd.Series]
     levels_step: None | float = Field(1.0, le=1.0)
     vmax: None | float = None
