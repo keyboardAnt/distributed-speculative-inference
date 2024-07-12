@@ -22,7 +22,7 @@ def mock_ray_manager():
 
 @pytest.fixture
 def mock_enrich_inplace():
-    with patch("dsi.main.enrich_inplace") as mock:
+    with patch("dsi.main.enrich") as mock:
         yield mock
 
 

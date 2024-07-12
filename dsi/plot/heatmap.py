@@ -8,7 +8,6 @@ from matplotlib.colors import ListedColormap, Normalize
 from matplotlib.figure import Figure
 
 from dsi.configs.plot.heatmap import ConfigPlotHeatmap
-from dsi.offline.heatmap.enrich import get_enriched_min_speedups
 from dsi.plot.utils import savefig
 from dsi.types.df_heatmap import DataFrameHeatmap
 from dsi.types.name import Param
@@ -27,7 +26,8 @@ class PlotHeatmap:
         Save the figure and return the filepath.
         """
         fig: Figure = _plot_contour(
-            df=get_enriched_min_speedups(self._df[config.mask_fn(self._df)]),
+            # df=get_enriched_min_speedups(self._df[config.mask_fn(self._df)]),
+            df=self._df[config.mask_fn(self._df)],
             x_col=Param.c,
             y_col=Param.a,
             val_col=config.col_speedup,

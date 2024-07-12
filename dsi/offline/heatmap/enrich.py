@@ -4,8 +4,24 @@ import pandas as pd
 from dsi.types.df_heatmap import DataFrameHeatmap
 from dsi.types.name import HeatmapColumn, Param
 
+enrichments: dict[str, callable] = {
+    HeatmapColumn.speedup_dsi_vs_si: lambda df: df[HeatmapColumn.cost_si]
+    / df[HeatmapColumn.cost_dsi],
+    HeatmapColumn.speedup_dsi_vs_nonsi: lambda df: df[HeatmapColumn.cost_nonsi]
+    / df[HeatmapColumn.cost_dsi],
+    HeatmapColumn.speedup_si_vs_nonsi: lambda df: df[HeatmapColumn.cost_nonsi]
+    / df[HeatmapColumn.cost_si],
+}
 
-def get_enriched_min_speedups(df: pd.DataFrame) -> pd.DataFrame:
+
+def enrich_simple_speedups(df: pd.DataFrame) -> DataFrameHeatmap:
+    """Use lambda functions registered in `enrichments`."""
+    for col, func in enrichments.items():
+        df[col] = func(df)
+    return DataFrameHeatmap.from_dataframe(df)
+
+
+def enrich_min_speedups(df: pd.DataFrame) -> pd.DataFrame:
     # Setting index only once to be used throughout the function
     df = df.set_index([Param.c, Param.a])
 
@@ -50,18 +66,8 @@ def get_enriched_min_speedups(df: pd.DataFrame) -> pd.DataFrame:
     return df.reset_index()
 
 
-enrichments: dict[str, callable] = {
-    HeatmapColumn.speedup_dsi_vs_si: lambda df: df[HeatmapColumn.cost_si]
-    / df[HeatmapColumn.cost_dsi],
-    HeatmapColumn.speedup_dsi_vs_nonsi: lambda df: df[HeatmapColumn.cost_nonsi]
-    / df[HeatmapColumn.cost_dsi],
-    HeatmapColumn.speedup_si_vs_nonsi: lambda df: df[HeatmapColumn.cost_nonsi]
-    / df[HeatmapColumn.cost_si],
-}
-
-
-def enrich_inplace(df: pd.DataFrame) -> DataFrameHeatmap:
+def enrich(df: pd.DataFrame) -> DataFrameHeatmap:
     """Enrich the dataframe with new columns, in-place."""
-    for col, func in enrichments.items():
-        df[col] = func(df)
+    df = enrich_simple_speedups(df)
+    df = enrich_min_speedups(df)
     return DataFrameHeatmap.from_dataframe(df)
