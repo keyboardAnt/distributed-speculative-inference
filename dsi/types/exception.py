@@ -31,7 +31,7 @@ class MissingHeatmapColumnError(Exception):
         super().__init__(msg)
 
 
-class IncompatibleAppendError(Exception):
+class IncompatibleExtendError(Exception):
     def __init__(self, source_type: str, target_type: str):
         prefix: str = "Attempt to append data from incompatible types. "
         msg: str = (
@@ -45,3 +45,13 @@ class HeatmapConfigInvalidAcceptanceRateRangeError(Exception):
     def __init__(self, msg: str):
         prefix: str = "Invalid acceptance rate range. "
         super().__init__(prefix + msg)
+
+
+class ConfigPlotHeatmapInvalidLevelsStepError(Exception):
+    def __init__(self, levels_step: float):
+        msg: str = (
+            "Invalid levels step. Levels step must be a factor of 1."
+            f" Received levels step: {levels_step}, so that {1/levels_step=}"
+            " is not an integer."
+        )
+        super().__init__(msg)

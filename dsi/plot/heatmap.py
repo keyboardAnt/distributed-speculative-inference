@@ -80,6 +80,8 @@ def _plot_contour(
     norm = Normalize(vmin=0, vmax=vmax)
 
     # Create plot
+    fig: Figure
+    ax: plt.Axes
     fig, ax = plt.subplots(figsize=(7, 6))
     contour = ax.tricontourf(
         df[x_col], df[y_col], df[val_col], levels=levels, cmap=cmap, norm=norm
