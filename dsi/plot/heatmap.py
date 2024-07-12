@@ -27,17 +27,33 @@ cols_to_print: dict[str, str] = {
 
 
 class PlotHeatmap:
+    """
+    A class to plot a heatmap from a given DataFrameHeatmap.
+
+    This class is initialized with a DataFrameHeatmap and provides a method to plot
+    a heatmap using specific configurations provided by ConfigPlotHeatmap.
+    """
+
     def __init__(self, df_heatmap: DataFrameHeatmap) -> None:
         self._df: DataFrameHeatmap = df_heatmap
 
     def plot(self, config: ConfigPlotHeatmap) -> str:
         """
-        Plot the heatmap with the given configuration. Save the figure and return the
-        filepath.
+        Plots the heatmap using the given configuration, saves the figure to a file, and
+        returns the filepath of the saved figure.
 
-        The x-axis is the drafter latency, the y-axis is the acceptance rate.
-        The color represents the given `config.val_col`, e.g., the speedup or minimum
-        speedup.
+        The heatmap's x-axis and y-axis correspond to 'drafter latency' and 'acceptance
+        rate', respectively, defined in the class-level dictionary `cols_to_print`. The
+        color gradient is determined by the values in `config.val_col` (e.g., speedup
+        metrics), with special coloring for values below a threshold.
+
+        Args:
+            config (ConfigPlotHeatmap): The configuration for plotting, including value
+            column, color scale maximum (vmax), and steps for color levels.
+
+        Returns:
+            str: The filepath where the figure is saved. This file contains the heatmap
+            as configured.
         """
         vmax: float = config.vmax or self._df[config.val_col].max()
         # if vmax < 5:
