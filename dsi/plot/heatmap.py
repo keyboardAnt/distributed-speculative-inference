@@ -9,20 +9,20 @@ from matplotlib.figure import Figure
 from dsi.configs.plot.heatmap import ConfigPlotHeatmap
 from dsi.plot.utils import savefig
 from dsi.types.df_heatmap import DataFrameHeatmap
-from dsi.types.name import Param
+from dsi.types.name import HeatmapColumn, Param
 
 log = logging.getLogger(__name__)
 
 
 cols_to_print: dict[str, str] = {
-    "c": "Drafter Latency",
-    "a": "Acceptance Rate",
-    "k": "Lookahead",
-    "speedup_fed_vs_spec": "DSI Speedup over SI (x)",
-    "speedup_fed_vs_nonspec": "DSI Speedup over non-SI (x)",
-    "min_speedup_fed_vs_spec": "DSI Speedup over SI (x)",
-    "min_speedup_fed_vs_nonspec": "DSI Speedup over non-SI (x)",
-    "min_speedup_spec_vs_nonspec": "SI Speedup over non-SI (x)",
+    Param.c: "Drafter Latency",
+    Param.a: "Acceptance Rate",
+    Param.k: "Lookahead",
+    HeatmapColumn.speedup_dsi_vs_si: "DSI Speedup over SI (x)",
+    HeatmapColumn.speedup_dsi_vs_nonsi: "DSI Speedup over non-SI (x)",
+    HeatmapColumn.min_speedup_dsi_vs_si: "DSI Speedup over SI (x)",
+    HeatmapColumn.min_speedup_dsi_vs_nonsi: "DSI Speedup over non-SI (x)",
+    HeatmapColumn.min_speedup_si_vs_nonsi: "SI Speedup over non-SI (x)",
 }
 
 
