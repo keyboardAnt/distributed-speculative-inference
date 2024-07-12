@@ -16,13 +16,15 @@ class HeatmapColumn(Name):
     cost_si = "cost_spec"
     cost_dsi = "cost_fed"
     cost_baseline = "cost_baseline"
+    min_cost_si = "min_cost_spec"
+    min_cost_dsi = "min_cost_fed"
+    min_cost_baseline = "min_cost_baseline"
     speedup_dsi_vs_si = "speedup_fed_vs_spec"
     speedup_dsi_vs_nonsi = "speedup_fed_vs_nonspec"
     speedup_si_vs_nonsi = "speedup_spec_vs_nonspec"
     min_speedup_dsi_vs_si = "min_speedup_fed_vs_spec"
     min_speedup_dsi_vs_nonsi = "min_speedup_fed_vs_nonspec"
     min_speedup_si_vs_nonsi = "min_speedup_spec_vs_nonspec"
-    min_cost_baseline = "min_cost_baseline"
     min_speedup_dsi_vs_baseline = "min_speedup_fed_vs_baseline"
 
 
