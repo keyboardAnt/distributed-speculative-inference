@@ -56,12 +56,10 @@ def _plot_contour(
     x_col: str,
     y_col: str,
     val_col: str,
-    levels_step: float = 1.0,
-    vmax: float | None = None,
-    pink_idx_side: PinkIndexSide = PinkIndexSide.left,
+    levels_step: float,
+    vmax: float | None,
+    pink_idx_side: PinkIndexSide,
 ) -> Figure:
-    assert levels_step <= 1, "Levels step must be less than or equal to 1"
-    assert ((1 / levels_step) % 1) == 0, "Levels step must be a factor of 1"
     vmax: float = vmax or df[val_col].max()
     # if vmax < 5:
     #     levels_step = .5
