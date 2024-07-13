@@ -9,14 +9,12 @@ class Plots(BaseModel):
         ConfigPlotHeatmap(
             val_col=HeatmapColumn.min_speedup_dsi_vs_baseline,
             levels_step=0.1,
-            # vmax=1.6,
-            vmax=2.5,
+            vmax=1.6,
         ),
         ConfigPlotHeatmap(
             val_col=HeatmapColumn.min_speedup_dsi_vs_si,
             levels_step=0.2,
-            # vmax=2,
-            vmax=2.5,
+            vmax=2,
         ),
         ConfigPlotHeatmap(
             val_col=HeatmapColumn.min_speedup_si_vs_nonsi,
@@ -26,7 +24,6 @@ class Plots(BaseModel):
         ConfigPlotHeatmap(
             val_col=HeatmapColumn.min_speedup_dsi_vs_nonsi,
             levels_step=0.1,
-            # vmax=1.4,
-            vmax=2.5,
+            vmax=1.4,
         ),
     ]
