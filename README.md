@@ -43,6 +43,10 @@ For more sophisticated combinations of configurations, check out Hydra's documen
 
 Run tests: `python -m pytest` (from the project root)
 
+# Reformatting
+
+Run `pre-commit run --all-files` to check formating and re-format when possible.
+
 ## Stored results
 
 [DVC](https://dvc.org/doc) tracks raw results stored on Google Drive. To pull the result: `dvc pull`
