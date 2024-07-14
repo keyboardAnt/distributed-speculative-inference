@@ -28,7 +28,7 @@ def fix_history(total_tokens, correct, sim_shared_dict, cur_pipe, sim_executor):
     """
     Simulate fixing the history
     """
-    total_tokens += correct
+    total_tokens += correct + 1
 
     sim_shared_dict["total_tokens"] = total_tokens
 
@@ -99,7 +99,7 @@ def target_done_callback(args, res):
     else:
         # ALL CORRECT with {total_tokens + draft_tokens}
 
-        res_dict["total_tokens"] += res_dict["correct"]
+        res_dict["total_tokens"] += res_dict["correct"] + 1
 
         if res_dict["total_tokens"] > args.max_tokens:
             # MAX TOKENS REACHED
