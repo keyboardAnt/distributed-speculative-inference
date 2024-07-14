@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pandas as pd
@@ -48,15 +48,34 @@ def mock_logger():
         yield mock
 
 
+@pytest.fixture
+def mock_hydra_config():
+    with patch(
+        "hydra.core.hydra_config.HydraConfig.get",
+        return_value=MagicMock(runtime=MagicMock(output_dir="mocked_output_dir")),
+    ) as mock:
+        yield mock
+
+
 def test_offline_heatmap_new_experiment(
-    cfg, mock_ray_manager, mock_enrich_inplace, mock_dataframe_heatmap
+    cfg,
+    mock_ray_manager,
+    mock_enrich_inplace,
+    mock_dataframe_heatmap,
+    mock_hydra_config,
 ):
     cfg.load_csv = None
-    try:
+    # Create MagicMock objects for fig and ax
+    mock_fig = MagicMock()
+    mock_ax = MagicMock()
+    # Ensure the ax mock has the pcolormesh method
+    mock_ax.pcolormesh = MagicMock()
+    with patch(
+        "matplotlib.pyplot.subplots", return_value=(mock_fig, mock_ax)
+    ) as mock_subplots:
         offline_heatmap(cfg)
-    except ValueError as e:
-        print("Cannot plot a mocked DataFrame.")
-        print(e)
+        # Assertions to ensure the subplots are correctly used and pcolormesh is called
+        mock_subplots.assert_called()
     mock_ray_manager.assert_called_once_with(cfg.heatmap)
     mock_ray_manager.return_value.run.assert_called_once()
     mock_enrich_inplace.assert_called_once()
