@@ -82,7 +82,7 @@ def test_correct_token_count_per_iteration(config: ConfigDSIOnline):
         # assert that the number of tokens is in accordance with the accepted token list
         assert (
             sim_shared_dict["total_tokens"]
-            == sum(correct_token_list[:iter_till_stop]) + config.total_tokens
+            == sum(correct_token_list[:iter_till_stop]) + config.total_tokens + iter_till_stop
         )
 
         # sample number of correct tokens
