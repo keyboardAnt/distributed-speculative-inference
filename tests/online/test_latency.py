@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import torch
 
+from dsi.configs.experiment.generation import ConfigGen
 from dsi.configs.experiment.latency import ConfigLatency
 from dsi.online.latency.dataset import Dataset
 from dsi.online.latency.experiment import ExperimentLatency
@@ -128,7 +129,7 @@ def test_single_repeat_without_compile_model(
     model_from_pretrained_mock.return_value = model_mock
     tokenizer_from_pretrained_mock.return_value = tokenizer_mock
 
-    experiment = ExperimentLatency(config)
+    experiment = ExperimentLatency(config, ConfigGen())
     result = experiment._single_repeat()
 
     load_dataset_mock.assert_called_with(path=config.dataset, name=None, split="test")
@@ -160,7 +161,7 @@ def test_single_repeat_with_compile_model(
     model_from_pretrained_mock.return_value = model_mock
     tokenizer_from_pretrained_mock.return_value = tokenizer_mock
 
-    experiment = ExperimentLatency(config)
+    experiment = ExperimentLatency(config, ConfigGen())
     result = experiment._single_repeat()
 
     torch_compile_mock.assert_called_once_with(model_mock)

@@ -7,7 +7,8 @@ from datasets import load_dataset
 from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from dsi.configs.experiment.latency import ConfigGen, ConfigLatency
+from dsi.configs.experiment.latency import ConfigLatency
+from dsi.configs.experiment.generation import ConfigGen
 from dsi.online.latency.prompts import get_prompt
 from dsi.types.experiment import _Experiment
 from dsi.types.result import ResultLatency
@@ -39,15 +40,15 @@ class ExperimentLatency(_Experiment):
 
     def _load_model_tokenizer(self):
         log.info(
-            f"Loading model: {self.config.name}, compile={self.config.compile_model}"
+            f"Loading model: {self.config.model}, compile={self.config.compile_model}"
         )
         model = AutoModelForCausalLM.from_pretrained(
-            self.config.name,
+            self.config.model,
             device_map="auto",
-            torch_dtype=self.config.torch_dtype,
+            torch_dtype=self.config.get_torch_dtype(),
             revision=self.config.revision,
         )
-        tokenizer = AutoTokenizer.from_pretrained(self.config.name)
+        tokenizer = AutoTokenizer.from_pretrained(self.config.model)
         model = torch.compile(model) if self.config.compile_model else model
         return model, tokenizer
 
@@ -103,12 +104,8 @@ class ExperimentLatency(_Experiment):
 
     def _single_repeat(self) -> ResultLatency:
         """Run the latency measurements for the given model and dataset."""
-        examples = self._get_random_prompted_examples(
-            self.config.dataset, self.config.subset, self.config.split
-        )
-        model, tokenizer = self._load_model_tokenizer(
-            self.config.model, self.config.revision
-        )
+        examples = self._get_random_prompted_examples()
+        model, tokenizer = self._load_model_tokenizer()
 
         # Warmup run
         self._timed_generate(model, tokenizer, examples)
