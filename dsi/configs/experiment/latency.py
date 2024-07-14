@@ -1,13 +1,14 @@
-from pydantic import Field
 import torch
+from pydantic import Field
 
 from dsi.configs.experiment.base import _ConfigExperiment
 
 DTYPE_MAP = {
-        "torch.float32": torch.float32,
-        "torch.float16": torch.float16,
-        "torch.bfloat16": torch.bfloat16
-        }
+    "torch.float32": torch.float32,
+    "torch.float16": torch.float16,
+    "torch.bfloat16": torch.bfloat16,
+}
+
 
 class ConfigLatency(_ConfigExperiment):
     """Includes all the parameters needed for measuring the latencies
@@ -25,7 +26,7 @@ class ConfigLatency(_ConfigExperiment):
     revision: None | str = Field(None, title="The revision of the model to use")
     subset: None | str = Field(None, title="The subset of the dataset to use")
     split: str = Field("test", title="The split of the dataset to use")
-    
+
     def get_torch_dtype(self) -> torch.dtype:
         """Get the torch dtype from the string."""
         return DTYPE_MAP.get(self.dtype, torch.bfloat16)

@@ -7,8 +7,8 @@ from datasets import load_dataset
 from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from dsi.configs.experiment.latency import ConfigLatency
 from dsi.configs.experiment.generation import ConfigGen
+from dsi.configs.experiment.latency import ConfigLatency
 from dsi.online.latency.prompts import get_prompt
 from dsi.types.experiment import _Experiment
 from dsi.types.result import ResultLatency
