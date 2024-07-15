@@ -1,12 +1,12 @@
 from pydantic import Field
 
-from dsi.configs.experiment.base import _ConfigExperiment
 from dsi.types.exception import InvalidGenConfigError
 
 
-class ConfigGen(_ConfigExperiment):
-    """Includes all the parameters needed for measuring the latencies
-    of a (target, draft, dataset) triplet.
+class ConfigGen:
+    """
+    All the parameters needed for configuring
+    Hugging Face's `transformers.GenerationConfig`.
     """
 
     do_sample: bool = Field(False, title="Whether to use sampling during generation")

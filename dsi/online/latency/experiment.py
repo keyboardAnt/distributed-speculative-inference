@@ -38,7 +38,7 @@ class ExperimentLatency(_Experiment):
         super().__init__(config)
         self.gen_config: ConfigGen = gen_config
 
-    def _load_model_tokenizer(self):
+    def _load_model_tokenizer(self) -> tuple:
         log.info(
             f"Loading model: {self.config.model}, compile={self.config.compile_model}"
         )
@@ -52,7 +52,7 @@ class ExperimentLatency(_Experiment):
         model = torch.compile(model) if self.config.compile_model else model
         return model, tokenizer
 
-    def _get_random_prompted_examples(self):
+    def _get_random_prompted_examples(self) -> list[str]:
         """Get random examples from the dataset and prompt them."""
         log.info(f"Loading dataset: {self.config.dataset}")
         examples = (
@@ -91,9 +91,10 @@ class ExperimentLatency(_Experiment):
             elapsed = time() - t
 
             input_len = inputs["input_ids"].shape[1]
-            new_tokens = outputs.shape[1] - input_len
+            # NOTE: Reduce 1 to avoid counting the first token
+            new_output_tokens = max(0, outputs.shape[1] - input_len - 1)
             elapsed_after_first = elapsed - ttft
-            tpots.append(elapsed_after_first / new_tokens)
+            tpots.append(elapsed_after_first / new_output_tokens)
 
         mean_ttft = np.mean(ttfts) * 1000
         mean_tpot = np.mean(tpots) * 1000
