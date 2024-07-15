@@ -2,7 +2,6 @@ import logging
 
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib import ticker
 from matplotlib.colors import BoundaryNorm, Colormap, ListedColormap
 from matplotlib.figure import Figure
 from matplotlib.pyplot import get_cmap
@@ -28,7 +27,7 @@ class PlotHeatmap:
         self._df: DataFrameHeatmap = df_heatmap
 
     def plot(self, config: ConfigPlotHeatmap) -> str:
-        # Average the speedup over repeats that have the same 'drafter_latency' and
+        # Average the speedup over simulations that have the same 'drafter_latency' and
         # 'acceptance_rate' values
         df_agg = (
             self._df.groupby([Param.a, Param.c])[config.val_col].mean().reset_index()
@@ -38,7 +37,9 @@ class PlotHeatmap:
         y_unique = df_pivot.index.values
         z_matrix = df_pivot.values
         # Setup color mapping
-        vmax: float = config.vmax or z_matrix.max()
+        vmax: float = z_matrix.max()
+        if config.vmax is not None:
+            vmax = min(vmax, config.vmax)
         bounds: list[float] = [0] + safe_arange(
             1, vmax + config.levels_step, config.levels_step
         ).tolist()
@@ -70,9 +71,6 @@ class PlotHeatmap:
                 ticklabel = f">{ticklabel}"
             ticklabels.append(ticklabel)
         cbar.set_ticklabels(ticklabels)
-        num_ticks_max: int = 12
-        if len(bounds) > num_ticks_max:
-            cbar.ax.yaxis.set_major_locator(ticker.MaxNLocator(num_ticks_max))
         name_to_print: dict[Param, str] = Print().name_to_print
         ax.set_xlabel(name_to_print[Param.c])
         ax.set_ylabel(name_to_print[Param.a])

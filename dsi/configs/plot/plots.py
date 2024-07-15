@@ -7,9 +7,9 @@ from dsi.types.name import HeatmapColumn
 class Plots(BaseModel):
     heatmaps: list[ConfigPlotHeatmap] = [
         ConfigPlotHeatmap(
-            val_col=HeatmapColumn.min_speedup_dsi_vs_baseline,
-            levels_step=0.1,
-            vmax=1.6,
+            val_col=HeatmapColumn.min_speedup_si_vs_nonsi,
+            levels_step=1,
+            vmax=10,
         ),
         ConfigPlotHeatmap(
             val_col=HeatmapColumn.min_speedup_dsi_vs_si,
@@ -17,13 +17,13 @@ class Plots(BaseModel):
             vmax=2,
         ),
         ConfigPlotHeatmap(
-            val_col=HeatmapColumn.min_speedup_si_vs_nonsi,
-            levels_step=1,
-            vmax=10,
+            val_col=HeatmapColumn.min_speedup_dsi_vs_nonsi,
+            levels_step=0.2,
+            vmax=3,
         ),
         ConfigPlotHeatmap(
-            val_col=HeatmapColumn.min_speedup_dsi_vs_nonsi,
+            val_col=HeatmapColumn.min_speedup_dsi_vs_baseline,
             levels_step=0.1,
-            vmax=1.4,
+            vmax=1.6,
         ),
     ]
