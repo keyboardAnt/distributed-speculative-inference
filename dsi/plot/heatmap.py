@@ -11,6 +11,7 @@ from dsi.configs.plot.heatmap import ConfigPlotHeatmap
 from dsi.plot.utils import savefig
 from dsi.types.df_heatmap import DataFrameHeatmap
 from dsi.types.name import Param, Print
+from dsi.utils import safe_arange
 
 log = logging.getLogger(__name__)
 
@@ -38,7 +39,7 @@ class PlotHeatmap:
         z_matrix = df_pivot.values
         # Setup color mapping
         vmax: float = config.vmax or z_matrix.max()
-        bounds: list[float] = [0] + np.arange(
+        bounds: list[float] = [0] + safe_arange(
             1, vmax + config.levels_step, config.levels_step
         ).tolist()
         num_nonpink: int = len(bounds) - 1
@@ -60,14 +61,18 @@ class PlotHeatmap:
         )
         cbar = fig.colorbar(qmesh, ax=ax)
         cbar.set_ticks(bounds)
-        # cbar.set_ticklabels(
-        #     [f"{x:.0f}" if x % 1 == 0 else f"{x:.1f}" for x in levels[:-1]]
-        #     + [f">{levels[-1]:.0f}" if levels[-1] % 1 == 0 else f">{levels[-1]:.1f}"]
-        # )
-        # if there are more than 20 ticks labels
-        cbar.set_ticklabels([f"{b:.2f}" for b in bounds])
-        if len(bounds) > 20:
-            cbar.ax.yaxis.set_major_locator(ticker.MaxNLocator(20))
+        ticklabels: list[str] = []
+        for i, b in enumerate(bounds):
+            ticklabel: str = f"{b:.2f}"
+            if np.isclose(b % 1, 0):
+                ticklabel = f"{b:.0f}"
+            if i == len(bounds) - 1 and vmax < z_matrix.max():
+                ticklabel = f">{ticklabel}"
+            ticklabels.append(ticklabel)
+        cbar.set_ticklabels(ticklabels)
+        num_ticks_max: int = 12
+        if len(bounds) > num_ticks_max:
+            cbar.ax.yaxis.set_major_locator(ticker.MaxNLocator(num_ticks_max))
         name_to_print: dict[Param, str] = Print().name_to_print
         ax.set_xlabel(name_to_print[Param.c])
         ax.set_ylabel(name_to_print[Param.a])
