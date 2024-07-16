@@ -1,9 +1,9 @@
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 from dsi.types.exception import InvalidGenConfigError
 
 
-class ConfigGen:
+class ConfigGen(BaseModel):
     """
     All the parameters needed for configuring
     Hugging Face's `transformers.GenerationConfig`.

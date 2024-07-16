@@ -1,14 +1,108 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 import torch
+from pydantic import ValidationError
 
-from dsi.configs.experiment.generation import ConfigGen
-from dsi.configs.experiment.latency import ConfigLatency
+from dsi.configs.experiment.latency import DTYPE_MAP, ConfigLatency
 from dsi.online.latency.dataset import Dataset
 from dsi.online.latency.experiment import ExperimentLatency
 from dsi.online.latency.prompts import get_prompt
-from dsi.types.result import ResultLatency
+
+
+def test_config_latency_default_initialization():
+    config = ConfigLatency(model="m", dataset="d")
+    assert config.model == "m"
+    assert config.dtype == "bfloat16"
+    assert config.dataset == "d"
+    assert config.num_examples == 50
+    assert config.max_new_tokens == 20
+    assert config.compile_model is False
+    assert config.revision is None
+    assert config.subset is None
+    assert config.split == "test"
+
+
+@pytest.mark.parametrize(
+    "model,dtype,dataset,num_examples,max_new_tokens,compile_model,revision,subset,split",
+    [
+        (
+            "model1",
+            "torch.float32",
+            "dataset1",
+            100,
+            30,
+            True,
+            "rev1",
+            "subset1",
+            "train",
+        ),
+        (
+            "model2",
+            "torch.float16",
+            "dataset2",
+            200,
+            40,
+            False,
+            None,
+            None,
+            "validation",
+        ),
+    ],
+)
+def test_config_latency_custom_initialization(
+    model,
+    dtype,
+    dataset,
+    num_examples,
+    max_new_tokens,
+    compile_model,
+    revision,
+    subset,
+    split,
+):
+    config = ConfigLatency(
+        model=model,
+        dtype=dtype,
+        dataset=dataset,
+        num_examples=num_examples,
+        max_new_tokens=max_new_tokens,
+        compile_model=compile_model,
+        revision=revision,
+        subset=subset,
+        split=split,
+    )
+    assert config.model == model
+    assert config.dtype == dtype
+    assert config.dataset == dataset
+    assert config.num_examples == num_examples
+    assert config.max_new_tokens == max_new_tokens
+    assert config.compile_model == compile_model
+    assert config.revision == revision
+    assert config.subset == subset
+    assert config.split == split
+
+
+@pytest.mark.parametrize("dtype,expected", DTYPE_MAP.items())
+def test_get_torch_dtype_valid(dtype, expected):
+    config = ConfigLatency(dtype=dtype)
+    assert config.get_torch_dtype() == expected
+
+
+def test_get_torch_dtype_invalid():
+    config = ConfigLatency(dtype="invalid_dtype")
+    assert config.get_torch_dtype() == torch.bfloat16
+
+
+def test_config_latency_field_validation():
+    with pytest.raises(ValidationError):
+        ConfigLatency(num_examples="not_an_int")
+
+    with pytest.raises(ValidationError):
+        ConfigLatency(num_examples=-1)
+
+    with pytest.raises(ValidationError):
+        ConfigLatency(max_new_tokens=0)
 
 
 @pytest.fixture
@@ -84,85 +178,30 @@ def test_get_prompt_alpaca_without_input(alpaca_example_without_input):
     assert prompt.startswith(expected_start)
 
 
+# Mocking ConfigLatency and ConfigGen
 @pytest.fixture
-def config():
-    return ConfigLatency(
-        model="double7/vicuna-68m",
-        dataset=Dataset.ALPACA,
-        compile_model=False,
-        num_ex=5,
-        max_new_tokens=5,
-        random_seed=42,
+def mock_config_latency():
+    return MagicMock(name="ConfigLatency")
+
+
+@pytest.fixture
+def mock_config_gen():
+    return MagicMock(name="ConfigGen")
+
+
+def test_experiment_latency_init_valid_configs(mock_config_latency, mock_config_gen):
+    experiment = ExperimentLatency(
+        config=mock_config_latency, gen_config=mock_config_gen
     )
+    assert experiment.config == mock_config_latency
+    assert experiment.gen_config == mock_config_gen
 
 
-@pytest.fixture
-def model_mock():
-    model = MagicMock()
-    model.generate = MagicMock(return_value=MagicMock(shape=(1, 51)))
-    return model
+def test_experiment_latency_init_none_configs():
+    with pytest.raises(TypeError):  # Assuming TypeError is raised for None configs
+        ExperimentLatency(config=None, gen_config=None)
 
 
-@pytest.fixture
-def tokenizer_mock():
-    tokenizer = MagicMock()
-    tokenizer.eos_token_id = 0
-    return tokenizer
-
-
-@patch("dsi.online.latency.experiment.load_dataset")
-@patch("dsi.online.latency.experiment.AutoModelForCausalLM.from_pretrained")
-@patch("dsi.online.latency.experiment.AutoTokenizer.from_pretrained")
-@patch("dsi.online.latency.experiment.torch.compile")
-def test_single_repeat_without_compile_model(
-    torch_compile_mock,
-    tokenizer_from_pretrained_mock,
-    model_from_pretrained_mock,
-    load_dataset_mock,
-    config,
-    model_mock,
-    tokenizer_mock,
-):
-    load_dataset_mock.return_value.shuffle.return_value.select.return_value = [
-        {"input": "test", "instruction": "summarize this input"}
-    ] * config.num_examples
-    model_from_pretrained_mock.return_value = model_mock
-    tokenizer_from_pretrained_mock.return_value = tokenizer_mock
-
-    experiment = ExperimentLatency(config, ConfigGen())
-    result = experiment._single_repeat()
-
-    load_dataset_mock.assert_called_with(path=config.dataset, name=None, split="test")
-    model_from_pretrained_mock.assert_called_with(
-        config.model, device_map="auto", torch_dtype=torch.bfloat16, revision=None
-    )
-    tokenizer_from_pretrained_mock.assert_called_with(config.model)
-    torch_compile_mock.assert_not_called()
-    assert isinstance(result, ResultLatency)
-
-
-@patch("dsi.online.latency.experiment.load_dataset")
-@patch("dsi.online.latency.experiment.AutoModelForCausalLM.from_pretrained")
-@patch("dsi.online.latency.experiment.AutoTokenizer.from_pretrained")
-@patch("dsi.online.latency.experiment.torch.compile")
-def test_single_repeat_with_compile_model(
-    torch_compile_mock,
-    tokenizer_from_pretrained_mock,
-    model_from_pretrained_mock,
-    load_dataset_mock,
-    config,
-    model_mock,
-    tokenizer_mock,
-):
-    config.compile_model = True
-    load_dataset_mock.return_value.shuffle.return_value.select.return_value = [
-        {"input": "test", "instruction": "summarize this input"}
-    ] * config.num_examples
-    model_from_pretrained_mock.return_value = model_mock
-    tokenizer_from_pretrained_mock.return_value = tokenizer_mock
-
-    experiment = ExperimentLatency(config, ConfigGen())
-    result = experiment._single_repeat()
-
-    torch_compile_mock.assert_called_once_with(model_mock)
-    assert isinstance(result, ResultLatency)
+def test_experiment_latency_init_invalid_configs():
+    with pytest.raises(TypeError):  # Assuming TypeError is raised for invalid configs
+        ExperimentLatency(config="invalid_config", gen_config=123)

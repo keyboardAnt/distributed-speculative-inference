@@ -1,13 +1,9 @@
+from typing import Literal
+
 import torch
 from pydantic import Field
 
 from dsi.configs.experiment.base import _ConfigExperiment
-
-DTYPE_MAP = {
-    "torch.float32": torch.float32,
-    "torch.float16": torch.float16,
-    "torch.bfloat16": torch.bfloat16,
-}
 
 
 class ConfigLatency(_ConfigExperiment):
@@ -16,7 +12,9 @@ class ConfigLatency(_ConfigExperiment):
     """
 
     model: str = Field(title="The model to use for the experiment")
-    dtype: str = Field("bfloat16", title="The dtype to use for the experiment")
+    dtype: Literal["float32", "float16", "bfloat16"] = Field(
+        "bfloat16", title="The dtype to use for the experiment"
+    )
     dataset: str = Field(title="The dataset to use for the experiment")
     num_examples: int = Field(50, title="The number of examples per dataset", ge=1)
     max_new_tokens: int = Field(
@@ -28,5 +26,4 @@ class ConfigLatency(_ConfigExperiment):
     split: str = Field("test", title="The split of the dataset to use")
 
     def get_torch_dtype(self) -> torch.dtype:
-        """Get the torch dtype from the string."""
-        return DTYPE_MAP.get(self.dtype, torch.bfloat16)
+        return eval(f"torch.{self.dtype}")
