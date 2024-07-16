@@ -4,6 +4,7 @@ import pandas as pd
 import pytest
 
 from dsi.types.df_heatmap import DataFrameHeatmap
+from dsi.types.exception import MissingHeatmapColumnError
 
 # Mock valid column names for testing
 valid_columns = ["col1", "col2", "param1", "param2"]
@@ -59,7 +60,7 @@ def test_from_heatmap_csv_valid(mock_param, mock_heatmap, valid_csv_file):
     "dsi.types.df_heatmap.Param.get_all_valid_values", return_value=valid_columns[2:]
 )
 def test_from_heatmap_csv_invalid(mock_param, mock_heatmap, invalid_csv_file):
-    with pytest.raises(ValueError):
+    with pytest.raises(MissingHeatmapColumnError):
         DataFrameHeatmap.from_heatmap_csv(invalid_csv_file)
 
 
@@ -83,5 +84,5 @@ def test_from_dataframe_valid(mock_param, mock_heatmap, valid_dataframe):
     "dsi.types.df_heatmap.Param.get_all_valid_values", return_value=valid_columns[2:]
 )
 def test_from_dataframe_invalid(mock_param, mock_heatmap, invalid_dataframe):
-    with pytest.raises(ValueError):
+    with pytest.raises(MissingHeatmapColumnError):
         DataFrameHeatmap.from_dataframe(invalid_dataframe)

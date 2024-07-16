@@ -3,8 +3,9 @@ import pandas as pd
 import pytest
 
 from dsi.configs.experiment.simul.offline import ConfigDSI
-from dsi.offline.heatmap.objective import enrich_inplace, get_all_latencies
-from dsi.types.name import HeatmapColumn
+from dsi.offline.heatmap.enrich import enrich
+from dsi.offline.heatmap.worker import get_all_latencies
+from dsi.types.name import HeatmapColumn, Param
 
 
 @pytest.mark.parametrize("c", [0.01, 0.1, 0.5, 0.8, 0.99])
@@ -45,6 +46,8 @@ def test_get_all_latencies(c: float, a: float, k: int):
 @pytest.fixture
 def sample_dataframe():
     data = {
+        Param.c: [0.1, 0.5, 0.9],
+        Param.a: [0.2, 0.4, 0.6],
         HeatmapColumn.cost_si: [2, 4, 6],
         HeatmapColumn.cost_dsi: [1, 2, 3],
         HeatmapColumn.cost_nonsi: [3, 6, 9],
@@ -53,14 +56,14 @@ def sample_dataframe():
 
 
 def test_enrich_inplace_adds_columns(sample_dataframe):
-    enriched_df = enrich_inplace(sample_dataframe)
+    enriched_df = enrich(sample_dataframe)
     assert HeatmapColumn.speedup_dsi_vs_si in enriched_df.columns
     assert HeatmapColumn.speedup_dsi_vs_nonsi in enriched_df.columns
     assert HeatmapColumn.speedup_si_vs_nonsi in enriched_df.columns
 
 
 def test_enrich_inplace_correct_calculations(sample_dataframe):
-    enriched_df = enrich_inplace(sample_dataframe)
+    enriched_df = enrich(sample_dataframe)
     expected_speedup_dsi_vs_si = (
         sample_dataframe[HeatmapColumn.cost_si]
         / sample_dataframe[HeatmapColumn.cost_dsi]
@@ -89,7 +92,7 @@ def test_enrich_inplace_correct_calculations(sample_dataframe):
 
 def test_enrich_inplace_does_not_alter_existing_columns(sample_dataframe):
     original_columns = sample_dataframe.columns.tolist()
-    enriched_df = enrich_inplace(sample_dataframe)
+    enriched_df = enrich(sample_dataframe)
     for column in original_columns:
         pd.testing.assert_series_equal(
             sample_dataframe[column], enriched_df[column], check_names=False

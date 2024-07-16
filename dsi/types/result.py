@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field, fields
 
-from dsi.types.exception import IncompatibleAppendError
+from dsi.types.exception import IncompatibleExtendError
 
 
 @dataclass
@@ -21,7 +21,7 @@ class _Result:
             to_append (Result): The Result object from which to append data.
         """
         if not isinstance(to_append, type(self)):
-            raise IncompatibleAppendError(type(self).__name__, type(to_append).__name__)
+            raise IncompatibleExtendError(type(self).__name__, type(to_append).__name__)
 
         for field_info in fields(self):
             # Check if both instances have the same field and it is a list

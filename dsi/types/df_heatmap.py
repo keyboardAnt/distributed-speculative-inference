@@ -3,6 +3,7 @@ from pathlib import Path
 import hydra
 import pandas as pd
 
+from dsi.types.exception import MissingHeatmapColumnError
 from dsi.types.name import HeatmapColumn, Param
 
 
@@ -34,7 +35,7 @@ class DataFrameHeatmap(pd.DataFrame):
         )
         for column in self.columns:
             if column not in valid_columns:
-                raise ValueError(
+                raise MissingHeatmapColumnError(
                     f"Invalid column name: {column}. Column names must be one of the"
                     " defined HeatmapColumn or Param names."
                 )

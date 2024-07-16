@@ -37,6 +37,10 @@ For help, use:
 
 For more sophisticated combinations of configurations, check out Hydra's documentation.
 
+## Visualizing results
+
+By default, running new experiments will also visualize the results. To visualize existing results (pre-computed), provide their path: `python -m dsi type=offline_heatmap load_results="results/offline/heatmap/heatmap-20240702-012750.csv"`
+
 ## Testing
 
 [![Python tests](https://github.com/keyboardAnt/distributed-speculative-inference/actions/workflows/python-tests.yaml/badge.svg)](https://github.com/keyboardAnt/distributed-speculative-inference/actions/workflows/python-tests.yaml)

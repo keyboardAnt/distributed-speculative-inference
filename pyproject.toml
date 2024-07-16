@@ -24,6 +24,7 @@ pytest = "^8.2.2"
 pre-commit = "^3.7.1"
 black = "^24.4.2"
 isort = "^5.13.2"
+pytest-mock = "^3.14.0"
 
 [build-system]
 requires = ["poetry-core"]
