@@ -7,6 +7,7 @@ import pytest
 from dsi.configs.cli import ConfigCLI, RunType
 from dsi.main import offline_heatmap
 from dsi.types.df_heatmap import DataFrameHeatmap
+from dsi.types.name import HeatmapColumn, Param
 
 
 @pytest.fixture
@@ -23,17 +24,26 @@ def mock_ray_manager():
 @pytest.fixture
 def mock_enrich_inplace():
     with patch("dsi.main.enrich") as mock:
+        # Create a structured mock that handles the DataFrame operations
+        # Simulate the DataFrame operations, focusing on the max() at the end
+        df_mock = MagicMock()
+        (
+            df_mock.groupby.return_value.__getitem__.return_value.mean.return_value.reset_index.return_value.pivot.return_value.values.max.return_value
+        ) = 10.0
+        mock.return_value = df_mock
         yield mock
 
 
 @pytest.fixture
-def mock_dataframe_heatmap():
+def mock_dataframe_heatmap(cfg):
     with patch("dsi.main.DataFrameHeatmap") as mock:
         df_mock = pd.DataFrame(
             {
-                "c": np.array([0.1, 0.2, 0.3]),
-                "a": np.array([0.1, 0.2, 0.3]),
-                "min_speedup_fed_vs_spec": np.array([1.1, 1.2, 1.3]),
+                Param.c: np.array([0.1, 0.2, 0.3]),
+                Param.a: np.array([0.1, 0.2, 0.3]),
+                HeatmapColumn.min_speedup_dsi_vs_baseline.value: np.array(
+                    [1.1, 1.2, 1.3]
+                ),
             }
         )
         mock_instance = DataFrameHeatmap(df_mock)

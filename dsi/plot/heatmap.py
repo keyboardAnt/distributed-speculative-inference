@@ -30,16 +30,26 @@ class PlotHeatmap:
         # Average the speedup over simulations that have the same 'drafter_latency' and
         # 'acceptance_rate' values
         df_agg = (
-            self._df.groupby([Param.a, Param.c])[config.val_col].mean().reset_index()
+            self._df.groupby([Param.a, Param.c])[config.val_col.value]
+            .mean()
+            .reset_index()
         )
-        df_pivot = df_agg.pivot(index=Param.a, columns=Param.c, values=config.val_col)
+        df_pivot = df_agg.pivot(
+            index=Param.a, columns=Param.c, values=config.val_col.value
+        )
         x_unique = df_pivot.columns.values
         y_unique = df_pivot.index.values
         z_matrix = df_pivot.values
+
         # Setup color mapping
-        vmax: float = z_matrix.max()
-        if config.vmax is not None:
-            vmax = min(vmax, config.vmax)
+        def get_vmax() -> float:
+            nonlocal config, z_matrix
+            ret: float = z_matrix.max()
+            if config.vmax is not None:
+                ret = min(ret, config.vmax)
+            return ret
+
+        vmax: float = get_vmax()
         bounds: list[float] = [0] + safe_arange(
             1, vmax + config.levels_step, config.levels_step
         ).tolist()

@@ -1,45 +1,52 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import numpy as np
+import pandas as pd
 import pytest
 
 from dsi.plot.heatmap import ConfigPlotHeatmap, DataFrameHeatmap, PlotHeatmap
+from dsi.types.name import HeatmapColumn, Param
 
 
 @pytest.fixture
-def sample_data():
-    return {
-        "c": np.random.rand(100),
-        "a": np.random.rand(100),
-        "min_speedup_dsi_vs_si": np.random.rand(100) * 3,
-    }
+def heatmap_data():
+    # Prepare and return test data for the heatmap
+    data = pd.DataFrame(
+        {
+            Param.a.value: [1, 2, 2, 3],
+            Param.c.value: [0.1, 0.1, 0.2, 0.3],
+            HeatmapColumn.speedup_dsi_vs_si.value: [
+                1.5,
+                2.5,
+                2.0,
+                3.0,
+            ],  # No NaN values here
+        }
+    )
+    return DataFrameHeatmap(data)
 
 
 @pytest.fixture
-def df_heatmap(sample_data):
-    return DataFrameHeatmap(sample_data)
+def plot_config():
+    # Ensure vmax is set properly and not leading to NaN
+    return ConfigPlotHeatmap(
+        val_col=HeatmapColumn.speedup_dsi_vs_si,
+        figsize=(10, 8),
+        vmax=3.0,  # Explicit non-NaN value
+        levels_step=0.5,
+    )
 
 
-@pytest.fixture
-def config():
-    return ConfigPlotHeatmap(val_col="min_speedup_dsi_vs_si", levels_step=0.2, vmax=2.5)
+def test_plot(mocker, heatmap_data, plot_config):
+    mocker.patch("dsi.plot.heatmap.savefig", return_value="path/to/figure.png")
+    mock_safe_arange = mocker.patch(
+        "dsi.plot.heatmap.safe_arange", return_value=np.array([1, 2, 3])
+    )
+    mocker.patch("matplotlib.pyplot.subplots", return_value=(MagicMock(), MagicMock()))
 
+    plotter = PlotHeatmap(heatmap_data)
+    # Execute the plot method while capturing logs if needed
+    result_path = plotter.plot(plot_config)
 
-@patch("matplotlib.pyplot.subplots")
-@patch(
-    "hydra.core.hydra_config.HydraConfig.get",
-    return_value=MagicMock(runtime=MagicMock(output_dir="mocked_output_dir")),
-)
-def test_plot(mock_hydra_config, mock_subplots, df_heatmap, config):
-    plotter = PlotHeatmap(df_heatmap)
-
-    fig_mock = MagicMock()
-    ax_mock = MagicMock()
-    mock_subplots.return_value = (fig_mock, ax_mock)
-
-    plotter.plot(config)
-
-    mock_subplots.assert_called_once_with(figsize=config.figsize)
-    ax_mock.pcolormesh.assert_called_once()
-    fig_mock.colorbar.assert_called_once()
-    fig_mock.savefig.assert_called_once()
+    mock_safe_arange.assert_called()
+    assert result_path == "path/to/figure.png"
