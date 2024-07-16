@@ -8,7 +8,7 @@
         "*.dvc": "yaml",
         "dvc.lock": "yaml"
     },
-    "editor.rulers": [
-        88
-    ],
+    "files.exclude": {
+        "**/__pycache__": true
+    },
 }
