@@ -31,8 +31,6 @@ def get_df_heatmap_params(config: ConfigHeatmap) -> pd.DataFrame:
     Generate a pandas dataframe with all the configurations of c, a, k that are valid
     for DSI.
     """
-    if not config:
-        config = ConfigHeatmap()
     c_vals: np.ndarray = np.linspace(0, 1, config.ndim + 1)
     c_vals = np.where(c_vals <= config.c_min, config.c_min, c_vals)
     a_vals: np.ndarray = np.linspace(0, 1, config.ndim + 1)
