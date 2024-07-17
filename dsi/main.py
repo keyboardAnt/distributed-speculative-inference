@@ -11,7 +11,7 @@ from tqdm import tqdm
 from dsi.configs.cli import ConfigCLI, RunType
 from dsi.configs.plot.heatmap import ConfigPlotHeatmap
 from dsi.offline.heatmap.enrich import enrich
-from dsi.offline.heatmap.ray_manager import RayManager
+from dsi.offline.heatmap.ray_executor import RayExecutor
 from dsi.offline.simul.dsi import SimulDSI
 from dsi.offline.simul.si import SimulSI
 from dsi.plot.heatmap import PlotHeatmap
@@ -43,7 +43,7 @@ def offline_heatmap(cfg: ConfigCLI) -> None:
         log.info(
             "Running a new experiment. Results will be stored at %s", heatmap_filepath
         )
-        tmanager: RayManager = RayManager(cfg.heatmap)
+        tmanager: RayExecutor = RayExecutor(cfg.heatmap)
         df_results: pd.DataFrame = tmanager.run()
         df_heatmap: DataFrameHeatmap = enrich(df_results)
         filepath: str = df_heatmap.store()
