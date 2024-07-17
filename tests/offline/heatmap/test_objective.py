@@ -4,7 +4,7 @@ import pytest
 
 from dsi.configs.experiment.simul.offline import ConfigDSI
 from dsi.offline.heatmap.enrich import enrich
-from dsi.offline.heatmap.ray_executor import worker_run_simuls
+from dsi.offline.heatmap.worker import RayWorker
 from dsi.types.name import HeatmapColumn, Param
 
 
@@ -13,7 +13,7 @@ from dsi.types.name import HeatmapColumn, Param
 @pytest.mark.parametrize("k", [1, 2, 5, 20, 99997, 100003])
 def test_latencies(c: float, a: float, k: int):
     config: ConfigDSI = ConfigDSI(c=c, a=a, k=k, num_target_servers=None)
-    result: dict[str, float] = worker_run_simuls(config)
+    result: dict[str, float] = RayWorker._run(config)
     assert isinstance(result, dict)
     assert HeatmapColumn.cost_si in result
     assert HeatmapColumn.cost_nonsi in result
