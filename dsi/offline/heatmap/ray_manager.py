@@ -14,7 +14,7 @@ log = logging.getLogger(__name__)
 
 
 class RayManager:
-    def __init__(self, config: ConfigHeatmap) -> None:
+    def __init__(self, config: ConfigHeatmap):
         self._df_configs: pd.DataFrame = get_df_heatmap_params(config)
         self._results_raw: None | list[tuple[int, dict[str, float]]] = None
         self.df_results: pd.DataFrame = self._df_configs.copy(deep=True)
