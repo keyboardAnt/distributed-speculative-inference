@@ -21,11 +21,10 @@ def get_fwd_time(model, input_ids, past_key_values=None):
     if torch.cuda.is_available():
         torch.cuda.synchronize()
     t = time()
-    out = model(input_ids=input_ids, past_key_values=past_key_values)
+    model(input_ids=input_ids, past_key_values=past_key_values)
     if torch.cuda.is_available():
         torch.cuda.synchronize()
-    elapsed = time() - t
-    return elapsed, out
+    return time() - t
 
 
 class ExperimentLatency(_Experiment):
@@ -81,7 +80,7 @@ class ExperimentLatency(_Experiment):
         for ex in tqdm(prompted_examples):
             # Get the time to first token by timing the forward pass
             inputs = tokenizer(ex, return_tensors="pt").to(model.device)
-            ttft, _ = get_fwd_time(model=model, input_ids=inputs["input_ids"])
+            ttft = get_fwd_time(model=model, input_ids=inputs["input_ids"])
             ttfts.append(ttft)
 
             t = time()
