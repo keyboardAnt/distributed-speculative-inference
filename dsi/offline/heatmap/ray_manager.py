@@ -2,10 +2,11 @@ import logging
 
 import pandas as pd
 import ray
+from ray.experimental import tqdm_ray
 
 from dsi.configs.experiment.simul.heatmap import ConfigHeatmap
-from dsi.offline.heatmap.objective import get_all_latencies
 from dsi.offline.heatmap.params import get_df_heatmap_params
+from dsi.offline.heatmap.worker import get_all_latencies
 from dsi.types.name import Param
 
 log = logging.getLogger(__name__)
@@ -22,18 +23,23 @@ class RayManager:
         ray.init(
             ignore_reinit_error=True,
         )
+        remote_tqdm = ray.remote(tqdm_ray.tqdm)
+        bar = remote_tqdm.remote(total=len(self._df_configs))
         futures = [
-            self._process_row.remote(index=index, row=row)
+            self._process_row.remote(index=index, row=row, bar=bar)
             for index, row in self._df_configs.iterrows()
         ]
         self._results_raw = ray.get(futures)
+        bar.close.remote()
         ray.shutdown()
         self._merge_results()
         return self.df_results
 
     @staticmethod
     @ray.remote
-    def _process_row(index: int, row: dict) -> tuple[int, dict[str, float]]:
+    def _process_row(
+        index: int, row: dict, bar: tqdm_ray.tqdm
+    ) -> tuple[int, dict[str, float]]:
         c: float = row[Param.c]
         a: float = row[Param.a]
         k: int = int(row[Param.k])
@@ -41,6 +47,7 @@ class RayManager:
         all_latencies: dict[str, float] = get_all_latencies(
             c=c, a=a, k=k, num_target_servers=num_target_servers
         )
+        bar.update.remote(1)
         return index, all_latencies
 
     def _merge_results(self) -> None:

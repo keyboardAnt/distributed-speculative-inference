@@ -1,21 +1,10 @@
 import numpy as np
-import pandas as pd
 
 from dsi.configs.experiment.simul.offline import ConfigDSI
 from dsi.offline.simul.dsi import SimulDSI
 from dsi.offline.simul.si import SimulSI
-from dsi.types.df_heatmap import DataFrameHeatmap
 from dsi.types.name import HeatmapColumn
 from dsi.types.result import ResultSimul
-
-enrichments: dict[str, callable] = {
-    HeatmapColumn.speedup_dsi_vs_si: lambda df: df[HeatmapColumn.cost_si]
-    / df[HeatmapColumn.cost_dsi],
-    HeatmapColumn.speedup_dsi_vs_nonsi: lambda df: df[HeatmapColumn.cost_nonsi]
-    / df[HeatmapColumn.cost_dsi],
-    HeatmapColumn.speedup_si_vs_nonsi: lambda df: df[HeatmapColumn.cost_nonsi]
-    / df[HeatmapColumn.cost_si],
-}
 
 
 def get_all_latencies(
@@ -42,10 +31,3 @@ def get_all_latencies(
         HeatmapColumn.cost_nonsi: cost_nonsi,
         HeatmapColumn.cost_dsi: cost_dsi,
     }
-
-
-def enrich_inplace(df: pd.DataFrame) -> DataFrameHeatmap:
-    """Enrich the dataframe with new columns, in-place."""
-    for col, func in enrichments.items():
-        df[col] = func(df)
-    return DataFrameHeatmap.from_dataframe(df)
