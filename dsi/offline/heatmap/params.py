@@ -12,18 +12,14 @@ from dsi.types.name import Param
 log = logging.getLogger(__name__)
 
 
-def is_config_valid(c: float, k: int, verbose: bool) -> bool:
+def is_config_valid(row: pd.Series, verbose: bool = False) -> bool:
     try:
-        ConfigDSI(c=c, k=k)
+        ConfigDSI(**row.to_dict())
         return True
     except NumOfTargetServersInsufficientError as e:
         if verbose:
             log.info(e)
         return False
-
-
-def is_row_valid(row: pd.Series, verbose: bool = False) -> bool:
-    return is_config_valid(c=row[Param.c], k=row[Param.k], verbose=verbose)
 
 
 def get_df_heatmap_params(config: ConfigHeatmap) -> pd.DataFrame:
@@ -48,7 +44,7 @@ def get_df_heatmap_params(config: ConfigHeatmap) -> pd.DataFrame:
     df_params[Param.num_target_servers] = config.num_target_servers
     df_params[Param.k] = df_params[Param.k].astype(int)
     df_params = df_params.drop_duplicates()
-    is_valid_mask = df_params.apply(is_row_valid, axis=1)
+    is_valid_mask = df_params.apply(is_config_valid, axis=1)
     df_params = df_params[is_valid_mask]
     log.info(f"Number of valid configurations: {len(df_params)}")
     return df_params
