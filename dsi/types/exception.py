@@ -55,3 +55,12 @@ class ConfigPlotHeatmapInvalidLevelsStepError(Exception):
             " is not an integer."
         )
         super().__init__(msg)
+
+
+class InvalidGenConfigError(Exception):
+    def __init__(
+        self,
+        msg: str,
+    ):
+        prefix: str = "The generation arguments must be compatible with each other. "
+        super().__init__(prefix + msg)

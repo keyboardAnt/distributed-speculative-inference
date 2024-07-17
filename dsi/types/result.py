@@ -41,3 +41,15 @@ class ResultSimul(_Result):
 
     cost_per_repeat: list[float] = field(default_factory=list)
     num_iters_per_repeat: list[int] = field(default_factory=list)
+
+
+@dataclass
+class ResultLatency(_Result):
+    """
+    Args:
+        ttft: The time to first token
+        tpot: The time per output token
+    """
+
+    ttft: list[float] = field(default_factory=list)
+    tpot: list[float] = field(default_factory=list)
