@@ -47,15 +47,6 @@ class RayManager:
         self._merge_results()
         return self.df_results
 
-    # @staticmethod
-    # @ray.remote
-    # def _run(
-    #     index: int, config: ConfigDSI, bar: tqdm_ray.tqdm
-    # ) -> tuple[int, dict[str, float]]:
-    #     latencies: dict[str, float] = worker_run_simuls(config)
-    #     bar.update.remote(1)
-    #     return index, latencies
-
     def _merge_results(self) -> None:
         for i, res in self._results_raw:
             for key, val in res.items():
