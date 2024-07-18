@@ -11,20 +11,23 @@ from dsi.online.latency.experiment import ExperimentLatency
 
 log = logging.getLogger(__name__)
 
-import torch
 
 class ExperimentAcceptanceRate(ExperimentLatency):
     """
-    Measures the generation acceptance rate for a given model and dataset.
+    Measures the generation acceptance rate.
     """
-    def __init__(self, config: ConfigAcceptanteRate, gen_config: ConfigGen, draft_gen_config: ConfigGen):
+    def __init__(self, 
+                 config: ConfigAcceptanteRate,
+                 gen_config: ConfigGen,
+                 draft_gen_config: ConfigGen):
         self.config: ConfigAcceptanteRate
         super().__init__(config, gen_config)
         self.draft_gen_config: ConfigGen = draft_gen_config
     
     def _load_draft_model(self) -> tuple:
         log.info(
-            f"Loading model: {self.config.draft_model}, compile={self.config.draft_compile_model}"
+            f"Loading model: {self.config.draft_model}, \
+                compile={self.config.draft_compile_model}"
         )
         model = AutoModelForCausalLM.from_pretrained(
             self.config.draft_model,
@@ -66,7 +69,8 @@ class ExperimentAcceptanceRate(ExperimentLatency):
 
             for i in range(prompt_len, len(output_target[0])):
                 inputs['input_ids'] = output_target[0,0:i].view(1, -1)
-                inputs['attention_mask'] = torch.tensor([[1] * i], device=draft_model.device)
+                inputs['attention_mask'] = torch.tensor([[1] * i], 
+                                                        device=draft_model.device)
                 output_draft = draft_model.generate(**inputs, **draft_gen_kwargs)
                 if output_draft[-1, i] == output_target[-1, i]:
                     n_matches[-1] += 1
@@ -86,7 +90,9 @@ def main():
                                 dataset="cnn_dailymail", subset="2.0.0")
     target_gen_config = ConfigGen(do_sample=False, temperature=1.0, top_p=1.0)
     draft_gen_config = ConfigGen(do_sample=False, temperature=1.0, top_p=1.0)
-    mar = ExperimentAcceptanceRate(config=ar_config, gen_config=target_gen_config, draft_gen_config=draft_gen_config)
+    mar = ExperimentAcceptanceRate(config=ar_config, 
+                                   gen_config=target_gen_config, 
+                                   draft_gen_config=draft_gen_config)
     mar.run()
 
 if __name__ == "__main__":
