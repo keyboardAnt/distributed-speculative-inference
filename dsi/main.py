@@ -43,7 +43,7 @@ def offline_heatmap(cfg: ConfigCLI) -> None:
         log.info(
             "Running a new experiment. Results will be stored at %s", heatmap_filepath
         )
-        tmanager: RayManager = RayManager(cfg.heatmap)
+        tmanager = RayManager(config_heatmap=cfg.heatmap, config_defaults=cfg.simul)
         df_results: pd.DataFrame = tmanager.run()
         df_heatmap: DataFrameHeatmap = enrich(df_results)
         filepath: str = df_heatmap.store()

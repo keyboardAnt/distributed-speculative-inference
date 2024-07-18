@@ -14,8 +14,9 @@ log = logging.getLogger(__name__)
 
 
 class RayManager:
-    def __init__(self, config: ConfigHeatmap):
-        self._df_configs: pd.DataFrame = get_df_heatmap_params(config)
+    def __init__(self, config_heatmap: ConfigHeatmap, config_defaults: ConfigDSI):
+        self._config_defaults: ConfigDSI = config_defaults
+        self._df_configs: pd.DataFrame = get_df_heatmap_params(config=config_heatmap)
         self._results_raw: None | list[tuple[int, dict[str, float]]] = None
         self.df_results: pd.DataFrame = self._df_configs.copy(deep=True)
 
@@ -26,20 +27,14 @@ class RayManager:
         )
         remote_tqdm = ray.remote(tqdm_ray.tqdm)
         bar: tqdm_ray.tqdm = remote_tqdm.remote(total=len(self._df_configs))
-        futures = [
-            (
-                RayWorker.run.remote(
-                    index=index,
-                    config=ConfigDSI(
-                        c=row[Param.c],
-                        a=row[Param.a],
-                        k=int(row[Param.k]),
-                        num_target_servers=row[Param.num_target_servers],
-                    ),
-                )
-            )
-            for index, row in self._df_configs.iterrows()
-        ]
+        futures = []
+        for index, row in self._df_configs.iterrows():
+            config = ConfigDSI(**self._config_defaults)
+            config.c = row[Param.c]
+            config.a = row[Param.a]
+            config.k = int(row[Param.k])
+            config.num_target_servers = row[Param.num_target_servers]
+            futures.append(RayWorker.run.remote(index, config))
         bar.update.remote(1)
         self._results_raw = ray.get(futures)
         bar.close.remote()
