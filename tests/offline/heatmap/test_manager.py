@@ -53,7 +53,7 @@ def test_merge_results(manager):
 @pytest.fixture
 def mock_ray(mocker):
     ray = mocker.MagicMock()
-    with patch("dsi.offline.heatmap.manager.ray", ray):
+    with patch("dsi.types.heatmap.manager.ray", ray):
         yield ray
 
 
