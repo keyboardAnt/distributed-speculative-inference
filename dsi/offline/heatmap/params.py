@@ -12,16 +12,6 @@ from dsi.types.name import Param
 log = logging.getLogger(__name__)
 
 
-def is_valid_config_dsi(row: pd.Series, verbose: bool = False) -> bool:
-    try:
-        ConfigDSI(**row.to_dict())
-        return True
-    except NumOfTargetServersInsufficientError as e:
-        if verbose:
-            log.info(e)
-        return False
-
-
 def get_df_heatmap_params(config: ConfigHeatmap) -> pd.DataFrame:
     """
     Generate a pandas dataframe with all the configurations of c, a, k that are valid
@@ -35,16 +25,27 @@ def get_df_heatmap_params(config: ConfigHeatmap) -> pd.DataFrame:
     ks_space: np.ndarray = np.arange(
         1, 1 + config.k_step * config.ndim, config.k_step, dtype=int
     )
-
-    # pandas dataframe for c, a, k, num_target_servers
     df_params: pd.DataFrame = pd.DataFrame(
         list(itertools.product(c_vals.tolist(), a_vals.tolist(), ks_space.tolist())),
         columns=[Param.c, Param.a, Param.k],
     )
     df_params[Param.num_target_servers] = config.num_target_servers
     df_params[Param.k] = df_params[Param.k].astype(int)
+    df_params[Param.num_target_servers] = df_params[Param.num_target_servers].astype(
+        int
+    )
     df_params = df_params.drop_duplicates()
-    is_valid_mask = df_params.apply(is_valid_config_dsi, axis=1)
+
+    def _is_valid_config_dsi(row: pd.Series, verbose: bool = False) -> bool:
+        try:
+            ConfigDSI(**row.to_dict())
+            return True
+        except NumOfTargetServersInsufficientError as e:
+            if verbose:
+                log.info(e)
+            return False
+
+    is_valid_mask = df_params.apply(_is_valid_config_dsi, axis=1)
     df_params = df_params[is_valid_mask]
     log.info(f"Number of valid configurations: {len(df_params)}")
     return df_params
