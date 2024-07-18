@@ -19,7 +19,7 @@ log = logging.getLogger(__name__)
 
 class ConfigHeatmap(BaseModel):
     ndim: int = Field(10, ge=2)
-    c_min: float = Field(0.01, title="Drafter latency", ge=0)
+    c_min: float = Field(0.01, title="Minimum drafter latency", ge=0)
     a_min: float = Field(0.01, title="Minimum acceptance rate", ge=0)
     a_max: float = Field(0.99, title="Maximum acceptance rate", le=1)
     k_step: int = Field(1, title="Lookahead step", ge=1)
