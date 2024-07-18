@@ -1,5 +1,6 @@
 import itertools
 import logging
+from contextlib import suppress
 
 import numpy as np
 import pandas as pd
@@ -36,14 +37,11 @@ def get_df_heatmap_params(config: ConfigHeatmap) -> pd.DataFrame:
     )
     df_params = df_params.drop_duplicates()
 
-    def is_valid_config_dsi(row: pd.Series, verbose: bool = False) -> bool:
-        try:
+    def is_valid_config_dsi(row: pd.Series) -> bool:
+        with suppress(NumOfTargetServersInsufficientError):
             ConfigDSI(**row.to_dict())
             return True
-        except NumOfTargetServersInsufficientError as e:
-            if verbose:
-                log.info(e)
-            return False
+        return False
 
     is_valid_mask = df_params.apply(is_valid_config_dsi, axis=1)
     df_params = df_params[is_valid_mask]
