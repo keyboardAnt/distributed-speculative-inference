@@ -50,7 +50,7 @@ class ConfigDSI(ConfigSI):
     )
 
     @property
-    def is_sufficient_num_target_servers(self) -> bool:
+    def _is_sufficient_num_target_servers(self) -> bool:
         """
         Check if the number of target servers is sufficient.
         """
@@ -68,7 +68,7 @@ class ConfigDSI(ConfigSI):
         NOTE: `None` number of target servers means infinity.
         """
         super().model_post_init(__context)
-        if not self.is_sufficient_num_target_servers:
+        if not self._is_sufficient_num_target_servers:
             msg: str = (
                 f"num_target_servers={self.num_target_servers}"
                 " < num_target_servers_required={num_target_servers_required}"
