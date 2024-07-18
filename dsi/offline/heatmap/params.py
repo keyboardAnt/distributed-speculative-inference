@@ -12,7 +12,7 @@ from dsi.types.name import Param
 log = logging.getLogger(__name__)
 
 
-def is_config_valid(row: pd.Series, verbose: bool = False) -> bool:
+def is_valid_config_dsi(row: pd.Series, verbose: bool = False) -> bool:
     try:
         ConfigDSI(**row.to_dict())
         return True
@@ -44,7 +44,7 @@ def get_df_heatmap_params(config: ConfigHeatmap) -> pd.DataFrame:
     df_params[Param.num_target_servers] = config.num_target_servers
     df_params[Param.k] = df_params[Param.k].astype(int)
     df_params = df_params.drop_duplicates()
-    is_valid_mask = df_params.apply(is_config_valid, axis=1)
+    is_valid_mask = df_params.apply(is_valid_config_dsi, axis=1)
     df_params = df_params[is_valid_mask]
     log.info(f"Number of valid configurations: {len(df_params)}")
     return df_params
