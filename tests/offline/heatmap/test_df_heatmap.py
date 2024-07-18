@@ -41,11 +41,12 @@ def invalid_csv_file(tmp_path):
 
 
 @patch(
-    "dsi.types.df_heatmap.HeatmapColumn.get_all_valid_values",
+    "dsi.types.heatmap.df_heatmap.HeatmapColumn.get_all_valid_values",
     return_value=valid_columns[:2],
 )
 @patch(
-    "dsi.types.df_heatmap.Param.get_all_valid_values", return_value=valid_columns[2:]
+    "dsi.types.heatmap.df_heatmap.Param.get_all_valid_values",
+    return_value=valid_columns[2:],
 )
 def test_from_heatmap_csv_valid(mock_param, mock_heatmap, valid_csv_file):
     df = DataFrameHeatmap.from_heatmap_csv(valid_csv_file)
@@ -53,11 +54,12 @@ def test_from_heatmap_csv_valid(mock_param, mock_heatmap, valid_csv_file):
 
 
 @patch(
-    "dsi.types.df_heatmap.HeatmapColumn.get_all_valid_values",
+    "dsi.types.heatmap.df_heatmap.HeatmapColumn.get_all_valid_values",
     return_value=valid_columns[:2],
 )
 @patch(
-    "dsi.types.df_heatmap.Param.get_all_valid_values", return_value=valid_columns[2:]
+    "dsi.types.heatmap.df_heatmap.Param.get_all_valid_values",
+    return_value=valid_columns[2:],
 )
 def test_from_heatmap_csv_invalid(mock_param, mock_heatmap, invalid_csv_file):
     with pytest.raises(MissingHeatmapColumnError):
@@ -65,11 +67,12 @@ def test_from_heatmap_csv_invalid(mock_param, mock_heatmap, invalid_csv_file):
 
 
 @patch(
-    "dsi.types.df_heatmap.HeatmapColumn.get_all_valid_values",
+    "dsi.types.heatmap.df_heatmap.HeatmapColumn.get_all_valid_values",
     return_value=valid_columns[:2],
 )
 @patch(
-    "dsi.types.df_heatmap.Param.get_all_valid_values", return_value=valid_columns[2:]
+    "dsi.types.heatmap.df_heatmap.Param.get_all_valid_values",
+    return_value=valid_columns[2:],
 )
 def test_from_dataframe_valid(mock_param, mock_heatmap, valid_dataframe):
     df = DataFrameHeatmap.from_dataframe(valid_dataframe)
@@ -77,11 +80,12 @@ def test_from_dataframe_valid(mock_param, mock_heatmap, valid_dataframe):
 
 
 @patch(
-    "dsi.types.df_heatmap.HeatmapColumn.get_all_valid_values",
+    "dsi.types.heatmap.df_heatmap.HeatmapColumn.get_all_valid_values",
     return_value=valid_columns[:2],
 )
 @patch(
-    "dsi.types.df_heatmap.Param.get_all_valid_values", return_value=valid_columns[2:]
+    "dsi.types.heatmap.df_heatmap.Param.get_all_valid_values",
+    return_value=valid_columns[2:],
 )
 def test_from_dataframe_invalid(mock_param, mock_heatmap, invalid_dataframe):
     with pytest.raises(MissingHeatmapColumnError):
