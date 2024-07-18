@@ -17,10 +17,12 @@ class Manager:
         # NOTE: Initializing (e.g. `ConfigHeatmap(**config_heatmap)`) because, in
         # runtime, the type of the given objects is a Hydra's class rather than
         # `ConfigHeatmap` or `ConfigDSI`.
-        self._df_config_heatmap: pd.DataFrame = ConfigHeatmap(
-            **config_heatmap
-        ).to_dataframe()
-        self._simul_defaults: ConfigDSI = ConfigDSI(**simul_defaults)
+        if not isinstance(config_heatmap, ConfigHeatmap):
+            config_heatmap = ConfigHeatmap(**config_heatmap)
+        if not isinstance(simul_defaults, ConfigDSI):
+            simul_defaults = ConfigDSI(**simul_defaults)
+        self._df_config_heatmap: pd.DataFrame = config_heatmap.to_dataframe()
+        self._simul_defaults: ConfigDSI = simul_defaults
         self._results_raw: None | list[tuple[int, dict[str, float]]] = None
         self.df_results: pd.DataFrame = self._df_config_heatmap.copy(deep=True)
 

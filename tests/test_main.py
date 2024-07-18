@@ -17,7 +17,7 @@ def cfg():
 
 @pytest.fixture
 def mock_ray_manager():
-    with patch("dsi.main.RayManager") as mock:
+    with patch("dsi.main.Manager") as mock:
         yield mock
 
 
