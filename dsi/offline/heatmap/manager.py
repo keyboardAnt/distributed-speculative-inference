@@ -46,9 +46,8 @@ class Manager:
         self._merge_results()
         return self.df_results
 
-    def _update_config_simul(
-        self, config_simul: ConfigDSI, row: pd.Series
-    ) -> ConfigDSI:
+    @staticmethod
+    def _update_config_simul(config_simul: ConfigDSI, row: pd.Series) -> ConfigDSI:
         """
         Update the given `config_simul` with the values from the given `row`.
         """
