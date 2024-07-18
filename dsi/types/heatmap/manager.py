@@ -41,7 +41,8 @@ class _Manager(ABC):
             config: ConfigDSI = self._update_config_simul(
                 config_simul=self._simul_defaults.model_copy(deep=True), row=row
             )
-            futures.append(Worker.run.remote(index, config))
+            w = Worker()
+            futures.append(w.run.remote(w, index, config))
         bar.update.remote(1)
         self._results_raw = ray.get(futures)
         bar.close.remote()
