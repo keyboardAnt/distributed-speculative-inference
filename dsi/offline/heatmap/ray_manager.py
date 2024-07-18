@@ -6,7 +6,6 @@ from ray.experimental import tqdm_ray
 
 from dsi.configs.experiment.simul.heatmap import ConfigHeatmap
 from dsi.configs.experiment.simul.offline import ConfigDSI
-from dsi.offline.heatmap.params import get_df_heatmap_params
 from dsi.offline.heatmap.worker import RayWorker
 from dsi.types.name import Param
 
@@ -14,11 +13,15 @@ log = logging.getLogger(__name__)
 
 
 class RayManager:
-    def __init__(self, config_heatmap: ConfigHeatmap, config_defaults: ConfigDSI):
-        self._config_defaults: ConfigDSI = config_defaults
-        self._df_configs: pd.DataFrame = get_df_heatmap_params(config=config_heatmap)
+    def __init__(self, config_heatmap: ConfigHeatmap, simul_defaults: ConfigDSI):
+        # NOTE: Initializing `ConfigHeatmap(**config_heatmap)` because, in runtime, the
+        # given object is a Hydra's object rather than `ConfigHeatmap`.
+        self._df_config_heatmap: pd.DataFrame = ConfigHeatmap(
+            **config_heatmap
+        ).to_dataframe()
+        self._simul_defaults: ConfigDSI = simul_defaults
         self._results_raw: None | list[tuple[int, dict[str, float]]] = None
-        self.df_results: pd.DataFrame = self._df_configs.copy(deep=True)
+        self.df_results: pd.DataFrame = self._df_config_heatmap.copy(deep=True)
 
     def run(self) -> pd.DataFrame:
         # NOTE: Ray discovers and utilizes all available resources by default
@@ -26,10 +29,10 @@ class RayManager:
             ignore_reinit_error=True,
         )
         remote_tqdm = ray.remote(tqdm_ray.tqdm)
-        bar: tqdm_ray.tqdm = remote_tqdm.remote(total=len(self._df_configs))
+        bar: tqdm_ray.tqdm = remote_tqdm.remote(total=len(self._df_config_heatmap))
         futures = []
-        for index, row in self._df_configs.iterrows():
-            config = ConfigDSI(**self._config_defaults)
+        for index, row in self._df_config_heatmap.iterrows():
+            config = ConfigDSI(**self._simul_defaults)
             config.c = row[Param.c]
             config.a = row[Param.a]
             config.k = int(row[Param.k])
