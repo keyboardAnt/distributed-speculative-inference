@@ -3,8 +3,8 @@ from unittest.mock import patch
 import pandas as pd
 import pytest
 
-from dsi.types.df_heatmap import DataFrameHeatmap
 from dsi.types.exception import MissingHeatmapColumnError
+from dsi.types.heatmap.df_heatmap import DataFrameHeatmap
 
 # Mock valid column names for testing
 valid_columns = ["col1", "col2", "param1", "param2"]

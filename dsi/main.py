@@ -17,7 +17,7 @@ from dsi.offline.simul.si import SimulSI
 from dsi.plot.heatmap import PlotHeatmap
 from dsi.plot.iters_dist import PlotIters
 from dsi.plot.utils import savefig
-from dsi.types.df_heatmap import DataFrameHeatmap
+from dsi.types.heatmap.df_heatmap import DataFrameHeatmap
 from dsi.types.result import ResultSimul
 
 log = logging.getLogger(__name__)

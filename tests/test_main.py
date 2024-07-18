@@ -6,7 +6,7 @@ import pytest
 
 from dsi.configs.cli import ConfigCLI, RunType
 from dsi.main import offline_heatmap
-from dsi.types.df_heatmap import DataFrameHeatmap
+from dsi.types.heatmap.df_heatmap import DataFrameHeatmap
 from dsi.types.name import HeatmapColumn, Param
 
 
