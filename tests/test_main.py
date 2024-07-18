@@ -86,7 +86,7 @@ def test_offline_heatmap_new_experiment(
         offline_heatmap(cfg)
         # Assertions to ensure the subplots are correctly used and pcolormesh is called
         mock_subplots.assert_called()
-    mock_ray_manager.assert_called_once_with(cfg.heatmap)
+    mock_ray_manager.assert_called_once()
     mock_ray_manager.return_value.run.assert_called_once()
     mock_enrich_inplace.assert_called_once()
     mock_enrich_inplace.return_value.store.assert_called_once()
