@@ -8,7 +8,7 @@ from matplotlib.pyplot import get_cmap
 
 from dsi.configs.plot.heatmap import ConfigPlotHeatmap
 from dsi.plot.utils import savefig
-from dsi.types.df_heatmap import DataFrameHeatmap
+from dsi.types.heatmap.df_heatmap import DataFrameHeatmap
 from dsi.types.name import Param, Print
 from dsi.utils import safe_arange
 
