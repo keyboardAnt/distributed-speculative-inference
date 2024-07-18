@@ -8,14 +8,14 @@ from dsi.types.name import HeatmapColumn
 from dsi.types.result import ResultSimul
 
 
-class RayWorker:
+class Worker:
     @staticmethod
     @ray.remote
     def run(index: int, config: ConfigDSI) -> tuple[int, dict[str, float]]:
         """
         NOTE: This function is a workaround to allow using the index of the dataframe.
         """
-        return index, RayWorker._run(config)
+        return index, Worker._run(config)
 
     @staticmethod
     def _run(config: ConfigDSI) -> tuple[int, dict[str, float]]:

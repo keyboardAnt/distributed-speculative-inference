@@ -6,13 +6,13 @@ from ray.experimental import tqdm_ray
 
 from dsi.configs.experiment.simul.heatmap import ConfigHeatmap
 from dsi.configs.experiment.simul.offline import ConfigDSI
-from dsi.offline.heatmap.ray_worker import RayWorker
+from dsi.offline.heatmap.worker import Worker
 from dsi.types.name import Param
 
 log = logging.getLogger(__name__)
 
 
-class RayManager:
+class Manager:
     def __init__(self, config_heatmap: ConfigHeatmap, simul_defaults: ConfigDSI):
         # NOTE: Initializing (e.g. `ConfigHeatmap(**config_heatmap)`) because, in
         # runtime, the type of the given objects is a Hydra's class rather than
@@ -36,7 +36,7 @@ class RayManager:
             config: ConfigDSI = self._update_config_simul(
                 config_simul=self._simul_defaults.model_copy(deep=True), row=row
             )
-            futures.append(RayWorker.run.remote(index, config))
+            futures.append(Worker.run.remote(index, config))
         bar.update.remote(1)
         self._results_raw = ray.get(futures)
         bar.close.remote()
