@@ -86,7 +86,8 @@ def target_done_callback(args, res):
             return
         res_dict = res.result()
 
-    if res_dict["correct"] < res_dict["draft_tokens"]:
+    # First for target input, second for extra target token
+    if res_dict["correct"] < res_dict["draft_tokens"] or res_dict["correct"] < res_dict["draft_tokens"] + 1:
         # I have "correct" correct token, plus 1
         # ONLY {correct} are correct, need to fix the history
         fix_history(
