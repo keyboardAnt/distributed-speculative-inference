@@ -38,8 +38,7 @@ class ExperimentAcceptanceRate(ExperimentLatency):
             torch_dtype=self.config.get_torch_draft_dtype(),
             revision=self.config.draft_revision,
         )
-        model = torch.compile(model) if self.config.draft_compile_model else model
-        return model
+        return torch.compile(model) if self.config.draft_compile_model else model
 
     def run(self) -> float:
         all_n_matches = []
