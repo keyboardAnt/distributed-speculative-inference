@@ -14,7 +14,7 @@ def test_config_acceptance_initialization_defaults():
 
 def test_config_acceptance_initialization_custom():
     config = ConfigAcceptanteRate(
-        model="m", 
+        model="m",
         dataset="d",
         draft_model="test_model",
         draft_dtype="float32",
@@ -36,24 +36,16 @@ def test_config_acceptance_initialization_custom():
     ],
 )
 def test_get_torch_dtype(dtype, expected):
-    config = ConfigAcceptanteRate(model="m", 
-                                  dataset="d", 
-                                  draft_model="dr", 
-                                  draft_dtype=dtype)
+    config = ConfigAcceptanteRate(
+        model="m", dataset="d", draft_model="dr", draft_dtype=dtype
+    )
     assert config.get_torch_draft_dtype() == expected
 
 
 def test_draft_revision_optional():
-    config = ConfigAcceptanteRate(
-        model="m",
-        dataset="d",
-        draft_model="dr"
-    )
+    config = ConfigAcceptanteRate(model="m", dataset="d", draft_model="dr")
     assert config.draft_revision is None
     config = ConfigAcceptanteRate(
-        model="m",
-        dataset="d",
-        draft_model="dr",
-        draft_revision="rev1"
+        model="m", dataset="d", draft_model="dr", draft_revision="rev1"
     )
     assert config.draft_revision == "rev1"

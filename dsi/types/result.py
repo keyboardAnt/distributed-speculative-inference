@@ -54,6 +54,7 @@ class ResultLatency(_Result):
     ttft: list[float] = field(default_factory=list)
     tpot: list[float] = field(default_factory=list)
 
+
 @dataclass
 class ResultAcceptance(_Result):
     """
