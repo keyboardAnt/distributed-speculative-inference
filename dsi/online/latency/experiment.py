@@ -7,7 +7,6 @@ from datasets import load_dataset
 from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from dsi.configs.experiment.generation import ConfigGen
 from dsi.configs.experiment.latency import ConfigLatency
 from dsi.online.latency.prompts import get_prompt
 from dsi.types.experiment import _Experiment
@@ -32,10 +31,9 @@ class ExperimentLatency(_Experiment):
     Measures the generation latency for a given model and dataset.
     """
 
-    def __init__(self, config: ConfigLatency, gen_config: ConfigGen):
+    def __init__(self, config: ConfigLatency):
         self.config: ConfigLatency
         super().__init__(config)
-        self.gen_config: ConfigGen = gen_config
 
     def _load_model_tokenizer(self) -> tuple:
         log.info(
@@ -70,9 +68,9 @@ class ExperimentLatency(_Experiment):
         """Time the generation of the prompted examples, distinguishing between
         the time to first token (ttft) and the time per output token (tpot)."""
         gen_kwargs = dict(
-            do_sample=self.gen_config.do_sample,
-            temperature=self.gen_config.temperature,
-            top_p=self.gen_config.top_p,
+            do_sample=self.config.gen_config.do_sample,
+            temperature=self.config.gen_config.temperature,
+            top_p=self.config.gen_config.top_p,
             pad_token_id=tokenizer.eos_token_id,
         )
         ttfts, tpots = [], []
