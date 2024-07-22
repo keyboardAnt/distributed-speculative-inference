@@ -4,6 +4,7 @@ import torch
 from pydantic import Field
 
 from dsi.configs.experiment.base import _ConfigExperiment
+from dsi.configs.experiment.generation import ConfigGen
 
 
 class ConfigLatency(_ConfigExperiment):
@@ -11,6 +12,9 @@ class ConfigLatency(_ConfigExperiment):
     of a (target, draft, dataset) triplet.
     """
 
+    config_gen: ConfigGen = Field(
+        default_factory=ConfigGen, title="The generation configuration"
+    )
     model: str = Field(title="The model to use for the experiment")
     dtype: Literal["float32", "float16", "bfloat16"] = Field(
         "bfloat16", title="The dtype to use for the experiment"
