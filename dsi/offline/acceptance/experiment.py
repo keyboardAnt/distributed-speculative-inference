@@ -8,6 +8,7 @@ from transformers import AutoModelForCausalLM
 from dsi.configs.experiment.acceptance import ConfigAcceptanteRate
 from dsi.configs.experiment.generation import ConfigGen
 from dsi.online.latency.experiment import ExperimentLatency
+from dsi.types.result import ResultAcceptance
 
 log = logging.getLogger(__name__)
 
@@ -40,7 +41,7 @@ class ExperimentAcceptanceRate(ExperimentLatency):
         )
         return torch.compile(model) if self.config.draft_compile_model else model
 
-    def run(self) -> float:
+    def _single_repeat(self) -> ResultAcceptance:
         all_n_matches = []
 
         examples = self._get_random_prompted_examples()
@@ -83,10 +84,8 @@ class ExperimentAcceptanceRate(ExperimentLatency):
                 else:  # at the end, remove last window
                     n_matches.pop()
             all_n_matches += n_matches
-        print(f"{all_n_matches=}")
         ar = 1 - (1 / (1 + np.array(all_n_matches).mean()))
-        print(f"Acceptance Rate : {round(ar*100,2)}")
-        return ar
+        return ResultAcceptance(acceptance_rate=[ar])
 
 
 def main():
@@ -103,7 +102,8 @@ def main():
         gen_config=target_gen_config,
         draft_gen_config=draft_gen_config,
     )
-    mar.run()
+    res_acceptance = mar.run()
+    print(f"Acceptance Rate : {round(res_acceptance*100,2)}")
 
 
 if __name__ == "__main__":
