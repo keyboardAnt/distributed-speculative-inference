@@ -8,7 +8,7 @@ from ray.experimental import tqdm_ray
 
 from dsi.configs.experiment.simul.heatmap import ConfigHeatmap
 from dsi.configs.experiment.simul.offline import ConfigDSI
-from dsi.heatmap.worker import Worker
+from dsi.offline.heatmap.worker import Worker
 
 log = logging.getLogger(__name__)
 

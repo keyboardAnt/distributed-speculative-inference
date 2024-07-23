@@ -4,7 +4,7 @@ import pytest
 
 from dsi.configs.experiment.simul.offline import ConfigDSI
 from dsi.heatmap.enrich import enrich
-from dsi.heatmap.worker import Worker
+from dsi.offline.heatmap.worker import Worker
 from dsi.types.name import HeatmapColumn, Param
 
 
