@@ -2,6 +2,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import torch
+from transformers import AutoTokenizer
 
 from dsi.configs.experiment.acceptance import ConfigAcceptanteRate
 from dsi.configs.experiment.generation import ConfigGen
@@ -10,14 +11,13 @@ from dsi.types.result import ResultAcceptance
 
 
 @pytest.fixture
-def setup_experiment():
+def experiment():
     config = ConfigAcceptanteRate(
         model="target_model", dataset="dataset", draft_model="draft_model"
     )
     gen_config = ConfigGen()
     draft_gen_config = ConfigGen()
-    experiment = ExperimentAcceptanceRate(config, gen_config, draft_gen_config)
-    return experiment
+    return ExperimentAcceptanceRate(config, gen_config, draft_gen_config)
 
 
 @pytest.fixture
@@ -30,47 +30,94 @@ def mock_dependencies():
         ExperimentAcceptanceRate, "_get_random_prompted_examples"
     ) as mock_examples:
         mock_model.return_value = MagicMock()
+        mock_model.return_value.device = torch.device("cpu")
         mock_tokenizer.return_value = MagicMock()
-        mock_examples.return_value = ["example1", "example2"]
+        mock_examples.return_value = ["example1"]
         yield mock_model, mock_tokenizer, mock_examples
 
 
-def test_single_repeat_all_match(setup_experiment, mock_dependencies):
+def test_are_tokenizers_same_identical(experiment):
+    tokenizer1 = AutoTokenizer.from_pretrained("double7/vicuna-68m")
+    tokenizer2 = AutoTokenizer.from_pretrained("double7/vicuna-68m")
+    assert experiment._are_tokenizers_same(tokenizer1, tokenizer2)
+
+
+def test_are_tokenizers_same_diff_config(experiment):
+    tokenizer1 = MagicMock()
+    tokenizer2 = MagicMock()
+    tokenizer1.config = {"model_type": "bigcode/starcoder"}
+    tokenizer2.config = {"model_type": "double7/vicuna-68m"}
+    assert not experiment._are_tokenizers_same(tokenizer1, tokenizer2)
+
+
+def test_are_tokenizers_same_diff_vocab(experiment):
+    tokenizer1 = MagicMock()
+    tokenizer2 = MagicMock()
+    tokenizer1.get_vocab.return_value = {"hello": 1, "world": 2}
+    tokenizer2.get_vocab.return_value = {"hello": 1, "python": 3}
+    assert not experiment._are_tokenizers_same(tokenizer1, tokenizer2)
+
+
+def test_are_tokenizers_same_diff_special_tokens(experiment):
+    tokenizer1 = MagicMock()
+    tokenizer2 = MagicMock()
+    tokenizer1.eos_token_id = 1
+    tokenizer2.eos_token_id = 2
+    tokenizer1.pad_token_id = 0
+    tokenizer2.pad_token_id = 0
+    tokenizer1.bos_token_id = -1
+    tokenizer2.bos_token_id = -1
+    tokenizer1.unk_token_id = 3
+    tokenizer2.unk_token_id = 3
+    assert not experiment._are_tokenizers_same(tokenizer1, tokenizer2)
+
+
+def test_single_repeat_all_match(experiment, mock_dependencies):
     mock_model, _, _ = mock_dependencies
     # Mock the generate method to simulate target and draft models
     # producing the same output
-    mock_model.return_value.generate.side_effect = lambda **kwargs: torch.tensor(
-        [[0, 1, 2, 3]]
-    )
-    result = setup_experiment._single_repeat()
+    mock_model.return_value.generate.side_effect = [
+        torch.tensor([[0, 1, 2, 3]]),
+        torch.tensor([[0]]),
+        torch.tensor([[0, 1]]),
+        torch.tensor([[0, 1, 2]]),
+        torch.tensor([[0, 1, 2, 3]]),
+    ]
+    result = experiment._single_repeat()
     assert isinstance(result, ResultAcceptance)
     # Since all tokens match, acceptance rate should be 1
-    assert result.acceptance_rate[0] == 1
+    assert result.acceptance_rate[0] == 0.8
 
 
-def test_single_repeat_no_match(setup_experiment, mock_dependencies):
+def test_single_repeat_no_match(experiment, mock_dependencies):
     mock_model, _, _ = mock_dependencies
     # Mock the generate method to simulate target and draft models
     # producing different outputs
     mock_model.return_value.generate.side_effect = [
         torch.tensor([[0, 1, 2, 3]]),
-        torch.tensor([[0, 4, 5, 6]]),
+        torch.tensor([[4]]),
+        torch.tensor([[0, 5]]),
+        torch.tensor([[0, 1, 6]]),
+        torch.tensor([[0, 1, 2, 7]]),
     ]
-    result = setup_experiment._single_repeat()
+    result = experiment._single_repeat()
     assert isinstance(result, ResultAcceptance)
     # Since no tokens match, acceptance rate should be 0
     assert result.acceptance_rate[0] == 0
 
 
-def test_single_repeat_partial_match(setup_experiment, mock_dependencies):
+def test_single_repeat_partial_match(experiment, mock_dependencies):
     mock_model, _, _ = mock_dependencies
     # Mock the generate method to simulate target and draft models
     # producing partially matching outputs
     mock_model.return_value.generate.side_effect = [
         torch.tensor([[0, 1, 2, 3]]),
-        torch.tensor([[0, 1, 5, 6]]),
+        torch.tensor([[0]]),
+        torch.tensor([[0, 4]]),
+        torch.tensor([[0, 1, 2]]),
+        torch.tensor([[0, 1, 2, 5]]),
     ]
-    result = setup_experiment._single_repeat()
+    result = experiment._single_repeat()
     assert isinstance(result, ResultAcceptance)
     # Since half of the tokens match, acceptance rate should be 0.5
     assert result.acceptance_rate[0] == 0.5

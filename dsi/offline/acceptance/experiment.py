@@ -3,7 +3,7 @@ import logging
 import numpy as np
 import torch
 from tqdm import tqdm
-from transformers import AutoModelForCausalLM
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from dsi.configs.experiment.acceptance import ConfigAcceptanteRate
 from dsi.configs.experiment.generation import ConfigGen
@@ -28,10 +28,10 @@ class ExperimentAcceptanceRate(ExperimentLatency):
         super().__init__(config, gen_config)
         self.draft_gen_config: ConfigGen = draft_gen_config
 
-    def _load_draft_model(self) -> tuple:
+    def _load_draft_model_tokenizer(self) -> tuple:
         log.info(
             f"Loading model: {self.config.draft_model}, \
-                compile={self.config.draft_compile_model}"
+            compile={self.config.draft_compile_model}"
         )
         model = AutoModelForCausalLM.from_pretrained(
             self.config.draft_model,
@@ -39,33 +39,58 @@ class ExperimentAcceptanceRate(ExperimentLatency):
             torch_dtype=self.config.get_torch_draft_dtype(),
             revision=self.config.draft_revision,
         )
-        return torch.compile(model) if self.config.draft_compile_model else model
+        tokenizer = AutoTokenizer.from_pretrained(self.config.draft_model)
+        model = torch.compile(model) if self.config.draft_compile_model else model
+        return model, tokenizer
+
+    def _are_tokenizers_same(self, tokenizer1, tokenizer2) -> bool:
+        # Compare vocabularies
+        if tokenizer1.get_vocab() != tokenizer2.get_vocab():
+            return False
+
+        # Compare special tokens
+        special_tokens_to_compare = [
+            "eos_token_id",
+            "pad_token_id",
+            "bos_token_id",
+            "unk_token_id",
+        ]
+        for token in special_tokens_to_compare:
+            if getattr(tokenizer1, token, None) != getattr(tokenizer2, token, None):
+                return False
+
+        return True
 
     def _single_repeat(self) -> ResultAcceptance:
         all_n_matches = []
 
         examples = self._get_random_prompted_examples()
 
-        target_model, tokenizer = self._load_model_tokenizer()
+        target_model, target_tokenizer = self._load_model_tokenizer()
+        draft_model, draft_tokenizer = self._load_draft_model_tokenizer()
+
+        # Check if tokenizers are the same
+        if not self._are_tokenizers_same(target_tokenizer, draft_tokenizer):
+            raise ValueError("The target and draft tokenizers are not the same.")
+
         target_gen_kwargs = dict(
             do_sample=self.gen_config.do_sample,
             temperature=self.gen_config.temperature,
             top_p=self.gen_config.top_p,
-            pad_token_id=tokenizer.eos_token_id,
+            pad_token_id=target_tokenizer.eos_token_id,
             max_new_tokens=self.config.max_new_tokens,
         )
 
-        draft_model = self._load_draft_model()
         draft_gen_kwargs = dict(
             do_sample=self.draft_gen_config.do_sample,
             temperature=self.draft_gen_config.temperature,
             top_p=self.draft_gen_config.top_p,
-            pad_token_id=tokenizer.eos_token_id,
+            pad_token_id=target_tokenizer.eos_token_id,
             max_new_tokens=1,
         )
 
         for ex in tqdm(examples):
-            inputs = tokenizer(ex, return_tensors="pt").to(target_model.device)
+            inputs = target_tokenizer(ex, return_tensors="pt").to(target_model.device)
             n_matches = [0]
             output_target = target_model.generate(**inputs, **target_gen_kwargs)
             prompt_len = len(inputs.input_ids[0])
