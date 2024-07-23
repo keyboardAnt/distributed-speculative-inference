@@ -1,6 +1,7 @@
 import itertools
 import logging
 from contextlib import suppress
+from enum import Enum
 from typing import Any
 
 import numpy as np
@@ -17,7 +18,13 @@ from dsi.types.name import Param
 log = logging.getLogger(__name__)
 
 
+class ExperimentType(Enum):
+    OFFLINE = 1
+    ONLINE = 2
+
+
 class ConfigHeatmap(BaseModel):
+    experiment_type: ExperimentType = ExperimentType.OFFLINE
     ndim: int = Field(10, ge=2)
     c_min: float = Field(0.01, title="Minimum drafter latency", ge=0)
     a_min: float = Field(0.01, title="Minimum acceptance rate", ge=0)

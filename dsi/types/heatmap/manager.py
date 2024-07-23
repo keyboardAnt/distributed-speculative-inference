@@ -6,9 +6,11 @@ import pandas as pd
 import ray
 from ray.experimental import tqdm_ray
 
-from dsi.configs.experiment.simul.heatmap import ConfigHeatmap
+from dsi.configs.experiment.simul.heatmap import ConfigHeatmap, ExperimentType
 from dsi.configs.experiment.simul.offline import ConfigDSI
 from dsi.offline.heatmap.worker import Worker
+from dsi.online.heatmap.worker import WorkerOnline
+from dsi.types.heatmap.worker import _Worker
 
 log = logging.getLogger(__name__)
 
@@ -16,6 +18,7 @@ log = logging.getLogger(__name__)
 class _Manager(ABC):
     @final
     def __init__(self, config_heatmap: ConfigHeatmap, simul_defaults: ConfigDSI):
+        self._config_heatmap: ConfigHeatmap = config_heatmap
         # NOTE: Initializing (e.g. `ConfigHeatmap(**config_heatmap)`) because, in
         # runtime, the type of the given objects is a Hydra's class rather than
         # `ConfigHeatmap` or `ConfigDSI`.
@@ -41,7 +44,7 @@ class _Manager(ABC):
             config: ConfigDSI = self._update_config_simul(
                 config_simul=self._simul_defaults.model_copy(deep=True), row=row
             )
-            w = Worker()
+            w: _Worker = self._get_worker()
             futures.append(w.run.remote(w, index, config))
         bar.update.remote(1)
         self._results_raw = ray.get(futures)
@@ -49,6 +52,15 @@ class _Manager(ABC):
         ray.shutdown()
         self._merge_results()
         return self.df_results
+
+    def _get_worker(self) -> _Worker:
+        match self._config_heatmap.experiment_type:
+            case ExperimentType.OFFLINE:
+                return Worker()
+            case ExperimentType.ONLINE:
+                return WorkerOnline()
+            case _:
+                raise NotImplementedError
 
     @staticmethod
     @abstractmethod
