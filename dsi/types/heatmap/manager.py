@@ -18,7 +18,6 @@ log = logging.getLogger(__name__)
 class _Manager(ABC):
     @final
     def __init__(self, config_heatmap: ConfigHeatmap, simul_defaults: ConfigDSI):
-        self._config_heatmap: ConfigHeatmap = config_heatmap
         # NOTE: Initializing (e.g. `ConfigHeatmap(**config_heatmap)`) because, in
         # runtime, the type of the given objects is a Hydra's class rather than
         # `ConfigHeatmap` or `ConfigDSI`.
@@ -26,6 +25,7 @@ class _Manager(ABC):
             config_heatmap = ConfigHeatmap(**config_heatmap)
         if not isinstance(simul_defaults, ConfigDSI):
             simul_defaults = ConfigDSI(**simul_defaults)
+        self._config_heatmap: ConfigHeatmap = config_heatmap
         self._df_config_heatmap: pd.DataFrame = config_heatmap.to_dataframe()
         self._simul_defaults: ConfigDSI = simul_defaults
         self._results_raw: None | list[tuple[int, dict[str, float]]] = None
@@ -55,9 +55,9 @@ class _Manager(ABC):
 
     def _get_worker(self) -> _Worker:
         match self._config_heatmap.experiment_type:
-            case ExperimentType.OFFLINE:
+            case ExperimentType.offline:
                 return Worker()
-            case ExperimentType.ONLINE:
+            case ExperimentType.online:
                 return WorkerOnline()
             case _:
                 raise NotImplementedError
