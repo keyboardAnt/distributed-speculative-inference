@@ -10,8 +10,8 @@ from tqdm import tqdm
 
 from dsi.configs.cli import ConfigCLI, RunType
 from dsi.configs.plot.heatmap import ConfigPlotHeatmap
-from dsi.offline.heatmap.enrich import enrich
-from dsi.offline.heatmap.manager import Manager
+from dsi.heatmap.enrich import enrich
+from dsi.heatmap.manager import Manager
 from dsi.offline.simul.dsi import SimulDSI
 from dsi.offline.simul.si import SimulSI
 from dsi.plot.heatmap import PlotHeatmap

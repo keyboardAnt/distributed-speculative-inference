@@ -5,7 +5,7 @@ import pytest
 
 from dsi.configs.experiment.simul.heatmap import ConfigHeatmap
 from dsi.configs.experiment.simul.offline import ConfigDSI
-from dsi.offline.heatmap.manager import Manager
+from dsi.heatmap.manager import Manager
 
 
 @pytest.fixture

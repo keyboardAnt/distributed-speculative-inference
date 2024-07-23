@@ -3,8 +3,8 @@ import pandas as pd
 import pytest
 
 from dsi.configs.experiment.simul.offline import ConfigDSI
-from dsi.offline.heatmap.enrich import enrich
-from dsi.offline.heatmap.worker import Worker
+from dsi.heatmap.enrich import enrich
+from dsi.heatmap.worker import Worker
 from dsi.types.name import HeatmapColumn, Param
 
 
