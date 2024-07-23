@@ -4,15 +4,16 @@ import pytest
 
 from dsi.configs.experiment.simul.offline import ConfigDSI
 from dsi.offline.heatmap.enrich import enrich
-from dsi.offline.heatmap.worker import get_all_latencies
+from dsi.offline.heatmap.worker import Worker
 from dsi.types.name import HeatmapColumn, Param
 
 
 @pytest.mark.parametrize("c", [0.01, 0.1, 0.5, 0.8, 0.99])
 @pytest.mark.parametrize("a", [0.01, 0.1, 0.5, 0.8, 0.99])
 @pytest.mark.parametrize("k", [1, 2, 5, 20, 99997, 100003])
-def test_get_all_latencies(c: float, a: float, k: int):
-    result: dict[str, float] = get_all_latencies(c, a, k, num_target_servers=None)
+def test_latencies(c: float, a: float, k: int):
+    config: ConfigDSI = ConfigDSI(c=c, a=a, k=k, num_target_servers=None)
+    result: dict[str, float] = Worker()._run(config)
     assert isinstance(result, dict)
     assert HeatmapColumn.cost_si in result
     assert HeatmapColumn.cost_nonsi in result

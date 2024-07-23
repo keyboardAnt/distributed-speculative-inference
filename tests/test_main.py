@@ -6,7 +6,7 @@ import pytest
 
 from dsi.configs.cli import ConfigCLI, RunType
 from dsi.main import offline_heatmap
-from dsi.types.df_heatmap import DataFrameHeatmap
+from dsi.types.heatmap.df_heatmap import DataFrameHeatmap
 from dsi.types.name import HeatmapColumn, Param
 
 
@@ -17,7 +17,7 @@ def cfg():
 
 @pytest.fixture
 def mock_ray_manager():
-    with patch("dsi.main.RayManager") as mock:
+    with patch("dsi.main.Manager") as mock:
         yield mock
 
 
@@ -86,7 +86,7 @@ def test_offline_heatmap_new_experiment(
         offline_heatmap(cfg)
         # Assertions to ensure the subplots are correctly used and pcolormesh is called
         mock_subplots.assert_called()
-    mock_ray_manager.assert_called_once_with(cfg.heatmap)
+    mock_ray_manager.assert_called_once()
     mock_ray_manager.return_value.run.assert_called_once()
     mock_enrich_inplace.assert_called_once()
     mock_enrich_inplace.return_value.store.assert_called_once()

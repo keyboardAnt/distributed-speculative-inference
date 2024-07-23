@@ -49,6 +49,18 @@ class ConfigDSI(ConfigSI):
         ge=1,
     )
 
+    @property
+    def _is_sufficient_num_target_servers(self) -> bool:
+        """
+        Check if the number of target servers is sufficient.
+        """
+        if self.num_target_servers is None:
+            return True
+        num_target_servers_required: int = ceil(
+            self.failure_cost / (max(1, self.k) * self.c)
+        )
+        return self.num_target_servers >= num_target_servers_required
+
     def model_post_init(self, __context) -> None:
         """
         Verify that there are enough target servers so that threads never wait
@@ -56,12 +68,7 @@ class ConfigDSI(ConfigSI):
         NOTE: `None` number of target servers means infinity.
         """
         super().model_post_init(__context)
-        if self.num_target_servers is None:
-            return
-        num_target_servers_required: int = ceil(
-            self.failure_cost / (max(1, self.k) * self.c)
-        )
-        if self.num_target_servers < num_target_servers_required:
+        if not self._is_sufficient_num_target_servers:
             msg: str = (
                 f"num_target_servers={self.num_target_servers}"
                 " < num_target_servers_required={num_target_servers_required}"

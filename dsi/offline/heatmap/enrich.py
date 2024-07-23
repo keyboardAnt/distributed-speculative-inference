@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from dsi.types.df_heatmap import DataFrameHeatmap
+from dsi.types.heatmap.df_heatmap import DataFrameHeatmap
 from dsi.types.name import HeatmapColumn, Param
 
 
