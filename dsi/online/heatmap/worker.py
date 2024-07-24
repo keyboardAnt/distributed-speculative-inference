@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 import numpy as np
 
 from dsi.configs.experiment.simul.offline import ConfigDSI
@@ -14,7 +16,8 @@ class WorkerOnline(_Worker):
         Executes all the simulations and averages the results over their repeats.
         """
         cfg_dsi = ConfigDSIOnline.from_offline(config)
-        cfg_si = ConfigDSIOnline.from_offline(config)
+        cfg_dsi.num_repeats = 1
+        cfg_si = deepcopy(cfg_dsi)
         cfg_si.simul_type = SimulType.SI
         dsi = SimulOnline(cfg_dsi)
         si = SimulOnline(cfg_si)

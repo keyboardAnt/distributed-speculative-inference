@@ -6,7 +6,7 @@ import pandas as pd
 import ray
 from ray.experimental import tqdm_ray
 
-from dsi.configs.experiment.simul.heatmap import ConfigHeatmap, ExperimentType
+from dsi.configs.experiment.simul.heatmap import ConfigHeatmap
 from dsi.configs.experiment.simul.offline import ConfigDSI
 from dsi.offline.heatmap.worker import Worker
 from dsi.online.heatmap.worker import WorkerOnline
@@ -31,12 +31,18 @@ class _Manager(ABC):
         self._results_raw: None | list[tuple[int, dict[str, float]]] = None
         self.df_results: pd.DataFrame = self._df_config_heatmap.copy(deep=True)
 
+    def _init_ray(self) -> None:
+        if self._config_heatmap.online:
+            log.info("Initializing Ray for online heatmap")
+            ray.init(ignore_reinit_error=True, num_cpus=1)
+        else:
+            # NOTE: Ray discovers and utilizes all available resources by default
+            log.info("Initializing Ray for offline heatmap")
+            ray.init(ignore_reinit_error=True)
+
     @final
     def run(self) -> pd.DataFrame:
-        # NOTE: Ray discovers and utilizes all available resources by default
-        ray.init(
-            ignore_reinit_error=True,
-        )
+        self._init_ray()
         remote_tqdm = ray.remote(tqdm_ray.tqdm)
         bar: tqdm_ray.tqdm = remote_tqdm.remote(total=len(self._df_config_heatmap))
         futures = []
@@ -44,7 +50,7 @@ class _Manager(ABC):
             config: ConfigDSI = self._update_config_simul(
                 config_simul=self._simul_defaults.model_copy(deep=True), row=row
             )
-            w: _Worker = self._get_worker()
+            w: _Worker = WorkerOnline() if self._config_heatmap.online else Worker()
             futures.append(w.run.remote(w, index, config))
         bar.update.remote(1)
         self._results_raw = ray.get(futures)
@@ -52,15 +58,6 @@ class _Manager(ABC):
         ray.shutdown()
         self._merge_results()
         return self.df_results
-
-    def _get_worker(self) -> _Worker:
-        match self._config_heatmap.experiment_type:
-            case ExperimentType.offline:
-                return Worker()
-            case ExperimentType.online:
-                return WorkerOnline()
-            case _:
-                raise NotImplementedError
 
     @staticmethod
     @abstractmethod
