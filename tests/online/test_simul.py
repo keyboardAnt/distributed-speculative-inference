@@ -101,7 +101,7 @@ def test_correct_token_count_per_iteration(config: ConfigDSIOnline):
 
 @pytest.fixture
 def config_simple():
-    return ConfigDSIOnline(num_repeats=1, S=90)
+    return ConfigDSIOnline(num_repeats=1, S=77)
 
 
 @pytest.fixture
@@ -120,7 +120,7 @@ def latency_max(config_simple: ConfigDSIOnline) -> float:
     )
 
 
-@pytest.mark.timeout(100)
+@pytest.mark.timeout(90)
 def test_duration(
     config_simple: ConfigDSIOnline, latency_min: float, latency_max: float
 ):
@@ -128,7 +128,6 @@ def test_duration(
     Execute the experiment with the default configuration. Validate that the duration
     is within a reasonable range.
     """
-
     start = time.time()
     SimulOnline(config_simple).run()
     end = time.time()
