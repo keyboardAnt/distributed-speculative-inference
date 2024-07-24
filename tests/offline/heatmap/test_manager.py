@@ -5,7 +5,7 @@ import pytest
 
 from dsi.configs.experiment.simul.heatmap import ConfigHeatmap
 from dsi.configs.experiment.simul.offline import ConfigDSI
-from dsi.heatmap.manager import Manager
+from dsi.offline.heatmap.manager import Manager
 
 
 @pytest.fixture
@@ -53,7 +53,7 @@ def test_merge_results(manager):
 @pytest.fixture
 def mock_ray(mocker):
     ray = mocker.MagicMock()
-    with patch("dsi.types.heatmap.manager.ray", ray):
+    with patch("dsi.offline.heatmap.manager.ray", ray):
         yield ray
 
 

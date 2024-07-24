@@ -3,14 +3,10 @@ from abc import ABC, abstractmethod
 from typing import final
 
 import pandas as pd
-import ray
-from ray.experimental import tqdm_ray
 
 from dsi.configs.experiment.simul.heatmap import ConfigHeatmap
 from dsi.configs.experiment.simul.offline import ConfigDSI
-from dsi.offline.heatmap.worker import Worker
-from dsi.online.heatmap.worker import WorkerOnline
-from dsi.types.heatmap.worker import _Worker
+from dsi.types.name import Param
 
 log = logging.getLogger(__name__)
 
@@ -31,41 +27,21 @@ class _Manager(ABC):
         self._results_raw: None | list[tuple[int, dict[str, float]]] = None
         self.df_results: pd.DataFrame = self._df_config_heatmap.copy(deep=True)
 
-    def _init_ray(self) -> None:
-        if self._config_heatmap.online:
-            log.info("Initializing Ray for online heatmap")
-            ray.init(ignore_reinit_error=True, num_cpus=1)
-        else:
-            # NOTE: Ray discovers and utilizes all available resources by default
-            log.info("Initializing Ray for offline heatmap")
-            ray.init(ignore_reinit_error=True)
+    @abstractmethod
+    def run(self) -> pd.DataFrame:
+        raise NotImplementedError
 
     @final
-    def run(self) -> pd.DataFrame:
-        self._init_ray()
-        remote_tqdm = ray.remote(tqdm_ray.tqdm)
-        bar: tqdm_ray.tqdm = remote_tqdm.remote(total=len(self._df_config_heatmap))
-        futures = []
-        for index, row in self._df_config_heatmap.iterrows():
-            config: ConfigDSI = self._update_config_simul(
-                config_simul=self._simul_defaults.model_copy(deep=True), row=row
-            )
-            w: _Worker = WorkerOnline() if self._config_heatmap.online else Worker()
-            futures.append(w.run.remote(w, index, config))
-        bar.update.remote(1)
-        self._results_raw = ray.get(futures)
-        bar.close.remote()
-        ray.shutdown()
-        self._merge_results()
-        return self.df_results
-
     @staticmethod
-    @abstractmethod
     def _update_config_simul(config_simul: ConfigDSI, row: pd.Series) -> ConfigDSI:
         """
         Update the given `config_simul` with the values from the given `row`.
         """
-        raise NotImplementedError
+        config_simul.c = row[Param.c]
+        config_simul.a = row[Param.a]
+        config_simul.k = int(row[Param.k])
+        config_simul.num_target_servers = row[Param.num_target_servers]
+        return config_simul
 
     @final
     def _merge_results(self) -> None:

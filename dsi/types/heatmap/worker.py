@@ -1,11 +1,8 @@
-import ray
-
 from dsi.configs.experiment.simul.offline import ConfigDSI
 from dsi.types.result import ResultWorker
 
 
 class _Worker:
-    @ray.remote
     def run(self, index: int, config: ConfigDSI) -> ResultWorker:
         """
         NOTE: This function is a workaround to allow using the index of the dataframe.
