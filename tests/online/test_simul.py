@@ -1,9 +1,10 @@
 import multiprocessing
+import time
 
 import pytest
 
 from dsi.configs.experiment.simul.online import ConfigDSIOnline, SimulType
-from dsi.online.simul.simul import restart_draft
+from dsi.online.simul.simul import SimulOnline, restart_draft
 
 
 @pytest.fixture
@@ -96,3 +97,42 @@ def test_correct_token_count_per_iteration(config: ConfigDSIOnline):
         )
         th.join()
         iter_till_stop += 1
+
+
+@pytest.fixture
+def config_simple():
+    return ConfigDSIOnline(num_repeats=1, S=90)
+
+
+@pytest.fixture
+def latency_min(config_simple: ConfigDSIOnline) -> float:
+    return config_simple.num_repeats * config_simple.S * config_simple.c_sub
+
+
+@pytest.fixture
+def latency_max(config_simple: ConfigDSIOnline) -> float:
+    # Calculated within the fixture, ensuring correct and dynamic evaluation
+    return (
+        config_simple.num_repeats
+        * (config_simple.total_tokens + config_simple.S)
+        * (config_simple.failure_cost + config_simple.wait_for_pipe)
+        * 1.5
+    )
+
+
+@pytest.mark.timeout(100)
+def test_duration(
+    config_simple: ConfigDSIOnline, latency_min: float, latency_max: float
+):
+    """
+    Execute the experiment with the default configuration. Validate that the duration
+    is within a reasonable range.
+    """
+
+    start = time.time()
+    SimulOnline(config_simple).run()  # Assuming constructor needs the config
+    end = time.time()
+    duration = end - start
+    assert (
+        latency_min <= duration <= latency_max
+    ), f"Duration {duration} out of expected range ({latency_min}, {latency_max})"
