@@ -130,7 +130,7 @@ def test_duration(
     """
 
     start = time.time()
-    SimulOnline(config_simple).run()  # Assuming constructor needs the config
+    SimulOnline(config_simple).run()
     end = time.time()
     duration = end - start
     assert (
