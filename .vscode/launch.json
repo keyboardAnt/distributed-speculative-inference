@@ -17,8 +17,18 @@
             "request": "launch",
             "module": "dsi",
             "args": [
-                "type=offline_heatmap"
+                "type=heatmap"
             ]
-        }
+        },
+        {
+            "name": "online: heatmap",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "dsi",
+            "args": [
+                "type=heatmap",
+                "heatmap.online=True"
+            ]
+        },
     ]
 }
