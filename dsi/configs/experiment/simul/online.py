@@ -35,3 +35,31 @@ class ConfigDSIOnline(ConfigDSI):
     @property
     def max_tokens(self) -> int:
         return self.total_tokens + self.S
+
+    @classmethod
+    def from_offline(cls, config: ConfigDSI) -> "ConfigDSIOnline":
+        """
+        Constructs an instance of ConfigDSIOnline from an instance of ConfigDSI.
+
+        Args:
+        config (ConfigDSI): An instance of ConfigDSI from which to initialize the online
+        configuration.
+
+        Returns:
+        ConfigDSIOnline: An initialized instance of ConfigDSIOnline.
+        """
+        return cls(
+            c=config.c,
+            a=config.a,
+            k=config.k,
+            failure_cost=config.failure_cost,
+            S=config.S,
+            num_target_servers=config.num_target_servers,
+            # Online specific configurations
+            c_sub=config.c / 10,
+            failure_cost_sub=config.failure_cost / 10,
+            total_tokens=100,
+            wait_for_pipe=0.1,
+            simul_type=SimulType.DSI,
+            maximum_correct_tokens=20,
+        )

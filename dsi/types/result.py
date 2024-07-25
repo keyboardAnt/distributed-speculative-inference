@@ -2,7 +2,8 @@
 
 from dataclasses import dataclass, field, fields
 
-from dsi.types.exception import IncompatibleExtendError
+from dsi.types.exception import IncompatibleExtendError, InvalidHeatmapKeyError
+from dsi.types.name import HeatmapColumn
 
 
 @dataclass
@@ -53,3 +54,15 @@ class ResultLatency(_Result):
 
     ttft: list[float] = field(default_factory=list)
     tpot: list[float] = field(default_factory=list)
+
+
+class ResultWorker(dict):
+    def __setitem__(self, key, value):
+        if not isinstance(key, HeatmapColumn):
+            raise InvalidHeatmapKeyError(key)
+        super().__setitem__(key, value)
+
+    def __init__(self, **kwargs):
+        super().__init__()
+        for key, value in kwargs.items():
+            self[key] = value  # Validates the key

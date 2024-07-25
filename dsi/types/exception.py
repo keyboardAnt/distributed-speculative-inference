@@ -64,3 +64,9 @@ class InvalidGenConfigError(Exception):
     ):
         prefix: str = "The generation arguments must be compatible with each other. "
         super().__init__(prefix + msg)
+
+
+class InvalidHeatmapKeyError(Exception):
+    def __init__(self, key):
+        msg = f"Invalid key '{key}'. Key must be an instance of HeatmapColumn enum."
+        super().__init__(msg)

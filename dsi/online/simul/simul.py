@@ -63,6 +63,6 @@ class SimulOnline(Simul):
         inference_time -= iter_till_stop * self.config.wait_for_pipe
 
         return ResultSimul(
-            cost_per_run=[inference_time],
-            num_iters_per_run=[iter_till_stop],
+            cost_per_repeat=[inference_time],
+            num_iters_per_repeat=[iter_till_stop],
         )

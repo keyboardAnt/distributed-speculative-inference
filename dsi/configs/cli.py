@@ -9,13 +9,13 @@ from dsi.configs.plot.plots import Plots
 
 
 class RunType(str, enum.Enum):
-    offline = "offline"
-    offline_heatmap = "offline_heatmap"
-    online = "online"
+    sanity = "sanity"
+    heatmap = "heatmap"
+    table = "table"
 
 
 class ConfigCLI(BaseModel):
-    type: RunType = RunType.offline
+    type: RunType = RunType.sanity
     simul: ConfigDSI = Field(
         default_factory=ConfigDSI, description="Configuration for the simulation"
     )

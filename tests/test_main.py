@@ -5,14 +5,14 @@ import pandas as pd
 import pytest
 
 from dsi.configs.cli import ConfigCLI, RunType
-from dsi.main import offline_heatmap
+from dsi.main import heatmap
 from dsi.types.heatmap.df_heatmap import DataFrameHeatmap
 from dsi.types.name import HeatmapColumn, Param
 
 
 @pytest.fixture
 def cfg():
-    return ConfigCLI(load_csv=None, type=RunType.offline_heatmap)
+    return ConfigCLI(load_csv=None, type=RunType.heatmap)
 
 
 @pytest.fixture
@@ -83,7 +83,7 @@ def test_offline_heatmap_new_experiment(
     with patch(
         "matplotlib.pyplot.subplots", return_value=(mock_fig, mock_ax)
     ) as mock_subplots:
-        offline_heatmap(cfg)
+        heatmap(cfg)
         # Assertions to ensure the subplots are correctly used and pcolormesh is called
         mock_subplots.assert_called()
     mock_ray_manager.assert_called_once()
@@ -98,7 +98,7 @@ def test_offline_heatmap_load_existing(
 ):
     cfg.load_csv = "path/to/existing/heatmap.csv"
     try:
-        offline_heatmap(cfg)
+        heatmap(cfg)
     except KeyError as e:
         print("Cannot plot a mocked DataFrame.")
         print(e)

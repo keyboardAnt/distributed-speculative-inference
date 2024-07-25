@@ -10,20 +10,22 @@ from tqdm import tqdm
 
 from dsi.configs.cli import ConfigCLI, RunType
 from dsi.configs.plot.heatmap import ConfigPlotHeatmap
-from dsi.offline.heatmap.enrich import enrich
+from dsi.heatmap.enrich import enrich
 from dsi.offline.heatmap.manager import Manager
 from dsi.offline.simul.dsi import SimulDSI
 from dsi.offline.simul.si import SimulSI
+from dsi.online.heatmap.manager import ManagerOnline
 from dsi.plot.heatmap import PlotHeatmap
 from dsi.plot.iters_dist import PlotIters
 from dsi.plot.utils import savefig
 from dsi.types.heatmap.df_heatmap import DataFrameHeatmap
+from dsi.types.heatmap.manager import _Manager
 from dsi.types.result import ResultSimul
 
 log = logging.getLogger(__name__)
 
 
-def offline(cfg: ConfigCLI) -> None:
+def sanity(cfg: ConfigCLI) -> None:
     res_si: ResultSimul = SimulSI(cfg.simul).run()
     log.info("res_si: %s", res_si)
     res_dsi: ResultSimul = SimulDSI(cfg.simul).run()
@@ -37,14 +39,15 @@ def offline(cfg: ConfigCLI) -> None:
     log.info("Figure saved at %s", filepath_plots)
 
 
-def offline_heatmap(cfg: ConfigCLI) -> None:
+def heatmap(cfg: ConfigCLI) -> None:
     heatmap_filepath: None | str = cfg.load_csv
     if heatmap_filepath is None:
         log.info(
             "Running a new experiment. Results will be stored at %s", heatmap_filepath
         )
-        tmanager = Manager(config_heatmap=cfg.heatmap, simul_defaults=cfg.simul)
-        df_results: pd.DataFrame = tmanager.run()
+        m_cls: _Manager = ManagerOnline if cfg.heatmap.online else Manager
+        m = m_cls(config_heatmap=cfg.heatmap, simul_defaults=cfg.simul)
+        df_results: pd.DataFrame = m.run()
         df_heatmap: DataFrameHeatmap = enrich(df_results)
         filepath: str = df_heatmap.store()
         log.info("Heatmap stored at %s", filepath)
@@ -68,7 +71,7 @@ def offline_heatmap(cfg: ConfigCLI) -> None:
         log.info("Figure saved at %s", filepath)
 
 
-def online(cfg: ConfigCLI) -> None:
+def table(cfg: ConfigCLI) -> None:
     raise NotImplementedError
 
 
@@ -81,17 +84,17 @@ def main(cfg: ConfigCLI) -> None:
         hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
     )
     match cfg.type:
-        case RunType.offline:
+        case RunType.sanity:
             log.info("Running offline simulations of SI and visualizing them.")
-            offline(cfg)
-        case RunType.offline_heatmap:
-            log.info("Running offline heatmap experiment.")
-            offline_heatmap(cfg)
-        case RunType.online:
+            sanity(cfg)
+        case RunType.heatmap:
+            log.info("Running heatmap. Could be either online or offline.")
+            heatmap(cfg)
+        case RunType.table:
             log.info(
-                "Running online experiment."
-                " Implementation with a thread pool to be added."
+                "Reproducing the table from the paper."
+                " Could be either online or offline."
             )
-            online(cfg)
+            table(cfg)
         case _:
             raise NotImplementedError(f"Invalid simulation type: {cfg.type}")

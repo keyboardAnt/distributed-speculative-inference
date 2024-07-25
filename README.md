@@ -24,7 +24,7 @@ Then:
 There are two types of runs: offline (measuring time units or acceptance rate) and online (measuring wall time).
 
 - offline simulations: `python -m dsi`
-- heatmap of offline simulations: `python -m dsi type=offline_heatmap`. (- it initializes [Ray](https://docs.ray.io/en/latest/ray-core/walkthrough.html))
+- heatmap of offline simulations: `python -m dsi type=heatmap`. (- it initializes [Ray](https://docs.ray.io/en/latest/ray-core/walkthrough.html))
 - online simulations (implemented with a thread pool): `python -m dsi type=online`
 
 [Hydra](https://hydra.cc/docs/intro/) manages the configuration (defined under `dsi/config`). For example,
@@ -39,7 +39,7 @@ For more sophisticated combinations of configurations, check out Hydra's documen
 
 ## Visualizing results
 
-By default, running new experiments will also visualize the results. To visualize existing results (pre-computed), provide their path: `python -m dsi type=offline_heatmap load_results="results/offline/heatmap/heatmap-20240702-012750.csv"`
+By default, running new experiments will also visualize the results. To visualize existing results (pre-computed), provide their path: `python -m dsi type=heatmap load_results="results/offline/heatmap/heatmap-20240702-012750.csv"`
 
 ## Testing
 
