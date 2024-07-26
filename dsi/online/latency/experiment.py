@@ -68,9 +68,9 @@ class ExperimentLatency(_Experiment):
         """Time the generation of the prompted examples, distinguishing between
         the time to first token (ttft) and the time per output token (tpot)."""
         gen_kwargs = dict(
-            do_sample=self.config.gen_config.do_sample,
-            temperature=self.config.gen_config.temperature,
-            top_p=self.config.gen_config.top_p,
+            do_sample=self.config.config_gen.do_sample,
+            temperature=self.config.config_gen.temperature,
+            top_p=self.config.config_gen.top_p,
             pad_token_id=tokenizer.eos_token_id,
         )
         ttfts, tpots = [], []
