@@ -4,8 +4,8 @@ from typing import final
 
 import pandas as pd
 
-from dsi.configs.experiment.simul.heatmap import ConfigHeatmap
 from dsi.configs.experiment.simul.offline import ConfigDSI
+from dsi.configs.heatmap import ConfigHeatmap
 from dsi.types.name import Param
 
 log = logging.getLogger(__name__)

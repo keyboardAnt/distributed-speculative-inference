@@ -1,6 +1,6 @@
 import pandas as pd
 
-from dsi.configs.experiment.simul.heatmap import ConfigHeatmap
+from dsi.configs.heatmap import ConfigHeatmap
 from dsi.types.name import Param
 
 

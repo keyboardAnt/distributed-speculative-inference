@@ -3,8 +3,8 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
-from dsi.configs.experiment.simul.heatmap import ConfigHeatmap
 from dsi.configs.experiment.simul.offline import ConfigDSI
+from dsi.configs.heatmap import ConfigHeatmap
 from dsi.offline.heatmap.manager import Manager
 
 

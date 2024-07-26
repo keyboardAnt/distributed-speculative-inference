@@ -3,8 +3,8 @@ import enum
 from hydra.core.config_store import ConfigStore
 from pydantic import BaseModel, Field, FilePath
 
-from dsi.configs.experiment.simul.heatmap import ConfigHeatmap
 from dsi.configs.experiment.simul.offline import ConfigDSI
+from dsi.configs.heatmap import ConfigHeatmap
 from dsi.configs.plot.plots import Plots
 
 
