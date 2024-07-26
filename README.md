@@ -94,8 +94,8 @@ Run `pre-commit run --all-files` to check formating and re-format when possible.
 
 Our efforts and resources are supported by the following organizations. Thank you for your support!
 
-- Intel Labs
 - Weizmann Institute
+- Intel Labs
 
 
 ## Citation
