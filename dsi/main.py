@@ -9,18 +9,21 @@ from omegaconf import OmegaConf
 from tqdm import tqdm
 
 from dsi.configs.cli import ConfigCLI, RunType
+from dsi.configs.experiment.latency import ConfigLatency
 from dsi.configs.plot.heatmap import ConfigPlotHeatmap
+from dsi.configs.table import ConfigTableRecord
 from dsi.heatmap.enrich import enrich
 from dsi.offline.heatmap.manager import Manager
 from dsi.offline.simul.dsi import SimulDSI
 from dsi.offline.simul.si import SimulSI
 from dsi.online.heatmap.manager import ManagerOnline
+from dsi.online.latency.experiment import ExperimentLatency
 from dsi.plot.heatmap import PlotHeatmap
 from dsi.plot.iters_dist import PlotIters
 from dsi.plot.utils import savefig
 from dsi.types.heatmap.df_heatmap import DataFrameHeatmap
 from dsi.types.heatmap.manager import _Manager
-from dsi.types.result import ResultSimul
+from dsi.types.result import ResultLatency, ResultSimul
 
 log = logging.getLogger(__name__)
 
@@ -72,7 +75,17 @@ def heatmap(cfg: ConfigCLI) -> None:
 
 
 def table(cfg: ConfigCLI) -> None:
-    raise NotImplementedError
+    record: ConfigTableRecord
+    for record in cfg.table.records:
+        log.info(
+            "Running latency experiments to estimate the latency of computing "
+            "a forward pass of off-the-shelf LLMs."
+        )
+        config_latency: ConfigLatency
+        for config_latency in [record.target_latency, record.drafter_latency]:
+            log.info(f"Running {config_latency=}")
+            res: ResultLatency = ExperimentLatency(config_latency).run()
+            log.info(f"Result: {res=}")
 
 
 @hydra.main(version_base=None, config_name="config")
