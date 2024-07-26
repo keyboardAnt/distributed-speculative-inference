@@ -12,14 +12,14 @@ class ConfigLatency(_ConfigExperiment):
     of a (target, draft, dataset) triplet.
     """
 
+    model: str = Field(title="The model to use for the experiment")
+    dataset: str = Field(title="The dataset to use for the experiment")
     config_gen: ConfigGen = Field(
         default_factory=ConfigGen, title="The generation configuration"
     )
-    model: str = Field(title="The model to use for the experiment")
     dtype: Literal["float32", "float16", "bfloat16"] = Field(
         "bfloat16", title="The dtype to use for the experiment"
     )
-    dataset: str = Field(title="The dataset to use for the experiment")
     num_examples: int = Field(50, title="The number of examples per dataset", ge=1)
     max_new_tokens: int = Field(
         20, title="The maximum number of new tokens to generate", ge=1

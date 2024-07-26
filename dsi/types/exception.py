@@ -70,3 +70,12 @@ class InvalidHeatmapKeyError(Exception):
     def __init__(self, key):
         msg = f"Invalid key '{key}'. Key must be an instance of HeatmapColumn enum."
         super().__init__(msg)
+
+
+class DatasetMismatchError(Exception):
+    def __init__(self, target_dataset: str, drafter_dataset: str):
+        msg: str = (
+            f"Dataset mismatch between target and drafter configurations. "
+            f"Target dataset: {target_dataset}, Drafter dataset: {drafter_dataset}."
+        )
+        super().__init__(msg)
