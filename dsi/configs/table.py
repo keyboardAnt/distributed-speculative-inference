@@ -23,48 +23,48 @@ class ConfigTable(BaseModel):
     records: list[ConfigTableRecord] = Field(
         default=[
             ConfigTableRecord(
-                target_latency=ConfigLatency(model="Vicuna-13B", dataset="CNN-DM"),
-                drafter_latency=ConfigLatency(model="Vicuna-68M", dataset="CNN-DM"),
+                target_latency=ConfigLatency(model="lmsys/vicuna-13b-v1.3", dataset="cnn_dailymail"),
+                drafter_latency=ConfigLatency(model="double7/vicuna-68m", dataset="cnn_dailymail"),
             ),
             ConfigTableRecord(
-                target_latency=ConfigLatency(model="Vicuna-13B", dataset="Alpaca"),
-                drafter_latency=ConfigLatency(model="Vicuna-68M", dataset="Alpaca"),
+                target_latency=ConfigLatency(model="lmsys/vicuna-13b-v1.3", dataset="danielkorat/alpaca"),
+                drafter_latency=ConfigLatency(model="double7/vicuna-68m", dataset="danielkorat/alpaca"),
             ),
             ConfigTableRecord(
-                target_latency=ConfigLatency(model="Vicuna-7B", dataset="CNN-DM"),
-                drafter_latency=ConfigLatency(model="Vicuna-68M", dataset="CNN-DM"),
+                target_latency=ConfigLatency(model="lmsys/vicuna-7b-v1.3", dataset="cnn_dailymail"),
+                drafter_latency=ConfigLatency(model="double7/vicuna-68m", dataset="cnn_dailymail"),
             ),
             ConfigTableRecord(
-                target_latency=ConfigLatency(model="Vicuna-7B", dataset="Alpaca"),
-                drafter_latency=ConfigLatency(model="Vicuna-68M", dataset="Alpaca"),
+                target_latency=ConfigLatency(model="lmsys/vicuna-7b-v1.3", dataset="danielkorat/alpaca"),
+                drafter_latency=ConfigLatency(model="double7/vicuna-68m", dataset="danielkorat/alpaca"),
             ),
             ConfigTableRecord(
                 target_latency=ConfigLatency(
-                    model="Starcoder-15B", dataset="HumanEval"
+                    model="bigcode/starcoder", dataset="openai/openai_humaneval"
                 ),
                 drafter_latency=ConfigLatency(
-                    model="Starcoder-168M", dataset="HumanEval"
+                    model="bigcode/tiny_starcoder_py", dataset="openai/openai_humaneval"
                 ),
             ),
             ConfigTableRecord(
-                target_latency=ConfigLatency(model="Starcoder-15B", dataset="MBPP"),
-                drafter_latency=ConfigLatency(model="Starcoder-168M", dataset="MBPP"),
+                target_latency=ConfigLatency(model="bigcode/starcoder", dataset="mbpp"),
+                drafter_latency=ConfigLatency(model="bigcode/tiny_starcoder_py", dataset="mbpp"),
             ),
             ConfigTableRecord(
-                target_latency=ConfigLatency(model="Phi3-14B", dataset="HumanEval"),
-                drafter_latency=ConfigLatency(model="Phi3-4B", dataset="HumanEval"),
+                target_latency=ConfigLatency(model="microsoft/Phi-3-medium-128k-instruct", dataset="openai/openai_humaneval"),
+                drafter_latency=ConfigLatency(model="microsoft/Phi-3-mini-128k-instruct", dataset="openai/openai_humaneval"),
             ),
             ConfigTableRecord(
-                target_latency=ConfigLatency(model="Phi3-14B", dataset="MBPP"),
-                drafter_latency=ConfigLatency(model="Phi3-4B", dataset="MBPP"),
+                target_latency=ConfigLatency(model="microsoft/Phi-3-medium-128k-instruct", dataset="mbpp"),
+                drafter_latency=ConfigLatency(model="microsoft/Phi-3-mini-128k-instruct", dataset="mbpp"),
             ),
             ConfigTableRecord(
-                target_latency=ConfigLatency(model="Phi3-14B", dataset="CNN-DM"),
-                drafter_latency=ConfigLatency(model="Phi3-4B", dataset="CNN-DM"),
+                target_latency=ConfigLatency(model="microsoft/Phi-3-medium-128k-instruct", dataset="cnn_dailymail"),
+                drafter_latency=ConfigLatency(model="microsoft/Phi-3-mini-128k-instruct", dataset="cnn_dailymail"),
             ),
             ConfigTableRecord(
-                target_latency=ConfigLatency(model="Phi3-14B", dataset="Alpaca"),
-                drafter_latency=ConfigLatency(model="Phi3-4B", dataset="Alpaca"),
+                target_latency=ConfigLatency(model="microsoft/Phi-3-medium-128k-instruct", dataset="danielkorat/alpaca"),
+                drafter_latency=ConfigLatency(model="microsoft/Phi-3-mini-128k-instruct", dataset="danielkorat/alpaca"),
             ),
         ]
     )
