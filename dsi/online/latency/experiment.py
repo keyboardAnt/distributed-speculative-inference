@@ -44,6 +44,7 @@ class ExperimentLatency(_Experiment):
             device_map="auto",
             torch_dtype=self.config.get_torch_dtype(),
             revision=self.config.revision,
+            trust_remote_code=True,
         )
         tokenizer = AutoTokenizer.from_pretrained(self.config.model)
         model = torch.compile(model) if self.config.compile_model else model
