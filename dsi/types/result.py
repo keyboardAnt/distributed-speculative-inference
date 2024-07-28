@@ -2,7 +2,8 @@
 
 from dataclasses import dataclass, field, fields
 
-from dsi.types.exception import IncompatibleAppendError
+from dsi.types.exception import IncompatibleExtendError, InvalidHeatmapKeyError
+from dsi.types.name import HeatmapColumn
 
 
 @dataclass
@@ -21,7 +22,7 @@ class _Result:
             to_append (Result): The Result object from which to append data.
         """
         if not isinstance(to_append, type(self)):
-            raise IncompatibleAppendError(type(self).__name__, type(to_append).__name__)
+            raise IncompatibleExtendError(type(self).__name__, type(to_append).__name__)
 
         for field_info in fields(self):
             # Check if both instances have the same field and it is a list
@@ -41,3 +42,27 @@ class ResultSimul(_Result):
 
     cost_per_repeat: list[float] = field(default_factory=list)
     num_iters_per_repeat: list[int] = field(default_factory=list)
+
+
+@dataclass
+class ResultLatency(_Result):
+    """
+    Args:
+        ttft: The time to first token
+        tpot: The time per output token
+    """
+
+    ttft: list[float] = field(default_factory=list)
+    tpot: list[float] = field(default_factory=list)
+
+
+class ResultWorker(dict):
+    def __setitem__(self, key, value):
+        if not isinstance(key, HeatmapColumn):
+            raise InvalidHeatmapKeyError(key)
+        super().__setitem__(key, value)
+
+    def __init__(self, **kwargs):
+        super().__init__()
+        for key, value in kwargs.items():
+            self[key] = value  # Validates the key

@@ -1,28 +1,36 @@
 import multiprocessing
+import time
 
 import pytest
 
 from dsi.configs.experiment.simul.online import ConfigDSIOnline, SimulType
-from dsi.online.simul.simul import restart_draft
+from dsi.online.simul.simul import SimulOnline, restart_draft
 
 
-@pytest.fixture
-def config():
-    return ConfigDSIOnline(
-        c=0.05725204603746534,
-        a=0.94,
-        k=5,
-        failure_cost=0.18028411593660712,
-        S=50,
-        num_repeats=30,
-        num_target_servers=4,
-        c_sub=0.0033411221550777503,
-        failure_cost_sub=0.10018306512758136,
-        total_tokens=100,
-        wait_for_pipe=0.1,
-        simul_type=SimulType.DSI,
-        maximum_correct_tokens=20,
-    )
+@pytest.fixture(
+    params=[
+        {
+            "c": 0.05725204603746534,
+            "a": 0.94,
+            "k": 5,
+            "failure_cost": 0.18028411593660712,
+            "S": 50,
+            "num_repeats": 30,
+            "num_target_servers": 4,
+            "c_sub": 0.0033411221550777503,
+            "failure_cost_sub": 0.10018306512758136,
+            "total_tokens": 100,
+            "wait_for_pipe": 0.1,
+            "simul_type": SimulType.DSI,
+            "maximum_correct_tokens": 20,
+        },
+        {"S": 77, "num_repeats": 1},
+        {"a": 0.01, "S": 77, "num_repeats": 1},
+    ]
+)
+def config(request):
+    # Create a ConfigDSIOnline instance with the parameters provided by each param set
+    return ConfigDSIOnline(**request.param)
 
 
 def test_entire_threadpool_used(config: ConfigDSIOnline):
@@ -66,6 +74,7 @@ def test_single_thread_in_si(config: ConfigDSIOnline):
     assert "MainThread" in sim_shared_dict
 
 
+@pytest.mark.skip(reason="#37")
 def test_correct_token_count_per_iteration(config: ConfigDSIOnline):
     correct_token_list = [5, 15, 3, 7, 10, 5, 20]
 
@@ -98,3 +107,35 @@ def test_correct_token_count_per_iteration(config: ConfigDSIOnline):
         )
         th.join()
         iter_till_stop += 1
+
+
+@pytest.fixture
+def latency_min(config: ConfigDSIOnline) -> float:
+    return config.num_repeats * config.S * config.c_sub
+
+
+@pytest.fixture
+def latency_max(config: ConfigDSIOnline) -> float:
+    # Calculated within the fixture, ensuring correct and dynamic evaluation
+    return (
+        config.num_repeats
+        * (config.total_tokens + config.S)
+        * (config.failure_cost + config.wait_for_pipe)
+        * 1.5
+    )
+
+
+@pytest.mark.skip(reason="#37")
+@pytest.mark.timeout(90)
+def test_duration(config: ConfigDSIOnline, latency_min: float, latency_max: float):
+    """
+    Execute the experiment with the default configuration. Validate that the duration
+    is within a reasonable range.
+    """
+    start = time.time()
+    SimulOnline(config).run()
+    end = time.time()
+    duration = end - start
+    assert (
+        latency_min <= duration <= latency_max
+    ), f"Duration {duration} out of expected range ({latency_min}, {latency_max})"

@@ -1,13 +1,12 @@
 import pandas as pd
 
-from dsi.configs.experiment.simul.heatmap import ConfigHeatmap
-from dsi.offline.heatmap.params import get_df_heatmap_params
+from dsi.configs.heatmap import ConfigHeatmap
 from dsi.types.name import Param
 
 
 def test_get_df_heatmap_params():
     config = ConfigHeatmap(ndim=77)
-    df_params = get_df_heatmap_params(config)
+    df_params = config.to_dataframe()
     assert isinstance(df_params, pd.DataFrame)
     assert df_params[Param.c].dtype == float
     assert df_params[Param.a].dtype == float

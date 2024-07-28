@@ -1,8 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import final
 
-from tqdm import tqdm
-
 from dsi.configs.experiment.base import _ConfigExperiment
 from dsi.types.result import ResultSimul, _Result
 from dsi.utils import set_random_seed
@@ -32,7 +30,7 @@ class _Experiment(ABC):
     @final
     def run(self) -> _Result:
         self._setup_run()
-        for _ in tqdm(range(self.config.num_repeats), desc="Repeats"):
+        for _ in range(self.config.num_repeats):
             self._setup_single_repeat()
             self.result.extend(self._single_repeat())
         return self.result

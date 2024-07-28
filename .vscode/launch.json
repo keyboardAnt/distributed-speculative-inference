@@ -5,20 +5,39 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "offline: si and dsi",
+            "name": "sanity",
             "type": "debugpy",
             "request": "launch",
             "module": "dsi",
             "args": []
         },
         {
-            "name": "offline: heatmap",
+            "name": "table",
             "type": "debugpy",
             "request": "launch",
             "module": "dsi",
             "args": [
-                "type=offline_heatmap"
+                "type=table"
             ]
-        }
+        },
+        {
+            "name": "heatmap: offline",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "dsi",
+            "args": [
+                "type=heatmap"
+            ]
+        },
+        {
+            "name": "heatmap: online",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "dsi",
+            "args": [
+                "type=heatmap",
+                "heatmap.online=True"
+            ]
+        },
     ]
 }
