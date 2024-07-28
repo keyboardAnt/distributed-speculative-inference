@@ -28,9 +28,8 @@ def fix_history(total_tokens, correct, sim_shared_dict, cur_pipe, sim_executor):
     """
     Simulate fixing the history
     """
-    total_tokens += correct + 1
 
-    sim_shared_dict["total_tokens"] = total_tokens
+    sim_shared_dict["total_tokens"] = total_tokens + correct + 1
 
     terminate_process(cur_pipe, sim_executor)
 
@@ -87,7 +86,7 @@ def target_done_callback(args, res):
         res_dict = res.result()
 
     # First for target input, second for extra target token
-    if res_dict["correct"] < res_dict["draft_tokens"] or res_dict["correct"] < res_dict["draft_tokens"] + 1:
+    if res_dict["correct"] <= res_dict["draft_tokens"]:
         # I have "correct" correct token, plus 1
         # ONLY {correct} are correct, need to fix the history
         fix_history(
@@ -102,7 +101,7 @@ def target_done_callback(args, res):
 
         res_dict["total_tokens"] += res_dict["correct"] + 1
 
-        if res_dict["total_tokens"] > args.max_tokens:
+        if res_dict["total_tokens"] >= args.max_tokens:
             # MAX TOKENS REACHED
             res_dict["sim_shared_dict"]["stop"] = True
             terminate_process(res_dict["cur_pipe"], res_dict["sim_executor"])
