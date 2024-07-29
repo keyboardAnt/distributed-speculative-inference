@@ -18,7 +18,9 @@ def run_pytest(marker: TestMarker, pytest_args):
         subprocess.run(cmd)
     elif marker == TestMarker.ALL:
         print("Running all tests...")
+        print("1. Running serial tests...")
         run_pytest(TestMarker.SERIAL, pytest_args)
+        print("2. Running non-serial tests...")
         run_pytest(TestMarker.NOTSERIAL, pytest_args)
 
 

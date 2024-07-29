@@ -36,6 +36,6 @@ jobs:
       with:
         options: "--check --verbose"
         jupyter: true
-    - name: Test with pytest
+    - name: Test
       run: |
-        poetry run pytest -vvv
+        poetry run python ./scripts/test.py all -- -vvv
