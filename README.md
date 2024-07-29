@@ -80,7 +80,9 @@ By default, running new experiments will also visualize the results. To visualiz
 
 [![Python tests](https://github.com/keyboardAnt/distributed-speculative-inference/actions/workflows/python-tests.yaml/badge.svg)](https://github.com/keyboardAnt/distributed-speculative-inference/actions/workflows/python-tests.yaml)
 
-Run tests: `python -m pytest` (from the project root)
+Run tests: `python ./scripts/test.py all` (from the project root)
+
+It runs tests that measure wall time serially and then the rest of the tests in parallel. You can run only the online tests (for example, with `python ./scripts/test.py online -- -vvv`) or only the offline (`poetry run python ./scripts/test.py offline -- -vvv`).
 
 #### Formatting
 

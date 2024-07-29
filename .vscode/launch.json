@@ -39,5 +39,16 @@
                 "heatmap.online=True"
             ]
         },
+        {
+            "name": "test",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "scripts.test",
+            "args": [
+                "all",
+                "--",
+                "-vvv",
+            ]
+        },
     ]
 }
