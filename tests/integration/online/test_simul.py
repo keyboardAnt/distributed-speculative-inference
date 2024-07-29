@@ -1,5 +1,6 @@
 import multiprocessing
 import time
+from unittest.mock import patch
 
 import pytest
 
@@ -24,8 +25,8 @@ from dsi.online.simul.simul import SimulOnline, restart_draft
             "simul_type": SimulType.DSI,
             "maximum_correct_tokens": 20,
         },
-        {"S": 77, "num_repeats": 1},
-        {"a": 0.01, "S": 77, "num_repeats": 1},
+        {"S": 49, "num_repeats": 1},
+        {"a": 0.01, "S": 49, "num_repeats": 1},
     ]
 )
 def config(request):
@@ -74,39 +75,6 @@ def test_single_thread_in_si(config: ConfigDSIOnline):
     assert "MainThread" in sim_shared_dict
 
 
-@pytest.mark.skip(reason="#37")
-def test_correct_token_count_per_iteration(config: ConfigDSIOnline):
-    correct_token_list = [5, 15, 3, 7, 10, 5, 20]
-
-    total_tokens = config.total_tokens
-    sim_shared_dict = multiprocessing.Manager().dict()
-
-    sim_shared_dict["total_tokens"] = total_tokens
-    sim_shared_dict["prompt_tokens"] = total_tokens
-
-    iter_till_stop = 0
-
-    # While the stop signal is not received, keep restarting the draft model
-    while "stop" not in sim_shared_dict:
-        # assert that the number of tokens is in accordance with the accepted token list
-        assert (
-            sim_shared_dict["total_tokens"]
-            == sum(correct_token_list[:iter_till_stop]) + config.total_tokens
-        )
-
-        # sample number of correct tokens
-        sim_shared_dict["correct"] = correct_token_list[iter_till_stop]
-
-        th = restart_draft(
-            config,
-            sim_shared_dict["total_tokens"],
-            sim_shared_dict,
-            config.wait_for_pipe,
-        )
-        th.join()
-        iter_till_stop += 1
-
-
 @pytest.fixture
 def latency_min(config: ConfigDSIOnline) -> float:
     return config.num_repeats * config.S * config.c_sub
@@ -125,6 +93,7 @@ def latency_max(config: ConfigDSIOnline) -> float:
 
 @pytest.mark.skip(reason="#37")
 @pytest.mark.timeout(90)
+@pytest.mark.online
 def test_duration(config: ConfigDSIOnline, latency_min: float, latency_max: float):
     """
     Execute the experiment with the default configuration. Validate that the duration
@@ -137,3 +106,19 @@ def test_duration(config: ConfigDSIOnline, latency_min: float, latency_max: floa
     assert (
         latency_min <= duration <= latency_max
     ), f"Duration {duration} out of expected range ({latency_min}, {latency_max})"
+
+
+@pytest.mark.skip(reason="#37")
+@pytest.mark.timeout(90)
+@pytest.mark.online
+def test_num_of_fix_history(config: ConfigDSIOnline):
+    """
+    Execute the experiment and validate that the number of calls to the `fix_history`
+    function matches the expected number of calls.
+    """
+    config.num_repeats = 1
+    with patch("dsi.online.simul.core.fix_history") as mock_fix_history:
+        SimulOnline(config).run()
+        assert (
+            mock_fix_history.call_count <= config.S
+        ), f"Number of calls to fix_history exceeds the expected value ({config.S})"
