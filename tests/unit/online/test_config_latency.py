@@ -21,7 +21,7 @@ def test_config_latency_initialization_custom():
     config = ConfigLatency(
         model="test_model",
         dtype="float32",
-        dataset="test_dataset",
+        dataset="cnn_dailymail",
         num_examples=100,
         max_new_tokens=40,
         compile_model=True,
@@ -31,7 +31,7 @@ def test_config_latency_initialization_custom():
     )
     assert config.model == "test_model"
     assert config.dtype == "float32"
-    assert config.dataset == "test_dataset"
+    assert config.dataset == "cnn_dailymail"
     assert config.num_examples == 100
     assert config.max_new_tokens == 40
     assert config.compile_model is True

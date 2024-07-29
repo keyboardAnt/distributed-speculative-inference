@@ -28,7 +28,7 @@ class ConfigLatency(_ConfigExperiment):
     dtype: Literal["float32", "float16", "bfloat16"] = Field(
         "bfloat16", title="The dtype to use for the experiment"
     )
-    num_examples: int = Field(2, title="The number of examples per dataset", ge=1)
+    num_examples: int = Field(50, title="The number of examples per dataset", ge=1)
     max_new_tokens: int = Field(
         20, title="The maximum number of new tokens to generate", ge=1
     )
