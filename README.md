@@ -82,7 +82,7 @@ By default, running new experiments will also visualize the results. To visualiz
 
 Run tests: `./scripts/test.sh` (from the project root)
 
-It runs tests that measure wall time serially and then the rest of the tests in parallel.
+It runs tests that measure wall time serially and then the rest of the tests in parallel. Configuring the tests is as easy as passing PyTest arguments (for example, `./scripts/test.sh -vvv`).
 
 #### Formatting
 
