@@ -16,7 +16,7 @@ The fastest off-the-shelf inference algorithm of LLMs
 
 Distributed Speculative Inference (DSI) is the fastest off-the-shelf inference algorithm, introduced in the paper _"[Distributed Speculative Inference of Large Language Models](https://arxiv.org/abs/2405.14105)"_ in May 2024.
 
-| Feature                                                            | EAGLE<br>[^1] | Speculative Inference (SI)<br>[^2][^3][^4]        | Distributed Speculative Inference (DSI)           |
+|                                                                    | EAGLE<br>[^1] | Speculative Inference (SI)<br>[^2][^3][^4]        | Distributed Speculative Inference (DSI)           |
 |--------------------------------------------------------------------|---------------|---------------------------------------------------|--------------------------------------------------|
 | Works off-the-shelf<br><sub>(no additional training or architecture changes)</sub> | ❌           | ✅                                                 | ✅                                                |
 | Supports lossless inference<br><sub>(generates the same tokens as traditional autoregressive inference)</sub> |               | ✅                                                 | ✅                                                |
