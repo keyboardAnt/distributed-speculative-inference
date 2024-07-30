@@ -16,7 +16,7 @@ The fastest off-the-shelf inference algorithm of LLMs
 
 Distributed Speculative Inference (DSI) is the fastest off-the-shelf inference algorithm, introduced in the paper _"[Distributed Speculative Inference of Large Language Models](https://arxiv.org/abs/2405.14105)"_ in May 2024.
 
-|                                                                    | EAGLE<br>[^1] | Speculative Inference (SI)<br>[^2][^3][^4]        | Distributed Speculative Inference (DSI)           |
+|                                                                    | EAGLE[^1] | Speculative Inference (SI)[^2][^3]        | Distributed Speculative Inference (DSI)           |
 |--------------------------------------------------------------------|---------------|---------------------------------------------------|--------------------------------------------------|
 | Works off-the-shelf<br><sub>(no additional training or architecture changes)</sub> | ❌           | ✅                                                 | ✅                                                |
 | Supports lossless inference<br><sub>(generates the same tokens as traditional autoregressive inference)</sub> |               | ✅                                                 | ✅                                                |
@@ -27,7 +27,6 @@ Distributed Speculative Inference (DSI) is the fastest off-the-shelf inference a
 [^1]: Li, Yuhui, et al. "EAGLE: Speculative Sampling Requires Rethinking Feature Uncertainty." Forty-first International Conference on Machine Learning.
 [^2]: Leviathan, Yaniv, Matan Kalman, and Yossi Matias. "Fast inference from transformers via speculative decoding." International Conference on Machine Learning. PMLR, 2023.
 [^3]: Chen, Charlie, et al. "Accelerating large language model decoding with speculative sampling." arXiv preprint arXiv:2302.01318 (2023).
-[^4]: Miao, Xupeng, et al. "Specinfer: Accelerating large language model serving with tree-based speculative inference and verification." Proceedings of the 29th ACM International Conference on Architectural Support for Programming Languages and Operating Systems, Volume 3. 2024.
 
 This repo includes an implementation of DSI and all four experiments from the paper:
 1. Estimating the speedup of DSI (compared to SI and non-SI) by measuring wall time, based on 3 and 4
