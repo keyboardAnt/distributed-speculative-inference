@@ -21,8 +21,8 @@ Distributed Speculative Inference (DSI) is the fastest inference algorithm, intr
 | Works off-the-shelf<br><sub>(no additional training or architecture changes)</sub> | ✅                                                 | ✅                                                |
 | Supports lossless inference<br><sub>(generates the same tokens as traditional autoregressive inference)</sub> | ✅                                                 | ✅                                                |
 | Supports lossy inference<br><sub>(might generate different tokens than traditional autoregressive inference)</sub> | ✅                                                 | ✅                                                |
-| Faster than traditional autoregressive inference | ❌ <sub>(depends on the drafter)</sub>                                                | ✅ <sub>(empirically and mathematically proven)</sub>        |
-| Faster than SI                                                     | ❌                                                 | ✅ <sub>(empirically and mathematically proven)</sub>                                                |
+| Faster than traditional autoregressive inference | ❌ <sub>(depends on the drafter)</sub>                                                | ✅ <sub>(empirically & mathematically proven)</sub>        |
+| Faster than SI                                                     | ❌                                                 | ✅ <sub>(empirically & mathematically proven)</sub>                                                |
 
 
 This repo includes an implementation of DSI and all four experiments from the paper:
