@@ -14,7 +14,18 @@ The fastest lossless inference algorithm of LLMs
 
 ## About
 
-Distributed Speculative Inference (DSI) is provably the fastest lossless inference algorithm, introduced in the paper "[Distributed Speculative Inference of Large Language Models](https://arxiv.org/abs/2405.14105)" (arXiv, May 2024). This repo includes an implementation of DSI and all four experiments from the paper:
+Distributed Speculative Inference (DSI) is the fastest inference algorithm, introduced in "[Distributed Speculative Inference of Large Language Models](https://arxiv.org/abs/2405.14105)" (arXiv, May 2024).
+
+| Feature                                                            | Speculative Inference (SI)                        | Distributed Speculative Inference (DSI)           |
+|--------------------------------------------------------------------|---------------------------------------------------|--------------------------------------------------|
+| Works off-the-shelf<br><sub>(no additional training or architecture changes)</sub> | ✅                                                 | ✅                                                |
+| Supports lossless inference<br><sub>(generates the same tokens as traditional autoregressive inference)</sub> | ✅                                                 | ✅                                                |
+| Supports lossy inference<br><sub>(might generate different tokens than traditional autoregressive inference)</sub> | ✅                                                 | ✅                                                |
+| Faster than traditional autoregressive inference | ❌ <sub>(depends on the drafter)</sub>                                                | ✅ <sub>(empirically and mathematically proven)</sub>        |
+| Faster than SI                                                     | ❌                                                 | ✅ <sub>(empirically and mathematically proven)</sub>                                                |
+
+
+This repo includes an implementation of DSI and all four experiments from the paper:
 1. Estimating the speedup of DSI (compared to SI and non-SI) by measuring wall time, based on 3 and 4
 2. Estimating the speedup of DSI (compared to SI and non-SI) by counting forward passes
 3. Estimating the acceptance rate of off-the-shelf LLMs
