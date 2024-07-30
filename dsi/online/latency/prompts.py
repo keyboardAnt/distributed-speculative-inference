@@ -3,10 +3,7 @@ from dsi.online.latency.dataset import Dataset
 
 def get_prompt(dataset: Dataset, example) -> str:
     """Get the input prompt for the given dataset and example."""
-    if dataset == Dataset.SAMSUM:
-        prompt = example["dialogue"].strip("\n")
-        prompt = f"Summarize this dialog:\n{prompt}\n---\nSummary:\n"
-    elif dataset == Dataset.CNN_DAILYMAIL:
+    if dataset == Dataset.CNN_DAILYMAIL:
         prompt = example["article"].strip("\n")
         prompt = f"""Summarize:
 {prompt}

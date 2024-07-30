@@ -79,3 +79,12 @@ class DatasetMismatchError(Exception):
             f"Target dataset: {target_dataset}, Drafter dataset: {drafter_dataset}."
         )
         super().__init__(msg)
+
+
+class UnsupportedDatasetError(Exception):
+    def __init__(self, dataset: str, supported_datasets: list[str]):
+        msg: str = (
+            f"Unsupported dataset: {dataset}. "
+            f"Supported datasets: {', '.join(supported_datasets)}."
+        )
+        super().__init__(msg)

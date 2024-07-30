@@ -5,12 +5,20 @@ from pydantic import Field
 
 from dsi.configs.experiment.base import _ConfigExperiment
 from dsi.configs.experiment.generation import ConfigGen
+from dsi.types.exception import UnsupportedDatasetError
 
 
 class ConfigLatency(_ConfigExperiment):
     """Includes all the parameters needed for measuring the latencies
     of a (target, draft, dataset) triplet.
     """
+
+    supported_datasets: list[str] = [
+        "cnn_dailymail",
+        "danielkorat/alpaca",
+        "mbpp",
+        "openai/openai_humaneval",
+    ]
 
     model: str = Field(title="The model to use for the experiment")
     dataset: str = Field(title="The dataset to use for the experiment")
@@ -31,3 +39,10 @@ class ConfigLatency(_ConfigExperiment):
 
     def get_torch_dtype(self) -> torch.dtype:
         return eval(f"torch.{self.dtype}")
+
+    def model_post_init(self, __context) -> None:
+        """
+        Verify configuration validity.
+        """
+        if self.dataset not in self.supported_datasets:
+            raise UnsupportedDatasetError(self.dataset, self.supported_datasets)

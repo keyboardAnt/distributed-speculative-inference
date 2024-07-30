@@ -84,7 +84,9 @@ def table(cfg: ConfigCLI) -> None:
         config_latency: ConfigLatency
         for config_latency in [record.target_latency, record.drafter_latency]:
             log.info(f"Running {config_latency=}")
-            res: ResultLatency = ExperimentLatency(config_latency).run()
+            res: ResultLatency = ExperimentLatency(
+                ConfigLatency(**config_latency)
+            ).run()
             log.info(f"Result: {res=}")
 
 
