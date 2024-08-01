@@ -1,22 +1,26 @@
 import logging
 import random
+import time
 from abc import ABC, abstractmethod
 from multiprocessing import Queue
 from typing import final
 
 from dsi.online.actual.message import MsgVerifiedRightmost
 from dsi.online.actual.state import State
+from dsi.utils import set_random_seed
 
 log = logging.getLogger(__name__)
+
+set_random_seed(0)
 
 
 class Server(ABC):
     @final
-    def __init__(self, gpu_id: int, queue: Queue, msg_bus: Queue):
+    def __init__(self, gpu_id: int, queue: Queue, msg_bus: Queue, state: State):
         self._gpu_id: int = gpu_id
         self._queue: Queue = queue
         self._msg_bus: Queue = msg_bus
-        self._state: State = State([])  # Empty initial state
+        self._state: State = state  # Empty initial state
 
     # TODO: Implement this method
     @final
@@ -35,11 +39,19 @@ class Server(ABC):
         If the state is invalid, the server preempts and rolls back the state.
         Updates the state's `v` index.
         """
-        log.debug("Server %d received message %s", self._gpu_id, m)
-        if not self._state.is_aligned(m):
+        self._log(f"Updating state with {m=}")
+        if self._state.is_aligned(m):
+            self._log("State is aligned")
+            self._state.v = m.v
+            self._log(f"State updated: {self._state=}")
+        else:
+            self._log("State is not aligned")
             self._preempt()
+            self._log(f"Rolling back to {m.v - 1}")
             self._state.rollback(m.v - 1)
-        self._state.extend([m.tok_id], verified=True)
+            self._log("Extending state...")
+            self._state.extend([m.tok_id], verified=True)
+            self._log(f"State updated: {self._state=}")
 
     @abstractmethod
     def _run(self) -> None:
@@ -51,23 +63,35 @@ class Server(ABC):
             sender_id: int
             msg: MsgVerifiedRightmost
             sender_id, msg = msg_bus.get()
+            log.debug(f"[LISTENER] New message from {sender_id=}: {msg=}")
             for server in servers:
                 server.cb_update_state(msg)
 
+    def _log(self, log_msg: str) -> None:
+        log.debug(f"{self.__class__.__name__} - GPU ID: {self._gpu_id} - {log_msg}")
+        # flush the log to ensure that the message is printed in the correct order
+        logging.getLogger().handlers[0].flush()
+
 
 class ServerDrafter(Server):
+    _lookahead: int = 5
+
     # TODO: Implement this method
     def _draft(self) -> list[int]:
         """Generates 10 draft tokens. Returns their ids."""
-        log.debug("Drafting tokens")
-        return [random.randint(1, 100) for _ in range(10)]
+        self._log("Drafting tokens...")
+        time.sleep(0.1)
+        tok_ids: list[int] = [random.randint(1, 100) for _ in range(self._lookahead)]
+        self._log(f"Drafted: {tok_ids=}")
+        self._log("Extending state...")
+        self._state.extend(tok_ids, verified=False)
+        self._log(f"State updated: {self._state=}")
+        return tok_ids
 
     def _run(self) -> None:
-        while self._state.v < 100:
-            log.debug(f"Server {self._gpu_id} with {self._state.v=}")
+        while self._state.v < 100 and not self._queue.full():
             tok_ids: list[int] = self._draft()
             self._queue.put((self._gpu_id, tok_ids))
-            self._state.extend(tok_ids, verified=False)
 
 
 class ServerTarget(Server):
@@ -77,11 +101,16 @@ class ServerTarget(Server):
         Verifies the given drafts.
         Returns the token id and index of the last verified token.
         """
-        log.debug("Verifying tokens %s", tok_ids)
-        verified = random.choice([True, False])
-        i: int = len(tok_ids) - 1 if verified else len(tok_ids) - 2
-        self._state.v += i
-        return MsgVerifiedRightmost(self._state.v, tok_ids[i])
+        tok_id_extra: int = random.randint(1, 100)
+        self._log(f"Verifying tokens {tok_ids=} + {tok_id_extra=}")
+        tok_ids.append(tok_id_extra)
+        time.sleep(1)
+        num_verified: int = random.randint(1, len(tok_ids))
+        tok_id_verified_rightmost: int = tok_ids[num_verified - 1]
+        self._state.extend(tok_ids[:num_verified], verified=True)
+        self._log(f"{num_verified=}")
+        self._log(f"Extended the state. New state: {self._state=}")
+        return MsgVerifiedRightmost(self._state.v, tok_id_verified_rightmost)
 
     def _run(self):
         sender_id: int
