@@ -1,11 +1,11 @@
-class Message:
-    def __init__(self, tok_id, i):
-        self.tok_id = tok_id  # The last verified token id
-        self.i = i  # The index of the last verified token
+from dataclasses import dataclass
 
 
-def message_listener(message_bus, servers):
-    while True:
-        sender_id, message = message_bus.get()
-        for server in servers:
-            server.update_state(message)
+@dataclass
+class MsgVerifiedRightmost:
+    """
+    The index and id of the last verified token.
+    """
+
+    v: int  # The index of the last verified token
+    tok_id: int  # The last verified token id

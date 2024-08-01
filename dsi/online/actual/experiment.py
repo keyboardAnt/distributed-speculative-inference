@@ -1,22 +1,22 @@
+import logging
 from multiprocessing import Process, Queue
 
-from dsi.online.actual.message import message_listener
-from dsi.online.actual.server import ServerDrafter, ServerTarget
+from dsi.online.actual.server import Server, ServerDrafter, ServerTarget
 
 
 def main():
     verification_queue = Queue()
-    message_bus = Queue()
+    msg_bus = Queue()
 
-    drafter = ServerDrafter(0, verification_queue, message_bus)
-    target1 = ServerTarget(1, verification_queue, message_bus)
-    target2 = ServerTarget(2, verification_queue, message_bus)
+    drafter = ServerDrafter(0, verification_queue, msg_bus)
+    target1 = ServerTarget(1, verification_queue, msg_bus)
+    target2 = ServerTarget(2, verification_queue, msg_bus)
 
     servers = [drafter, target1, target2]
 
     # Start server processes
     processes = [Process(target=server.run) for server in servers] + [
-        Process(target=message_listener, args=(message_bus, servers))
+        Process(target=Server.msg_listener, args=(msg_bus, servers))
     ]
 
     for process in processes:
@@ -27,4 +27,5 @@ def main():
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
     main()

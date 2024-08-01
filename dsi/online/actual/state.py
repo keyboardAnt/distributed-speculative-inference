@@ -1,16 +1,27 @@
+from dsi.online.actual.message import MsgVerifiedRightmost
+
+
 class State:
     def __init__(self, initial_prompt: list[int]):
         self._tok_ids: list[int] = initial_prompt  # Initial prompt tokens, protected
         self._v: int = -1  # Index of the last verified token, protected
 
-    def _rollback(self, i: int) -> None:
-        self._tok_ids = self._tok_ids[: i + 1]
-        self._v = i
+    @property
+    def v(self) -> int:
+        return self._v
 
-    def update(self, i: int, tok_id: int) -> None:
-        self._rollback(i - 1)
-        self._tok_ids.append(tok_id)
-        self._v = i
+    @v.setter
+    def v(self, v_new: int) -> None:
+        self._v = v_new
 
-    def extend(self, tok_ids: list[int]) -> None:
+    def extend(self, tok_ids: list[int], verified: bool) -> None:
         self._tok_ids.extend(tok_ids)
+        if verified:
+            self.v += len(tok_ids)
+
+    def is_aligned(self, msg: MsgVerifiedRightmost) -> bool:
+        return self._tok_ids[msg.v] == msg.tok_id
+
+    def rollback(self, i: int) -> None:
+        self._tok_ids = self._tok_ids[: i + 1]
+        self.v = i
