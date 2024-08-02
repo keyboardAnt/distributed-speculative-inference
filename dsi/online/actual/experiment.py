@@ -38,8 +38,6 @@ def main():
     for th in th_servers:
         th.start()
     res_sender.send(start)
-    # for thread in threads:
-    #     thread.join()
     th_res.join()
 
 
