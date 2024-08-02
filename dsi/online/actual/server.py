@@ -1,4 +1,5 @@
 import logging
+import os
 import random
 import time
 from abc import ABC, abstractmethod
@@ -17,7 +18,7 @@ set_random_seed(0)
 class Server(ABC):
     @final
     def __init__(self, gpu_id: int, queue: Queue, msg_bus: Queue, state: State):
-        self._gpu_id: int = gpu_id
+        self.gpu_id: int = gpu_id
         self._queue: Queue = queue
         self._msg_bus: Queue = msg_bus
         self._state: State = state  # Empty initial state
@@ -25,7 +26,7 @@ class Server(ABC):
     # TODO: Implement this method
     @final
     def _preempt(self) -> None:
-        print(f"GPU {self._gpu_id} preempting current computation.")
+        print(f"GPU {self.gpu_id} preempting current computation.")
 
     @final
     def run(self) -> None:
@@ -39,6 +40,7 @@ class Server(ABC):
         If the state is invalid, the server preempts and rolls back the state.
         Updates the state's `v` index.
         """
+        self._log(f"Existing state: {self._state=}")
         self._log(f"Updating state with {m=}")
         if self._state.is_aligned(m):
             self._log("State is aligned")
@@ -57,18 +59,27 @@ class Server(ABC):
     def _run(self) -> None:
         raise NotImplementedError
 
+    def create_msg(self, v: int, tok_id: int) -> MsgVerifiedRightmost:
+        return MsgVerifiedRightmost(v=v, tok_id=tok_id, state=self._state.to_dict())
+
     @staticmethod
     def msg_listener(msg_bus: Queue, servers: list["Server"]):
         while True:
-            sender_id: int
             msg: MsgVerifiedRightmost
             sender_id, msg = msg_bus.get()
-            log.debug(f"[LISTENER] New message from {sender_id=}: {msg=}")
+            state = State.from_dict(msg.state)  # Deserialize state
+            log.debug(f"[LISTENER] New message from {sender_id=}: {msg=}, {state=}")
             for server in servers:
-                server.cb_update_state(msg)
+                if (
+                    server.gpu_id != sender_id
+                ):  # Assuming servers only react to messages from others
+                    server.cb_update_state(msg)
 
     def _log(self, log_msg: str) -> None:
-        log.debug(f"{self.__class__.__name__} - GPU ID: {self._gpu_id} - {log_msg}")
+        pid = os.getpid()
+        log.debug(
+            f"[{pid=}] {self.__class__.__name__} - GPU ID: {self.gpu_id} - {log_msg}"
+        )
         # flush the log to ensure that the message is printed in the correct order
         logging.getLogger().handlers[0].flush()
 
@@ -91,7 +102,7 @@ class ServerDrafter(Server):
     def _run(self) -> None:
         while self._state.v < 100 and not self._queue.full():
             tok_ids: list[int] = self._draft()
-            self._queue.put((self._gpu_id, tok_ids))
+            self._queue.put((self.gpu_id, tok_ids))
 
 
 class ServerTarget(Server):
@@ -110,7 +121,11 @@ class ServerTarget(Server):
         self._state.extend(tok_ids[:num_verified], verified=True)
         self._log(f"{num_verified=}")
         self._log(f"Extended the state. New state: {self._state=}")
-        return MsgVerifiedRightmost(self._state.v, tok_id_verified_rightmost)
+        return MsgVerifiedRightmost(
+            v=self._state.v,
+            tok_id=tok_id_verified_rightmost,
+            state=self._state.to_dict(),
+        )
 
     def _run(self):
         sender_id: int
@@ -118,4 +133,4 @@ class ServerTarget(Server):
         while True:
             sender_id, tok_ids = self._queue.get()
             msg: MsgVerifiedRightmost = self._verify(tok_ids)
-            self._msg_bus.put((self._gpu_id, msg))
+            self._msg_bus.put((self.gpu_id, msg))

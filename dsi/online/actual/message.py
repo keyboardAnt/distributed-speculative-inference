@@ -9,3 +9,4 @@ class MsgVerifiedRightmost:
 
     v: int  # The index of the last verified token
     tok_id: int  # The last verified token id
+    state: dict[str, int]  # The serialized state

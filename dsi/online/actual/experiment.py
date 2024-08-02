@@ -1,4 +1,3 @@
-import copy
 import logging
 from multiprocessing import Process, Queue
 
@@ -7,14 +6,14 @@ from dsi.online.actual.state import State
 
 
 def main():
+    # manager = Manager()
     verification_queue = Queue(maxsize=2)
     msg_bus = Queue()
 
-    prompt: list[int] = [2, 0, 2, 4]
-    state = State(copy.deepcopy(prompt))
+    state = State([2, 0, 2, 4])
     drafter = ServerDrafter(0, verification_queue, msg_bus, state)
-    target1 = ServerTarget(1, verification_queue, msg_bus, copy.deepcopy(state))
-    target2 = ServerTarget(2, verification_queue, msg_bus, copy.deepcopy(state))
+    target1 = ServerTarget(1, verification_queue, msg_bus, state.clone())
+    target2 = ServerTarget(2, verification_queue, msg_bus, state.clone())
 
     servers = [drafter, target1, target2]
 
