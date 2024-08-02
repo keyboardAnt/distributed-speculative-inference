@@ -1,13 +1,14 @@
 import logging
 import os
 import random
+import threading
 import time
 from abc import ABC, abstractmethod
-from multiprocessing import Queue
+from queue import Queue
 from typing import final
 
 from dsi.online.actual.message import MsgVerifiedRightmost
-from dsi.online.actual.state import State
+from dsi.online.actual.state import InvalidRollbackError, State
 from dsi.utils import set_random_seed
 
 log = logging.getLogger(__name__)
@@ -17,16 +18,34 @@ set_random_seed(0)
 
 class Server(ABC):
     @final
-    def __init__(self, gpu_id: int, queue: Queue, msg_bus: Queue, state: State):
+    def __init__(
+        self,
+        gpu_id: int,
+        state: State,
+        queue: Queue,
+        msg_bus: Queue,
+    ):
         self.gpu_id: int = gpu_id
+        self.state: State = state
         self._queue: Queue = queue
         self._msg_bus: Queue = msg_bus
-        self._state: State = state  # Empty initial state
+        self.servers: list[Server] = []
+        self._preempted = threading.Event()
+        self._lock = threading.Lock()
 
-    # TODO: Implement this method
     @final
     def _preempt(self) -> None:
-        print(f"GPU {self.gpu_id} preempting current computation.")
+        self._log("preempting current computation")
+        self._preempted.set()
+
+    @final
+    def _is_preempted(self) -> bool:
+        return self._preempted.is_set()
+
+    @final
+    def _resume(self) -> None:
+        self._log("clearing the preempted flag")
+        self._preempted.clear()
 
     @final
     def run(self) -> None:
@@ -34,43 +53,36 @@ class Server(ABC):
         # torch.cuda.set_device(self._gpu_id)
         self._run()
 
-    def cb_update_state(self, m: MsgVerifiedRightmost) -> None:
-        """
-        Validates that the existing state aligns with the given last verified token.
-        If the state is invalid, the server preempts and rolls back the state.
-        Updates the state's `v` index.
-        """
-        self._log(f"Existing state: {self._state=}")
-        self._log(f"Updating state with {m=}")
-        if self._state.is_aligned(m):
-            self._log("State is aligned")
-            self._state.v = m.v
-            self._log(f"State updated: {self._state=}")
-        else:
-            self._log("State is not aligned")
-            self._preempt()
-            self._log(f"Rolling back to {m.v - 1}")
-            self._state.rollback(m.v - 1)
-            self._log("Extending state...")
-            self._state.extend([m.tok_id], verified=True)
-            self._log(f"State updated: {self._state=}")
-
     @abstractmethod
     def _run(self) -> None:
         raise NotImplementedError
 
-    @staticmethod
-    def msg_listener(msg_bus: Queue, servers: list["Server"]):
-        while True:
-            msg: MsgVerifiedRightmost
-            sender_id, msg = msg_bus.get()
-            state = State.from_dict(msg.state)  # Deserialize state
-            log.debug(f"[LISTENER] New message from {sender_id=}: {msg=}, {state=}")
-            for server in servers:
-                if (
-                    server.gpu_id != sender_id
-                ):  # Assuming servers only react to messages from others
-                    server.cb_update_state(msg)
+    def cb_update_state(self, sender_id: int, m: MsgVerifiedRightmost) -> None:
+        """
+        Validates that the existing state aligns with the given last verified token.
+        If the state is invalid, the server preempts and tries to roll back the state.
+        If the rollback is successful, the server extends the state with the new token
+        and updates the state's `v` index. If the rollback fails due to
+        InvalidRollbackError, clones the state of the sender.
+        """
+        self._log(f"Existing state: {self.state=}")
+        self._log(f"Updating state with {m=}")
+        if self.state.is_aligned(m):
+            self._log("State is aligned")
+            self.state.v = m.v
+        else:
+            self._log("State is not aligned")
+            self._preempt()
+            try:
+                self._log(f"Rolling back to {m.v - 1}")
+                self.state.rollback(m.v - 1)
+                self._log("Extending state...")
+                self.state.extend([m.tok_id], verified=True)
+            except InvalidRollbackError as e:
+                self._log(f"Invalid rollback: {e}")
+                self._log(f"Cloning the state of {sender_id=}")
+                self.state = self.servers[sender_id].state.clone(only_verified=True)
+        self._log(f"State updated: {self.state=}")
 
     def _log(self, log_msg: str) -> None:
         pid = os.getpid()
@@ -89,17 +101,23 @@ class ServerDrafter(Server):
         """Generates 10 draft tokens. Returns their ids."""
         self._log("Drafting tokens...")
         time.sleep(0.1)
+        if self._is_preempted():
+            self._log("interrupted.")
+            return []
         tok_ids: list[int] = [random.randint(1, 100) for _ in range(self._lookahead)]
         self._log(f"Drafted: {tok_ids=}")
         self._log("Extending state...")
-        self._state.extend(tok_ids, verified=False)
-        self._log(f"State updated: {self._state=}")
+        self.state.extend(tok_ids, verified=False)
+        self._log(f"State updated: {self.state=}")
         return tok_ids
 
     def _run(self) -> None:
-        while self._state.v < 100 and not self._queue.full():
+        while self.state.v < 100 and not self._queue.full():
             tok_ids: list[int] = self._draft()
-            self._queue.put((self.gpu_id, tok_ids))
+            if self._is_preempted():
+                self._resume()
+            else:
+                self._queue.put((self.gpu_id, tok_ids))
 
 
 class ServerTarget(Server):
@@ -113,13 +131,16 @@ class ServerTarget(Server):
         self._log(f"Verifying tokens {tok_ids=} + {tok_id_extra=}")
         tok_ids.append(tok_id_extra)
         time.sleep(1)
+        if self._is_preempted():
+            self._log("interrupted.")
+            return None
         num_verified: int = random.randint(1, len(tok_ids))
         tok_id_verified_rightmost: int = tok_ids[num_verified - 1]
-        self._state.extend(tok_ids[:num_verified], verified=True)
+        self.state.extend(tok_ids[:num_verified], verified=True)
         self._log(f"{num_verified=}")
-        self._log(f"Extended the state. New state: {self._state=}")
+        self._log(f"Extended the state. New state: {self.state=}")
         return MsgVerifiedRightmost(
-            v=self._state.v,
+            v=self.state.v,
             tok_id=tok_id_verified_rightmost,
         )
 
@@ -128,5 +149,8 @@ class ServerTarget(Server):
         tok_ids: list[int]
         while True:
             sender_id, tok_ids = self._queue.get()
-            msg: MsgVerifiedRightmost = self._verify(tok_ids)
-            self._msg_bus.put((self.gpu_id, msg))
+            msg: None | MsgVerifiedRightmost = self._verify(tok_ids)
+            if self._is_preempted():
+                self._resume()
+            else:
+                self._msg_bus.put((self.gpu_id, msg))

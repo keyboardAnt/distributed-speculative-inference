@@ -1,8 +1,12 @@
 import logging
-from multiprocessing import Process, Queue
+from queue import Queue
+from threading import Thread
 
-from dsi.online.actual.server import Server, ServerDrafter, ServerTarget
+from dsi.online.actual.broker import broker
+from dsi.online.actual.server import ServerDrafter, ServerTarget
 from dsi.online.actual.state import State
+
+log = logging.getLogger(__name__)
 
 
 def main():
@@ -11,22 +15,28 @@ def main():
     msg_bus = Queue()
 
     state = State([2, 0, 2, 4])
-    drafter = ServerDrafter(0, verification_queue, msg_bus, state)
-    target1 = ServerTarget(1, verification_queue, msg_bus, state.clone())
-    target2 = ServerTarget(2, verification_queue, msg_bus, state.clone())
+    drafter = ServerDrafter(0, state, verification_queue, msg_bus)
+    target1 = ServerTarget(
+        1, state.clone(only_verified=True), verification_queue, msg_bus
+    )
+    target2 = ServerTarget(
+        2, state.clone(only_verified=True), verification_queue, msg_bus
+    )
 
     servers = [drafter, target1, target2]
-
+    # To allow servers to communicate with each other
+    for server in servers:
+        server.servers = servers
     # Start server processes
-    processes = [Process(target=server.run) for server in servers] + [
-        Process(target=Server.msg_listener, args=(msg_bus, servers))
+    threads = [Thread(target=server.run) for server in servers] + [
+        Thread(target=broker, args=(msg_bus, servers))
     ]
 
-    for process in processes:
-        process.start()
+    for thread in threads:
+        thread.start()
 
-    for process in processes:
-        process.join()
+    for thread in threads:
+        thread.join()
 
 
 if __name__ == "__main__":
