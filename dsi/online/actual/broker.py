@@ -26,3 +26,13 @@ def broker(bus: Queue, servers: list[Server]) -> None:
                 server.gpu_id != sender_id
             ):  # Assuming servers only react to messages from others
                 server.cb_update_state(sender_id, msg)
+
+
+def res_listener(pipe) -> float:
+    start: float = pipe.recv()
+    log.info(f"Timestamp start: {start=}")
+    end: float = pipe.recv()
+    log.info(f"Timestamp end: {start=}")
+    latency: float = end - start
+    log.info(f"Latency: {latency:.3f} seconds")
+    return latency

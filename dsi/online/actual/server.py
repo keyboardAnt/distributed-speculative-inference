@@ -16,7 +16,15 @@ log = logging.getLogger(__name__)
 set_random_seed(0)
 
 
+class GenerationComplete(Exception):
+    def __init__(self, S: int):
+        super().__init__(f"Completed generating {S} tokens.")
+
+
 class Server(ABC):
+    _vocab_size: int = 100
+    _S: int = 10
+
     @final
     def __init__(
         self,
@@ -24,15 +32,18 @@ class Server(ABC):
         state: State,
         queue: Queue,
         msg_bus: Queue,
+        result_pipe,
     ):
         self.gpu_id: int = gpu_id
         self.state: State = state
         self._queue: Queue = queue
         self._msg_bus: Queue = msg_bus
+        self._result_pipe = result_pipe
         self.servers: list[Server] = []
         self._preempted = threading.Event()
+        self._halted = threading.Event()
 
-    def _preempt(self) -> None:
+    def preempt(self) -> None:
         self._log("preempting current computation")
         self._preempted.set()
 
@@ -42,8 +53,22 @@ class Server(ABC):
 
     @final
     def _resume(self) -> None:
-        self._log("clearing the preempted flag")
+        self._log("clearing the preempted flag if not halted")
+        if self._is_halted():
+            raise GenerationComplete(self.state.v)
         self._preempted.clear()
+
+    def halt(self) -> None:
+        self._log("Halting")
+        self._halted.set()
+
+    @final
+    def _is_halted(self) -> bool:
+        return self._halted.is_set()
+
+    @final
+    def _is_preempted_or_halted(self) -> bool:
+        return self._is_preempted() or self._is_halted()
 
     @final
     def run(self) -> None:
@@ -70,7 +95,7 @@ class Server(ABC):
             self.state.v = m.v
         else:
             self._log("State is not aligned")
-            self._preempt()
+            self.preempt()
             try:
                 self._log(f"Rolling back to {m.v - 1}")
                 self.state.rollback(m.v - 1)
@@ -87,15 +112,15 @@ class Server(ABC):
         log.debug(
             f"[{pid=}] {self.__class__.__name__} - GPU ID: {self.gpu_id} - {log_msg}"
         )
-        # flush the log to ensure that the message is printed in the correct order
+        # flush the log to ensure correct order
         logging.getLogger().handlers[0].flush()
 
 
 class ServerDrafter(Server):
     _lookahead: int = 5
 
-    def _preempt(self) -> None:
-        super()._preempt()
+    def preempt(self) -> None:
+        super().preempt()
         self._log("Clearing the verification queue")
         self._queue.empty()
 
@@ -107,20 +132,39 @@ class ServerDrafter(Server):
         if self._is_preempted():
             self._log("interrupted.")
             return []
-        tok_ids: list[int] = [random.randint(1, 100) for _ in range(self._lookahead)]
+        curr_lookahead: int = min(
+            self._lookahead, self._S - 1 - len(self.state.tok_ids)
+        )
+        tok_ids: list[int] = [
+            random.randint(1, self._vocab_size) for _ in range(curr_lookahead)
+        ]
         self._log(f"Drafted: {tok_ids=}")
         self._log("Extending state...")
         self.state.extend(tok_ids, verified=False)
         self._log(f"State updated: {self.state=}")
         return tok_ids
 
+    def halt(self) -> None:
+        ts: float = time.time()
+        self._result_pipe.send(ts)
+        super().halt()
+        self._log("Halting other servers")
+        for server in self.servers[1:]:
+            server.halt()
+        self._log("Clearing the verification queue and message bus")
+        self._queue.empty()
+        self._msg_bus.empty()
+        raise GenerationComplete(self.state.v)
+
     def _run(self) -> None:
-        while self.state.v < 100:
+        """Returns the timestamp when the generation is complete."""
+        while self.state.v < self._S:
             tok_ids: list[int] = self._draft()
             if self._is_preempted():
                 self._resume()
             else:
                 self._queue.put((self.gpu_id, tok_ids))
+        self.halt()
 
 
 class ServerTarget(Server):
@@ -130,12 +174,12 @@ class ServerTarget(Server):
         Verifies the given drafts.
         Returns the token id and index of the last verified token.
         """
-        tok_id_extra: int = random.randint(1, 100)
+        tok_id_extra: int = random.randint(1, self._vocab_size)
         self._log(f"Verifying tokens {tok_ids=} + {tok_id_extra=}")
         tok_ids.append(tok_id_extra)
         time.sleep(1)
-        if self._is_preempted():
-            self._log("interrupted.")
+        if self._is_preempted_or_halted():
+            self._log("preempted or halted.")
             return None
         num_verified: int = random.randint(1, len(tok_ids))
         tok_id_verified_rightmost: int = tok_ids[num_verified - 1]
@@ -147,10 +191,10 @@ class ServerTarget(Server):
             tok_id=tok_id_verified_rightmost,
         )
 
-    def _run(self):
+    def _run(self) -> None:
         sender_id: int
         tok_ids: list[int]
-        while True:
+        while not self._is_halted():
             sender_id, tok_ids = self._queue.get()
             msg: None | MsgVerifiedRightmost = self._verify(tok_ids)
             if self._is_preempted():
