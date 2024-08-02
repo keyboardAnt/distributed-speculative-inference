@@ -31,9 +31,7 @@ class Server(ABC):
         self._msg_bus: Queue = msg_bus
         self.servers: list[Server] = []
         self._preempted = threading.Event()
-        self._lock = threading.Lock()
 
-    @final
     def _preempt(self) -> None:
         self._log("preempting current computation")
         self._preempted.set()
@@ -96,6 +94,11 @@ class Server(ABC):
 class ServerDrafter(Server):
     _lookahead: int = 5
 
+    def _preempt(self) -> None:
+        super()._preempt()
+        self._log("Clearing the verification queue")
+        self._queue.empty()
+
     # TODO: Implement this method
     def _draft(self) -> list[int]:
         """Generates 10 draft tokens. Returns their ids."""
@@ -112,7 +115,7 @@ class ServerDrafter(Server):
         return tok_ids
 
     def _run(self) -> None:
-        while self.state.v < 100 and not self._queue.full():
+        while self.state.v < 100:
             tok_ids: list[int] = self._draft()
             if self._is_preempted():
                 self._resume()
