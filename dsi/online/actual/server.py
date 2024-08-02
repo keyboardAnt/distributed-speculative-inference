@@ -59,9 +59,6 @@ class Server(ABC):
     def _run(self) -> None:
         raise NotImplementedError
 
-    def create_msg(self, v: int, tok_id: int) -> MsgVerifiedRightmost:
-        return MsgVerifiedRightmost(v=v, tok_id=tok_id, state=self._state.to_dict())
-
     @staticmethod
     def msg_listener(msg_bus: Queue, servers: list["Server"]):
         while True:
@@ -107,7 +104,7 @@ class ServerDrafter(Server):
 
 class ServerTarget(Server):
     # TODO: Implement this method
-    def _verify(self, tok_ids) -> MsgVerifiedRightmost:
+    def _verify(self, tok_ids: list[int]) -> MsgVerifiedRightmost:
         """
         Verifies the given drafts.
         Returns the token id and index of the last verified token.
@@ -124,7 +121,6 @@ class ServerTarget(Server):
         return MsgVerifiedRightmost(
             v=self._state.v,
             tok_id=tok_id_verified_rightmost,
-            state=self._state.to_dict(),
         )
 
     def _run(self):
