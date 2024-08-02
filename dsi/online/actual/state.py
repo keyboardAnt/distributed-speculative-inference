@@ -14,10 +14,8 @@ class InvalidRollbackError(Exception):
 
 class State:
     def __init__(self, initial_prompt: list[int]):
-        self._tok_ids: list[int] = initial_prompt[:]  # Initial prompt tokens, protected
-        self._v: int = (
-            len(initial_prompt) - 1
-        )  # Index of the last verified token, protected
+        self._tok_ids: list[int] = initial_prompt[:]
+        self._v: int = len(initial_prompt) - 1
         self._lock = multiprocessing.Lock()
 
     @property

@@ -12,7 +12,6 @@ log = logging.getLogger(__name__)
 
 
 def main():
-    # manager = Manager()
     res_receiver, res_sender = Pipe(duplex=False)
     verification_queue = Queue(maxsize=2)
     msg_bus = Queue()
