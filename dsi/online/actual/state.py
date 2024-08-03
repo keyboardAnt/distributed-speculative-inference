@@ -69,17 +69,17 @@ class State:
         ret.v = self.v
         return ret
 
-    def to_dict(self) -> dict[str, int]:
-        """Serialize the state to a dictionary."""
-        return {"tok_ids": self.tok_ids, "v": self.v}
+    # def to_dict(self) -> dict[str, int]:
+    #     """Serialize the state to a dictionary."""
+    #     return {"tok_ids": self.tok_ids, "v": self.v}
 
-    @classmethod
-    def from_dict(cls, data: dict) -> "State":
-        """Deserialize the dictionary back to a State object."""
-        instance = cls([])
-        instance.tok_ids = data["tok_ids"]
-        instance._v = data["v"]
-        return instance
+    # @classmethod
+    # def from_dict(cls, data: dict) -> "State":
+    #     """Deserialize the dictionary back to a State object."""
+    #     instance = cls([])
+    #     instance.tok_ids = data["tok_ids"]
+    #     instance._v = data["v"]
+    #     return instance
 
     def __repr__(self) -> str:
         return f"State(v={self.v}, tok_ids={self.tok_ids})"
