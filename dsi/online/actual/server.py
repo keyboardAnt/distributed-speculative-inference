@@ -34,6 +34,8 @@ class Server(ABC):
         msg_bus: Queue,
         result_pipe,
     ):
+        # TODO: use the GPU
+        # torch.cuda.set_device(gpu_id)
         self.gpu_id: int = gpu_id
         self.state: State = state
         self._queue: Queue = queue
@@ -70,14 +72,8 @@ class Server(ABC):
     def _is_preempted_or_halted(self) -> bool:
         return self._is_preempted() or self._is_halted()
 
-    @final
-    def run(self) -> None:
-        # TODO: use the GPU
-        # torch.cuda.set_device(self._gpu_id)
-        self._run()
-
     @abstractmethod
-    def _run(self) -> None:
+    def run(self) -> None:
         raise NotImplementedError
 
     def cb_update_state(self, sender_id: int, m: MsgVerifiedRightmost) -> None:
@@ -156,7 +152,7 @@ class ServerDrafter(Server):
         self._msg_bus.empty()
         raise GenerationComplete(self.state.v)
 
-    def _run(self) -> None:
+    def run(self) -> None:
         """Returns the timestamp when the generation is complete."""
         while self.state.v < self._S:
             tok_ids: list[int] = self._draft()
@@ -191,7 +187,7 @@ class ServerTarget(Server):
             tok_id=tok_id_verified_rightmost,
         )
 
-    def _run(self) -> None:
+    def run(self) -> None:
         sender_id: int
         tok_ids: list[int]
         while not self._is_halted():
