@@ -19,11 +19,11 @@ def broker(bus: Queue, servers: list[Server]) -> None:
             "[LISTENER] New message from sender_id=%d: msg=%s, state=%s",
             sender_id,
             msg,
-            servers[sender_id].state,
+            servers[sender_id].model.state,
         )
         for server in servers:
             if (
-                server.gpu_id != sender_id
+                server.model.gpu_id != sender_id
             ):  # Assuming servers only react to messages from others
                 server.cb_update_state(sender_id, msg)
 

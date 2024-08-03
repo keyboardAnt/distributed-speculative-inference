@@ -4,7 +4,10 @@ from multiprocessing import Pipe
 from queue import Queue
 from threading import Thread
 
+from transformers import AutoTokenizer
+
 from dsi.online.actual.broker import broker, res_listener
+from dsi.online.actual.model import Model
 from dsi.online.actual.server import ServerDrafter, ServerTarget
 from dsi.online.actual.state import State
 
@@ -16,14 +19,20 @@ def main():
     verification_queue = Queue(maxsize=2)
     msg_bus = Queue()
 
-    state = State([2, 0, 2, 4])
-    drafter = ServerDrafter(0, state, verification_queue, msg_bus, res_sender)
-    target1 = ServerTarget(
-        1, state.clone(only_verified=True), verification_queue, msg_bus, None
+    name_drafter = "facebook/opt-125m"
+    name_target = "facebook/opt-350m"
+    tokenizer_drafter = AutoTokenizer.from_pretrained(name_drafter)
+    tokenizer_target = AutoTokenizer.from_pretrained(name_target)
+    state_drafter = State(tokenizer_drafter("Hello, my name is").input_ids)
+    state_target = State(tokenizer_target("Hello, my name is").input_ids)
+    model_drafter = Model(0, name_drafter, is_verifier=False, state=state_drafter)
+    model_target1 = Model(1, name_target, is_verifier=True, state=state_target)
+    model_target2 = Model(
+        2, name_target, is_verifier=True, state=state_target.clone(only_verified=True)
     )
-    target2 = ServerTarget(
-        2, state.clone(only_verified=True), verification_queue, msg_bus, None
-    )
+    drafter = ServerDrafter(model_drafter, verification_queue, msg_bus, res_sender)
+    target1 = ServerTarget(model_target1, verification_queue, msg_bus, None)
+    target2 = ServerTarget(model_target2, verification_queue, msg_bus, None)
     servers = [drafter, target1, target2]
     # To allow servers to communicate with each other
     for server in servers:
