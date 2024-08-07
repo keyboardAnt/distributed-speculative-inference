@@ -1,23 +1,24 @@
 {
 	"name": "poetry3-poetry-pyenv",
 	"build": {
-		"dockerfile": "Dockerfile"
+		"dockerfile": "Dockerfile",
 	},
 	"containerEnv": {
-		"HYDRA_FULL_ERROR": "1"
+		"HYDRA_FULL_ERROR": "1",
+		"NODE_OPTIONS": "--max-old-space-size=4096",
 	},
 	"runArgs": [
-		"--shm-size=2g",
-		"--memory=4g",
-		"--memory-swap=12g"
+		"--shm-size=4g",
+		"--memory=5g",
+		"--memory-swap=12g",
 	],
 	"postCreateCommand": "poetry install",
 	"customizations": {
 		"vscode": {
 			"extensions": [
 				"ms-python.python",
-				"ms-azuretools.vscode-docker"
+				"ms-azuretools.vscode-docker",
 			]
 		}
-	}
+	},
 }
