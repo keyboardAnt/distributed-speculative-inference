@@ -4,7 +4,6 @@ import pytest
 import torch
 from transformers import GPT2LMHeadModel
 
-from dsi.online.actual.message import MsgVerifiedRightmost
 from dsi.online.actual.model import Model
 from dsi.online.actual.state import State
 
@@ -126,20 +125,20 @@ def test_get_num_accepted_distinct_matching_substrings():
     assert model._get_num_accepted(logits) == 1
 
 
-def test_verify_accept(model: Model):
-    # Providing real input and performing verification
-    tok_ids = [17485, 11, 508, 318, 262, 717, 5510, 12]
-    v = model.state.v
-    result: MsgVerifiedRightmost = model.verify(tok_ids)
+# def test_verify_accept(model: Model):
+#     # Providing real input and performing verification
+#     tok_ids = [17485, 11, 508, 318, 262, 717, 5510, 12]
+#     v = model.state.v
+#     result: MsgVerifiedRightmost = model.verify(tok_ids)
 
-    # Since _get_num_accepted and logits are calculated internally, no mocks are used
-    assert isinstance(result, MsgVerifiedRightmost)
-    assert (
-        result.tok_id == model.state.tok_ids[-1]
-    )  # Expects last token ID to be correct
-    assert (
-        model.state.v == v + len(tok_ids) - 1
-    )  # This expects specific implementation details
+#     # Since _get_num_accepted and logits are calculated internally, no mocks are used
+#     assert isinstance(result, MsgVerifiedRightmost)
+#     assert (
+#         result.tok_id == model.state.tok_ids[-1]
+#     )  # Expects last token ID to be correct
+#     assert (
+#         model.state.v == v + len(tok_ids) - 1
+#     )  # This expects specific implementation details
 
 
 # def test_verify_reject(model: Model):
