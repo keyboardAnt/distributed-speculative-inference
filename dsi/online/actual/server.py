@@ -131,7 +131,7 @@ class ServerDrafter(Server):
                 tok_ids = self.model.draft(curr_lookahead)
             self._log(f"Drafted: {tok_ids=}")
             self._log(f"State after drafting: {self.model.state=}")
-        return tok_ids
+            return tok_ids
 
     def halt(self) -> None:
         ts: float = time.time()
