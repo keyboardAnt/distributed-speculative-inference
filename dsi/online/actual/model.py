@@ -41,21 +41,19 @@ class Model:
         Generate drafts and updates the state.
         Returns the generated input ids.
         """
-        if max_new_tokens <= 0:
-            return []
-        with self.state.lock:
-            input_ids: Tensor = torch.tensor([self.state.tok_ids], dtype=torch.int)
-            index_first_draft = len(input_ids)
-            outputs: Tensor = self._model.generate(
-                input_ids=input_ids,
-                attention_mask=torch.ones_like(input_ids),
-                max_new_tokens=max_new_tokens,
-                do_sample=True,
-                use_cache=False,
-                return_dict=False,
-            )
-            tok_ids: list[int] = outputs[0][index_first_draft:].tolist()
-            self.state.extend(tok_ids, verified=False)
+        input_ids: Tensor = torch.tensor([self.state.tok_ids], dtype=torch.int)
+        index_first_draft = input_ids.shape[-1]
+        # TODO: Consider sampling instead of greedy decoding
+        outputs: Tensor = self._model.generate(
+            input_ids=input_ids,
+            attention_mask=torch.ones_like(input_ids),
+            max_new_tokens=max_new_tokens,
+            do_sample=False,
+            use_cache=False,
+            return_dict=False,
+        )
+        tok_ids: list[int] = outputs[0][index_first_draft:].tolist()
+        self.state.extend(tok_ids, verified=False)
         return tok_ids
 
     def verify(self, tok_ids: list[int]) -> MsgVerifiedRightmost:

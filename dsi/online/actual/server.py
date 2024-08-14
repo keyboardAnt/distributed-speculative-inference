@@ -121,13 +121,16 @@ class ServerDrafter(Server):
 
     def _draft(self) -> list[int]:
         """Generates draft tokens. Returns their ids."""
-        curr_lookahead: int = min(
-            self._lookahead, self._S - 1 - len(self.model.state.tok_ids)
-        )
-        self._log(f"Drafting tokens... {curr_lookahead=}")
-        tok_ids: list[int] = self.model.draft(curr_lookahead)
-        self._log(f"Drafted: {tok_ids=}")
-        self._log(f"New state: {self.model.state=}")
+        with self.model.state.lock:
+            curr_lookahead: int = min(
+                self._lookahead, self._S - 1 - len(self.model.state.tok_ids)
+            )
+            self._log("Drafting tokens... ")
+            tok_ids: list[int] = []
+            if curr_lookahead > 0:
+                tok_ids = self.model.draft(curr_lookahead)
+            self._log(f"Drafted: {tok_ids=}")
+            self._log(f"State after drafting: {self.model.state=}")
         return tok_ids
 
     def halt(self) -> None:

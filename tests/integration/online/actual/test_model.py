@@ -32,13 +32,6 @@ def test_model_initialization(mock_model):
     assert isinstance(mock_model.state, State)
 
 
-# Test draft method with max_new_tokens <= 0
-def test_draft_no_tokens(mock_model):
-    result = mock_model.draft(max_new_tokens=0)
-    assert result == []
-    mock_model.state.extend.assert_not_called()
-
-
 # Test draft method with positive max_new_tokens
 def test_draft_with_tokens_mocked(mock_model):
     mock_model.draft(max_new_tokens=5)
@@ -122,6 +115,13 @@ def model() -> Model:
     # The prompt is the GPT2 encoding of "The president of USA is Barack Ob"
     state = State(initial_prompt=[464, 1893, 286, 4916, 318, 8732, 1835])
     return Model(gpu_id=0, name="gpt2", is_verifier=True, state=state)
+
+
+def test_draft(model):
+    assert model.state.v == 6
+    result = model.draft(max_new_tokens=8)
+    assert model.state.v == 6
+    assert result == [17485, 11, 508, 318, 262, 717, 5510, 12]
 
 
 def test_verify_accept(model: Model):
