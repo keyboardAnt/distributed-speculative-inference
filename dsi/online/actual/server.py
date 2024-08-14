@@ -1,10 +1,9 @@
 import logging
 import os
-import random
 import threading
 import time
 from abc import ABC, abstractmethod
-from queue import Queue
+from multiprocessing import Queue
 from typing import final
 
 from dsi.online.actual.message import MsgVerifiedRightmost
@@ -120,23 +119,15 @@ class ServerDrafter(Server):
         self._log("Clearing the verification queue")
         self._queue.empty()
 
-    # TODO: Implement this method
     def _draft(self) -> list[int]:
         """Generates 10 draft tokens. Returns their ids."""
-        self._log("Drafting tokens...")
-        if self._is_preempted():
-            self._log("interrupted.")
-            return []
         curr_lookahead: int = min(
             self._lookahead, self._S - 1 - len(self.model.state.tok_ids)
         )
-        tok_ids: list[int] = []
-        if curr_lookahead > 0:
-            tok_ids = self.model.generate(curr_lookahead)
+        self._log(f"Drafting tokens... {curr_lookahead=}")
+        tok_ids: list[int] = self.model.draft(curr_lookahead)
         self._log(f"Drafted: {tok_ids=}")
-        self._log("Extending state...")
-        self.model.state.extend(tok_ids, verified=False)
-        self._log(f"State updated: {self.model.state=}")
+        self._log(f"New state: {self.model.state=}")
         return tok_ids
 
     def halt(self) -> None:
@@ -154,43 +145,44 @@ class ServerDrafter(Server):
     def run(self) -> None:
         """Returns the timestamp when the generation is complete."""
         while self.model.state.v < self._S:
-            tok_ids: list[int] = self._draft()
-            if self._is_preempted():
-                self._resume()
+            # TODO: Consider avoiding busy waiting when
+            #       `len(self.model.state.tok_ids) == self._S`. Instead, wake up the
+            #       drafter if the state is rolled back.
+            tok_ids: list[int] = []
+            self._log(f"{self._is_preempted()=}")
+            if not self._is_preempted():
+                tok_ids = self._draft()
+                if not self._is_preempted():
+                    self._queue.put((self.model.gpu_id, tok_ids))
+                else:
+                    self._resume()
             else:
-                self._queue.put((self.model.gpu_id, tok_ids))
+                self._resume()
         self.halt()
 
 
 class ServerTarget(Server):
-    # TODO: Implement this method
     def _verify(self, tok_ids: list[int]) -> MsgVerifiedRightmost:
         """
         Verifies the given drafts.
         Returns the token id and index of the last verified token.
         """
-        self.model.state.extend(tok_ids, verified=False)
-        tok_id_extra: int = self.model.generate(1)[0]
-        tok_ids.append(tok_id_extra)
-        self._log(f"Verifying tokens {tok_ids=} + {tok_id_extra=}")
-        num_verified: int = random.randint(1, len(tok_ids))
         if self._is_preempted_or_halted():
             self._log("preempted or halted.")
             return None
-        tok_id_verified_rightmost: int = tok_ids[num_verified - 1]
-        self.model.state.extend(tok_ids[:num_verified], verified=True)
-        self._log(f"{num_verified=}")
-        self._log(f"Extended the state. New state: {self.model.state=}")
-        return MsgVerifiedRightmost(
-            v=self.model.state.v,
-            tok_id=tok_id_verified_rightmost,
-        )
+        self._log(f"Verifying: {tok_ids=}")
+        msg: MsgVerifiedRightmost = self.model.verify(tok_ids)
+        self._log(f"Verified: {msg=}")
+        self._log(f"New state: {self.model.state=}")
+        return msg
 
     def run(self) -> None:
         sender_id: int
         tok_ids: list[int]
         while not self._is_halted():
+            self._log("Reading from the verification queue... If empty, will block.")
             sender_id, tok_ids = self._queue.get()
+            self._log(f"Received tokens from {sender_id=}: {tok_ids=}")
             msg: None | MsgVerifiedRightmost = self._verify(tok_ids)
             if self._is_preempted():
                 self._resume()
