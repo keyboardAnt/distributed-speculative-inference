@@ -95,8 +95,6 @@ class Model:
             self.state.tok_ids[self.state.v + 1 :], dtype=torch.int
         )
         pred_ids: Tensor = logits.argmax(dim=-1)
-        # leftmost_mismatch: int = (tok_ids != pred_ids).nonzero(as_tuple=True)[0].min()
-        # return leftmost_mismatch.item()
         mismatches: Tensor = (tok_ids != pred_ids).nonzero(as_tuple=True)[0]
         if mismatches.numel() == 0:
             return len(tok_ids)
