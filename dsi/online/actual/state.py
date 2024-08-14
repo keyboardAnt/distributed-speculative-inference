@@ -14,6 +14,9 @@ class InvalidRollbackError(Exception):
 
 class State:
     def __init__(self, initial_prompt: list[int]):
+        """
+        v is the index of the rightmost verified token. If no token is verified, v = -1.
+        """
         manager = Manager()
         self._tok_ids: list[int] = manager.list(initial_prompt[:])
         self._v = manager.Value("i", len(initial_prompt) - 1)
