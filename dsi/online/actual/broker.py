@@ -1,5 +1,5 @@
 import logging
-from queue import Queue
+from multiprocessing import Queue
 
 from dsi.online.actual.message import MsgVerifiedRightmost
 from dsi.online.actual.server import Server

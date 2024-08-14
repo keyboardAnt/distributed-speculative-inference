@@ -43,17 +43,19 @@ class Model:
         """
         if max_new_tokens <= 0:
             return []
-        input_ids: Tensor = torch.tensor([self.state.tok_ids], dtype=torch.int)
-        outputs: Tensor = self._model.generate(
-            input_ids=input_ids,
-            attention_mask=torch.ones_like(input_ids),
-            max_new_tokens=max_new_tokens,
-            do_sample=True,
-            use_cache=False,
-            return_dict=False,
-        )
-        tok_ids: list[int] = outputs[0][len(self.state.tok_ids) :].tolist()
-        self.state.extend(tok_ids, verified=False)
+        with self.state.lock:
+            input_ids: Tensor = torch.tensor([self.state.tok_ids], dtype=torch.int)
+            index_first_draft = len(input_ids)
+            outputs: Tensor = self._model.generate(
+                input_ids=input_ids,
+                attention_mask=torch.ones_like(input_ids),
+                max_new_tokens=max_new_tokens,
+                do_sample=True,
+                use_cache=False,
+                return_dict=False,
+            )
+            tok_ids: list[int] = outputs[0][index_first_draft:].tolist()
+            self.state.extend(tok_ids, verified=False)
         return tok_ids
 
     def verify(self, tok_ids: list[int]) -> MsgVerifiedRightmost:
@@ -61,13 +63,14 @@ class Model:
         Verifies the tokens and updates the state.
         Returns the token id and index of the last verified token.
         """
-        self.state.extend(tok_ids, verified=False)
-        logits: Tensor = self._get_logits()
-        num_accepted: int = self._get_num_accepted(logits[:-1])
-        self.state.v += num_accepted
-        self.state.rollback(self.state.v)
-        tok_id_verified_rightmost: int = logits[num_accepted].argmax().item()
-        self.state.extend([tok_id_verified_rightmost], verified=True)
+        with self.state.lock:
+            self.state.extend(tok_ids, verified=False)
+            logits: Tensor = self._get_logits()
+            num_accepted: int = self._get_num_accepted(logits[:-1])
+            self.state.v += num_accepted
+            self.state.rollback(self.state.v)
+            tok_id_verified_rightmost: int = logits[num_accepted].argmax().item()
+            self.state.extend([tok_id_verified_rightmost], verified=True)
         return MsgVerifiedRightmost(
             v=self.state.v,
             tok_id=tok_id_verified_rightmost,
@@ -91,9 +94,10 @@ class Model:
         Returns the number of draft tokens accepted based on an exact match.
         We only accept tokens that match the argmax tokens up to the first mismatch.
         """
-        tok_ids: Tensor = torch.tensor(
-            self.state.tok_ids[self.state.v + 1 :], dtype=torch.int
-        )
+        with self.state.lock:
+            tok_ids: Tensor = torch.tensor(
+                self.state.tok_ids[self.state.v + 1 :], dtype=torch.int
+            )
         pred_ids: Tensor = logits.argmax(dim=-1)
         mismatches: Tensor = (tok_ids != pred_ids).nonzero(as_tuple=True)[0]
         if mismatches.numel() == 0:

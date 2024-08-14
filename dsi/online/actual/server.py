@@ -120,7 +120,7 @@ class ServerDrafter(Server):
         self._queue.empty()
 
     def _draft(self) -> list[int]:
-        """Generates 10 draft tokens. Returns their ids."""
+        """Generates draft tokens. Returns their ids."""
         curr_lookahead: int = min(
             self._lookahead, self._S - 1 - len(self.model.state.tok_ids)
         )
@@ -144,18 +144,13 @@ class ServerDrafter(Server):
 
     def run(self) -> None:
         """Returns the timestamp when the generation is complete."""
-        while self.model.state.v < self._S:
+        while (self.model.state.v < self._S) and (not self._queue.full()):
             # TODO: Consider avoiding busy waiting when
             #       `len(self.model.state.tok_ids) == self._S`. Instead, wake up the
             #       drafter if the state is rolled back.
-            tok_ids: list[int] = []
-            self._log(f"{self._is_preempted()=}")
+            tok_ids: list[int] = self._draft()
             if not self._is_preempted():
-                tok_ids = self._draft()
-                if not self._is_preempted():
-                    self._queue.put((self.model.gpu_id, tok_ids))
-                else:
-                    self._resume()
+                self._queue.put((self.model.gpu_id, tok_ids))
             else:
                 self._resume()
         self.halt()

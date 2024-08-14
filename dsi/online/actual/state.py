@@ -1,5 +1,5 @@
 from contextlib import suppress
-from multiprocessing import Lock, Manager
+from multiprocessing import Manager, RLock
 
 from dsi.online.actual.message import MsgVerifiedRightmost
 
@@ -20,26 +20,26 @@ class State:
         manager = Manager()
         self._tok_ids: list[int] = manager.list(initial_prompt[:])
         self._v = manager.Value("i", len(initial_prompt) - 1)
-        self._lock = Lock()
+        self.lock = RLock()
 
     @property
     def tok_ids(self) -> list[int]:
-        with self._lock:
+        with self.lock:
             return list(self._tok_ids)
 
     @tok_ids.setter
     def tok_ids(self, tok_ids_new: list[int]) -> None:
-        with self._lock:
+        with self.lock:
             self._tok_ids[:] = tok_ids_new
 
     @property
     def v(self) -> int:
-        with self._lock:
+        with self.lock:
             return self._v.value
 
     @v.setter
     def v(self, v_new: int) -> None:
-        with self._lock:
+        with self.lock:
             self._v.value = v_new
 
     def extend(self, tok_ids: list[int], verified: bool) -> None:
