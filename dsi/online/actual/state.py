@@ -45,7 +45,7 @@ class State:
     def extend(self, tok_ids: list[int], verified: bool) -> None:
         self.tok_ids += tok_ids
         if verified:
-            self.v += len(tok_ids)
+            self.v = len(self.tok_ids) - 1
 
     def is_aligned(self, m: MsgVerifiedRightmost) -> bool:
         """
