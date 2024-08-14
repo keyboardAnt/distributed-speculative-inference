@@ -63,7 +63,7 @@ class Model:
         """
         self.state.extend(tok_ids, verified=False)
         logits: Tensor = self._get_logits()
-        num_accepted: int = self._get_num_accepted(logits)
+        num_accepted: int = self._get_num_accepted(logits[:-1])
         self.state.v += num_accepted
         self.state.rollback(self.state.v)
         tok_id_verified_rightmost: int = logits[num_accepted].argmax().item()
@@ -75,8 +75,8 @@ class Model:
 
     def _get_logits(self) -> Tensor:
         """
-        Computes a forward.
-        Returns only the logits corresponding to the draft tokens.
+        Computes a forward. Returns the logits corresponding to not-yet verified tokens.
+        The number of returned logits is k+1, where k is the number of drafts.
         """
         input_ids: Tensor = torch.tensor([self.state.tok_ids], dtype=torch.int)
         logits: Tensor = (
@@ -84,7 +84,7 @@ class Model:
             .logits.detach()
             .squeeze()
         )
-        return logits[self.state.v + 1 :]
+        return logits[self.state.v :]
 
     def _get_num_accepted(self, logits: Tensor) -> int:
         """

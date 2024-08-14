@@ -4,6 +4,7 @@ import pytest
 import torch
 from transformers import GPT2LMHeadModel
 
+from dsi.online.actual.message import MsgVerifiedRightmost
 from dsi.online.actual.model import Model
 from dsi.online.actual.state import State
 
@@ -22,13 +23,6 @@ def mock_model(mock_state):
         model = Model(gpu_id=0, name="gpt2", is_verifier=True, state=mock_state)
     model._model.generate = MagicMock(return_value=torch.tensor([[1, 2, 3, 4, 5]]))
     return model
-
-
-@pytest.fixture
-def model() -> Model:
-    # The prompt is the GPT2 encoding of "The president of USA is Barack Ob"
-    state = State(initial_prompt=[464, 1893, 286, 4916, 318, 8732, 1835])
-    return Model(gpu_id=0, name="gpt2", is_verifier=True, state=state)
 
 
 def test_model_initialization(mock_model):
@@ -95,16 +89,14 @@ def test_get_num_accepted():
     tok_ids = [1, 0, 0]
     state.extend(tok_ids, verified=False)
     model = Model(gpu_id=0, name="gpt2", is_verifier=True, state=state)
-    result = model._get_num_accepted(logits)
     expected_result = 2
-    assert result == expected_result
     while expected_result >= 0:
+        assert model._get_num_accepted(logits) == expected_result
         state.rollback(n - 1)
         tok_ids = tok_ids[1:]
         state.extend(tok_ids, verified=False)
         logits = logits[1:]
         expected_result -= 1
-        assert model._get_num_accepted(logits) == expected_result
 
 
 def test_get_num_accepted_all_match():
@@ -125,23 +117,39 @@ def test_get_num_accepted_distinct_matching_substrings():
     assert model._get_num_accepted(logits) == 1
 
 
-# def test_verify_accept(model: Model):
-#     # Providing real input and performing verification
-#     tok_ids = [17485, 11, 508, 318, 262, 717, 5510, 12]
-#     v = model.state.v
-#     result: MsgVerifiedRightmost = model.verify(tok_ids)
-
-#     # Since _get_num_accepted and logits are calculated internally, no mocks are used
-#     assert isinstance(result, MsgVerifiedRightmost)
-#     assert (
-#         result.tok_id == model.state.tok_ids[-1]
-#     )  # Expects last token ID to be correct
-#     assert (
-#         model.state.v == v + len(tok_ids) - 1
-#     )  # This expects specific implementation details
+@pytest.fixture
+def model() -> Model:
+    # The prompt is the GPT2 encoding of "The president of USA is Barack Ob"
+    state = State(initial_prompt=[464, 1893, 286, 4916, 318, 8732, 1835])
+    return Model(gpu_id=0, name="gpt2", is_verifier=True, state=state)
 
 
-# def test_verify_reject(model: Model):
-#     # Providing real input and performing verification
-#     tok_ids = [17485, 11, 508, 318, 262, 717, 5510, 11]
-#     pass
+def test_verify_accept(model: Model):
+    v: int = model.state.v
+    tok_ids = [17485, 11, 508, 318, 262, 717, 5510, 12]
+    result: MsgVerifiedRightmost = model.verify(tok_ids)
+    assert isinstance(result, MsgVerifiedRightmost)
+    assert result.tok_id == model.state.tok_ids[-1]
+    assert model.state.v == v + len(tok_ids) + 1
+
+
+def test_verify_reject_rightmost(model: Model):
+    v: int = model.state.v
+    tok_ids = [17485, 11, 508, 318, 262, 717, 5510, 11]
+    result: MsgVerifiedRightmost = model.verify(tok_ids)
+    assert isinstance(result, MsgVerifiedRightmost)
+    expected_tok_id = 12
+    assert result.tok_id == expected_tok_id
+    assert model.state.tok_ids[-1] == expected_tok_id
+    assert model.state.v == v + len(tok_ids)
+
+
+def test_verify_reject(model: Model):
+    v: int = model.state.v
+    tok_ids = [17485, 11, 508, 318, 262, 262, 5510, 12]
+    result: MsgVerifiedRightmost = model.verify(tok_ids)
+    assert isinstance(result, MsgVerifiedRightmost)
+    expected_tok_id = 717
+    assert result.tok_id == expected_tok_id
+    assert model.state.tok_ids[-1] == expected_tok_id
+    assert model.state.v == v + 6
