@@ -147,7 +147,7 @@ class ServerDrafter(Server):
 
     def run(self) -> None:
         """Returns the timestamp when the generation is complete."""
-        while (self.model.state.v < self._S) and (not self._queue.full()):
+        while self.model.state.v < self._S:
             # TODO: Consider avoiding busy waiting when
             #       `len(self.model.state.tok_ids) == self._S`. Instead, wake up the
             #       drafter if the state is rolled back.
