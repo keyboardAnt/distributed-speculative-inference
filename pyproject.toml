@@ -32,6 +32,7 @@ isort = "^5.13.2"
 pytest-mock = "^3.14.0"
 pytest-timeout = "^2.3.1"
 pytest-xdist = "^3.6.1"
+ipykernel = "^6.29.5"
 
 [build-system]
 requires = ["poetry-core"]
