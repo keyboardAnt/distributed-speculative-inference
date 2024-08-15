@@ -69,10 +69,10 @@ class Model:
             self.state.rollback(self.state.v)
             tok_id_verified_rightmost: int = logits[num_accepted].argmax().item()
             self.state.extend([tok_id_verified_rightmost], verified=True)
-        return MsgVerifiedRightmost(
-            v=self.state.v,
-            tok_id=tok_id_verified_rightmost,
-        )
+            return MsgVerifiedRightmost(
+                v=self.state.v,
+                tok_id=tok_id_verified_rightmost,
+            )
 
     def _get_logits(self) -> Tensor:
         """
