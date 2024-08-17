@@ -80,26 +80,27 @@ class Server(ABC):
         and updates the state's `v` index. If the rollback fails due to
         InvalidRollbackError, clones the state of the sender.
         """
-        self._log(f"Existing state: {self.model.state=}")
-        self._log(f"Updating state with {m=}")
-        if self.model.state.is_aligned(m):
-            self._log("State is aligned")
-            self.model.state.v = m.v
-        else:
-            self._log("State is not aligned")
-            self.preempt()
-            try:
-                self._log(f"Rolling back to {m.v - 1}")
-                self.model.state.rollback(m.v - 1)
-                self._log("Extending state...")
-                self.model.state.extend([m.tok_id], verified=True)
-            except InvalidRollbackError as e:
-                self._log(f"Invalid rollback: {e}")
-                self._log(f"Cloning the state of {sender_id=}")
-                self.model.state = self.servers[sender_id].model.state.clone(
-                    only_verified=True
-                )
-        self._log(f"State updated: {self.model.state=}")
+        with self.model.state.lock:
+            self._log(f"Existing state: {self.model.state=}")
+            self._log(f"Updating state with {m=}")
+            if self.model.state.is_aligned(m):
+                self._log("State is aligned")
+                self.model.state.v = m.v
+            else:
+                self._log("State is not aligned")
+                self.preempt()
+                try:
+                    self._log(f"Rolling back to {m.v - 1}")
+                    self.model.state.rollback(m.v - 1)
+                    self._log("Extending state...")
+                    self.model.state.extend([m.tok_id], verified=True)
+                except InvalidRollbackError as e:
+                    self._log(f"Invalid rollback: {e}")
+                    self._log(f"Cloning the state of {sender_id=}")
+                    self.model.state = self.servers[sender_id].model.state.clone(
+                        only_verified=True
+                    )
+            self._log(f"State updated: {self.model.state=}")
 
     def _log(self, log_msg: str) -> None:
         pid = os.getpid()
@@ -116,7 +117,7 @@ class ServerDrafter(Server):
 
     def preempt(self) -> None:
         super().preempt()
-        self._log("Clearing the verification queue")
+        self._log("Clearing the job queue")
         self._queue.empty()
 
     def _draft(self) -> list[int]:
@@ -140,7 +141,7 @@ class ServerDrafter(Server):
         self._log("Halting other servers")
         for server in self.servers[1:]:
             server.halt()
-        self._log("Clearing the verification queue and message bus")
+        self._log("Clearing the job queue and message bus")
         self._queue.empty()
         self._msg_bus.empty()
         raise GenerationComplete(self.model.state.v)
@@ -178,7 +179,7 @@ class ServerTarget(Server):
         sender_id: int
         tok_ids: list[int]
         while not self._is_halted():
-            self._log("Reading from the verification queue... If empty, will block.")
+            self._log("Reading from the job queue... If empty, will block.")
             sender_id, tok_ids = self._queue.get()
             self._log(f"Received tokens from {sender_id=}: {tok_ids=}")
             msg: None | MsgVerifiedRightmost = self._verify(tok_ids)

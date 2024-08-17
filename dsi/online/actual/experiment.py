@@ -15,7 +15,7 @@ log = logging.getLogger(__name__)
 
 def main():
     res_receiver, res_sender = Pipe(duplex=False)
-    verification_queue = Queue(maxsize=2)
+    job_queue = Queue(maxsize=2)
     msg_bus = Queue()
 
     name_drafter = "facebook/opt-125m"
@@ -32,9 +32,9 @@ def main():
         2, name_target, is_verifier=True, state=state_target.clone(only_verified=True)
     )
     print("Models created.")
-    drafter = ServerDrafter(model_drafter, verification_queue, msg_bus, res_sender)
-    target1 = ServerTarget(model_target1, verification_queue, msg_bus, None)
-    target2 = ServerTarget(model_target2, verification_queue, msg_bus, None)
+    drafter = ServerDrafter(model_drafter, job_queue, msg_bus, res_sender)
+    target1 = ServerTarget(model_target1, job_queue, msg_bus, None)
+    target2 = ServerTarget(model_target2, job_queue, msg_bus, None)
     servers = [drafter, target1, target2]
     print("Servers created.")
     # To allow servers to communicate with each other
