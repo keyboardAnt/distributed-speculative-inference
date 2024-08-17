@@ -23,7 +23,7 @@ def broker(bus: Queue, servers: list[Server]) -> None:
         )
         for server in servers:
             if (
-                server.model.gpu_id != sender_id
+                server.model.setup.gpu_id != sender_id
             ):  # Assuming servers only react to messages from others
                 server.cb_update_state(sender_id, msg)
 

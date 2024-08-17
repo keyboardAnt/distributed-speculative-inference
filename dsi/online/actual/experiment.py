@@ -1,16 +1,24 @@
 import logging
 import time
-from multiprocessing import Pipe, Queue
+from multiprocessing import Pipe, Process, Queue
 from threading import Thread
 
 from transformers import AutoTokenizer
 
 from dsi.online.actual.broker import broker, res_listener
-from dsi.online.actual.model import Model
-from dsi.online.actual.server import ServerDrafter, ServerTarget
+from dsi.online.actual.model import Model, SetupModel
+from dsi.online.actual.server import ServerDrafter, ServerTarget, SetupServer
 from dsi.online.actual.state import State
 
+# from threading import Thread
+
+
 log = logging.getLogger(__name__)
+
+
+def tokenize(tokenizer: str, prompt: str) -> list[int]:
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer)
+    return tokenizer(prompt).input_ids
 
 
 def main():
@@ -20,40 +28,52 @@ def main():
 
     name_drafter = "facebook/opt-125m"
     name_target = "facebook/opt-350m"
-    tokenizer_drafter = AutoTokenizer.from_pretrained(name_drafter)
-    tokenizer_target = AutoTokenizer.from_pretrained(name_target)
     prompt = "Hello, my name is"
-    state_drafter = State(tokenizer_drafter(prompt).input_ids)
-    state_target = State(tokenizer_target(prompt).input_ids)
-    print("States created.")
-    model_drafter = Model(0, name_drafter, is_verifier=False, state=state_drafter)
-    model_target1 = Model(1, name_target, is_verifier=True, state=state_target)
-    model_target2 = Model(
-        2, name_target, is_verifier=True, state=state_target.clone(only_verified=True)
-    )
+    prompt_drafter: list[int] = tokenize(name_drafter, prompt)
+    prompt_target: list[int] = tokenize(name_target, prompt)
+    state_drafter = State(prompt_drafter)
+    state_target = State(prompt_target)
+    setup_model_drafter = SetupModel(gpu_id=0, _name=name_drafter, state=state_drafter)
+    setup_model_target1 = SetupModel(gpu_id=1, _name=name_target, state=state_target)
+    setup_model_target2 = SetupModel(gpu_id=2, _name=name_target, state=state_target)
+    model_drafter = Model(setup_model_drafter)
+    model_target1 = Model(setup_model_target1)
+    model_target2 = Model(setup_model_target2)
     print("Models created.")
-    drafter = ServerDrafter(model_drafter, job_queue, msg_bus, res_sender)
-    target1 = ServerTarget(model_target1, job_queue, msg_bus, None)
-    target2 = ServerTarget(model_target2, job_queue, msg_bus, None)
+    setup_server_drafter = SetupServer(
+        model=model_drafter,
+        _job_queue=job_queue,
+        _msg_bus=msg_bus,
+        _result_pipe=res_sender,
+    )
+    setup_server_target1 = SetupServer(
+        model=model_target1, _job_queue=job_queue, _msg_bus=msg_bus, _result_pipe=None
+    )
+    setup_server_target2 = SetupServer(
+        model=model_target2, _job_queue=job_queue, _msg_bus=msg_bus, _result_pipe=None
+    )
+    drafter = ServerDrafter(setup_server_drafter)
+    target1 = ServerTarget(setup_server_target1)
+    target2 = ServerTarget(setup_server_target2)
     servers = [drafter, target1, target2]
     print("Servers created.")
     # To allow servers to communicate with each other
     for server in servers:
         server.servers = servers
     # Start server processes
-    th_servers = [Thread(target=server.run) for server in servers]
+    pr_servers = [Process(target=server.run) for server in servers]
     print("Starting the broker and servers...")
     Thread(target=broker, args=(msg_bus, servers)).start()
     th_res = Thread(target=res_listener, args=(res_receiver,))
     th_res.start()
     start: float = time.time()
-    for th in th_servers:
-        th.start()
+    for pr in pr_servers:
+        pr.start()
     res_sender.send(start)
     print("Waiting for the servers to finish...")
     th_res.join()
-    for th in th_servers:
-        th.join()
+    for pr in pr_servers:
+        pr.join()
 
 
 if __name__ == "__main__":

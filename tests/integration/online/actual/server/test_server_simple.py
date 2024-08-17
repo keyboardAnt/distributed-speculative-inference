@@ -1,10 +1,15 @@
 from multiprocessing import Pipe, Queue
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from dsi.online.actual.model import Model
-from dsi.online.actual.server import GenerationComplete, Server, ServerDrafter
+from dsi.online.actual.model import Model, SetupModel
+from dsi.online.actual.server import (
+    GenerationComplete,
+    Server,
+    ServerDrafter,
+    SetupServer,
+)
 from dsi.online.actual.state import State
 
 
@@ -14,9 +19,13 @@ def drafter_setup():
     msg_bus = Queue()
     res_receiver, res_sender = Pipe(duplex=False)
     res_sender.send = Mock()
-    state = State([1, 2, 3])
-    model = Mock(spec=Model, gpu_id=0, state=state)
-    drafter = ServerDrafter(model, queue, msg_bus, res_sender)
+    setup_model = SetupModel(gpu_id=0, state=State([1, 2, 3]), _name="test_model")
+    model = MagicMock(spec=Model, setup=setup_model)
+    drafter = ServerDrafter(
+        SetupServer(
+            model=model, _job_queue=queue, _msg_bus=msg_bus, _result_pipe=res_sender
+        )
+    )
     return drafter, model, queue, msg_bus, res_sender
 
 
@@ -45,37 +54,42 @@ class TestServer(Server):
 
 
 @pytest.fixture
-def server_setup():
-    model = Mock(spec=Model, gpu_id=7)
+def server():
+    setup_model = SetupModel(gpu_id=7, state=State([1, 2, 3]), _name="test_model")
+    model = Mock(spec=Model, setup=setup_model)
     model.state = Mock(spec=State)
     queue = Queue()
     msg_bus = Queue()
     result_pipe = Mock()
-    server = TestServer(model, queue, msg_bus, result_pipe)
+    server = TestServer(
+        SetupServer(
+            model=model, _job_queue=queue, _msg_bus=msg_bus, _result_pipe=result_pipe
+        )
+    )
     return server
 
 
-def test_resume_when_halted(server_setup):
-    server_setup.halt()
-    server_setup.preempt()
+def test_resume_when_halted(server):
+    server.halt()
+    server.preempt()
     with pytest.raises(GenerationComplete) as excinfo:
-        server_setup._resume()
+        server._resume()
     assert "Completed generating" in str(excinfo.value)
-    assert server_setup._is_preempted()
+    assert server._is_preempted()
 
 
-def test_is_preempted_or_halted_preempted(server_setup):
-    server_setup.preempt()
-    assert server_setup._is_preempted_or_halted()
+def test_is_preempted_or_halted_preempted(server):
+    server.preempt()
+    assert server._is_preempted_or_halted()
 
 
-def test_is_preempted_or_halted_halted(server_setup):
-    server_setup.halt()
-    assert server_setup._is_preempted_or_halted()
+def test_is_preempted_or_halted_halted(server):
+    server.halt()
+    assert server._is_preempted_or_halted()
 
 
-def test_is_preempted_or_halted_neither(server_setup):
-    assert not server_setup._is_preempted_or_halted()
+def test_is_preempted_or_halted_neither(server):
+    assert not server._is_preempted_or_halted()
 
 
 def test_preemption_clears_queue(drafter_setup):
@@ -88,7 +102,7 @@ def test_preemption_clears_queue(drafter_setup):
 
 def test_draft_with_lookahead(drafter_setup):
     drafter, model, queue, msg_bus, res_sender = drafter_setup
-    model.state.tok_ids = [1, 2, 3, 4]
+    model.setup.state.tok_ids = [1, 2, 3, 4]
     tok_ids_drafted = [5, 6, 7, 8, 9]
     model.draft = Mock(return_value=tok_ids_drafted)
     tokens = drafter._draft()
