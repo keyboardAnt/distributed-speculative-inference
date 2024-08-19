@@ -58,6 +58,7 @@ def main():
     for server in servers:
         server.servers = servers
     # Start servers
+    # TODO(#44): Multiprocess support
     th_servers = [Thread(target=server.run) for server in servers]
     print("Starting the broker and servers...")
     Thread(target=broker, args=(msg_bus, servers)).start()
