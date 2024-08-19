@@ -1,17 +1,14 @@
 import logging
 import time
-from multiprocessing import Pipe, Process, Queue
 from threading import Thread
 
+from torch.multiprocessing import Pipe, Queue
 from transformers import AutoTokenizer
 
 from dsi.online.actual.broker import broker, res_listener
 from dsi.online.actual.model import Model, SetupModel
 from dsi.online.actual.server import ServerDrafter, ServerTarget, SetupServer
 from dsi.online.actual.state import State
-
-# from threading import Thread
-
 
 log = logging.getLogger(__name__)
 
@@ -60,20 +57,20 @@ def main():
     # To allow servers to communicate with each other
     for server in servers:
         server.servers = servers
-    # Start server processes
-    pr_servers = [Process(target=server.run) for server in servers]
+    # Start servers
+    th_servers = [Thread(target=server.run) for server in servers]
     print("Starting the broker and servers...")
     Thread(target=broker, args=(msg_bus, servers)).start()
     th_res = Thread(target=res_listener, args=(res_receiver,))
     th_res.start()
     start: float = time.time()
-    for pr in pr_servers:
-        pr.start()
+    for th in th_servers:
+        th.start()
     res_sender.send(start)
     print("Waiting for the servers to finish...")
     th_res.join()
-    for pr in pr_servers:
-        pr.join()
+    for th in th_servers:
+        th.join()
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 from contextlib import suppress
-from multiprocessing import Manager, RLock
+
+from torch.multiprocessing import Manager, RLock
 
 from dsi.online.actual.message import MsgVerifiedRightmost
 

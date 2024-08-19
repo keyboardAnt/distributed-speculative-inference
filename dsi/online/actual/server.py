@@ -4,8 +4,9 @@ import threading
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from multiprocessing import Queue
 from typing import final
+
+from torch.multiprocessing import Queue
 
 from dsi.online.actual.message import MsgVerifiedRightmost
 from dsi.online.actual.model import Model
@@ -103,7 +104,7 @@ class Server(ABC):
                     self._log(f"Cloning the state of {sender_id=}")
                     self.setup.model.setup.state = self.servers[
                         sender_id
-                    ].model.state.clone(only_verified=True)
+                    ].setup.model.setup.state.clone(only_verified=True)
             self._log(f"State updated: {self.setup.model.setup.state=}")
 
     def _log(self, log_msg: str) -> None:

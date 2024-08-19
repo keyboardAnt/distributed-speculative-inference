@@ -1,5 +1,6 @@
 import logging
-from multiprocessing import Queue
+
+from torch.multiprocessing import Queue
 
 from dsi.online.actual.message import MsgVerifiedRightmost
 from dsi.online.actual.server import Server
@@ -19,11 +20,11 @@ def broker(bus: Queue, servers: list[Server]) -> None:
             "[LISTENER] New message from sender_id=%d: msg=%s, state=%s",
             sender_id,
             msg,
-            servers[sender_id].model.state,
+            servers[sender_id].setup.model.setup.state,
         )
         for server in servers:
             if (
-                server.model.setup.gpu_id != sender_id
+                server.setup.model.setup.gpu_id != sender_id
             ):  # Assuming servers only react to messages from others
                 server.cb_update_state(sender_id, msg)
 

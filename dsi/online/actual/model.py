@@ -37,21 +37,23 @@ class Model:
             return cpu
 
         m = AutoModelForCausalLM.from_pretrained(name)
+        m.eval()
         device: str = get_device()
         if device != cpu:
             m.to(device)
         return m
 
+    @torch.no_grad()
     def draft(self, max_new_tokens: int) -> list[int]:
         """
         Generate drafts and updates the state.
         Returns the generated input ids.
         """
-        log.debug("Drafting new tokens...")
-        input_ids: Tensor = torch.tensor([self.setup.state.tok_ids], dtype=torch.int)
-        log.debug(f"Input IDs: {input_ids}")
+        input_ids: Tensor = torch.tensor(
+            [self.setup.state.tok_ids],
+            dtype=torch.int,
+        )
         index_first_draft = input_ids.shape[-1]
-        log.debug(f"Index of first draft: {index_first_draft}")
         # TODO: Consider sampling instead of greedy decoding
         outputs: Tensor = self._model.generate(
             input_ids=input_ids,
@@ -61,11 +63,8 @@ class Model:
             use_cache=False,
             return_dict=False,
         )
-        log.debug(f"Outputs: {outputs}")
         tok_ids: list[int] = outputs[0][index_first_draft:].tolist()
-        log.debug(f"Drafted tokens: {tok_ids}")
         self.setup.state.extend(tok_ids, verified=False)
-        log.debug(f"State after drafting: {self.setup.state}")
         return tok_ids
 
     def verify(self, tok_ids: list[int]) -> MsgVerifiedRightmost:
@@ -86,6 +85,7 @@ class Model:
                 tok_id=tok_id_verified_rightmost,
             )
 
+    @torch.no_grad()
     def _get_logits(self) -> Tensor:
         """
         Computes a forward. Returns the logits corresponding to not-yet verified tokens.
