@@ -2,10 +2,10 @@ import logging
 import time
 from threading import Thread
 
-from torch.multiprocessing import Pipe, Queue
+from torch.multiprocessing import Pipe, Process, Queue
 from transformers import AutoTokenizer
 
-from dsi.online.actual.broker import broker, res_listener
+from dsi.online.actual.broker import Broker, res_listener
 from dsi.online.actual.model import Model, SetupModel
 from dsi.online.actual.server import ServerDrafter, ServerTarget, SetupServer
 from dsi.online.actual.state import State
@@ -32,7 +32,9 @@ def main():
     state_target = State(prompt_target)
     setup_model_drafter = SetupModel(gpu_id=0, _name=name_drafter, state=state_drafter)
     setup_model_target1 = SetupModel(gpu_id=1, _name=name_target, state=state_target)
-    setup_model_target2 = SetupModel(gpu_id=2, _name=name_target, state=state_target)
+    setup_model_target2 = SetupModel(
+        gpu_id=2, _name=name_target, state=state_target.clone(only_verified=True)
+    )
     model_drafter = Model(setup_model_drafter)
     model_target1 = Model(setup_model_target1)
     model_target2 = Model(setup_model_target2)
@@ -44,10 +46,16 @@ def main():
         _result_pipe=res_sender,
     )
     setup_server_target1 = SetupServer(
-        model=model_target1, _job_queue=job_queue, _msg_bus=msg_bus, _result_pipe=None
+        model=model_target1,
+        _job_queue=job_queue,
+        _msg_bus=msg_bus,
+        _result_pipe=res_sender,
     )
     setup_server_target2 = SetupServer(
-        model=model_target2, _job_queue=job_queue, _msg_bus=msg_bus, _result_pipe=None
+        model=model_target2,
+        _job_queue=job_queue,
+        _msg_bus=msg_bus,
+        _result_pipe=res_sender,
     )
     drafter = ServerDrafter(setup_server_drafter)
     target1 = ServerTarget(setup_server_target1)
@@ -61,8 +69,11 @@ def main():
     # TODO(#44): Multiprocess support
     th_servers = [Thread(target=server.run) for server in servers]
     print("Starting the broker and servers...")
-    Thread(target=broker, args=(msg_bus, servers)).start()
-    th_res = Thread(target=res_listener, args=(res_receiver,))
+    broker = Broker(msg_bus, servers)
+    # Thread(target=broker.run).start()
+    # th_res = Thread(target=res_listener, args=(res_receiver,))
+    Process(target=broker.run).start()
+    th_res = Process(target=res_listener, args=(res_receiver,))
     th_res.start()
     start: float = time.time()
     for th in th_servers:

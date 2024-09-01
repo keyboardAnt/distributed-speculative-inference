@@ -35,7 +35,6 @@ class Server(ABC):
     _vocab_size: int = 100
     _S: int = 20
 
-    @final
     def __init__(
         self,
         setup: SetupServer,
@@ -43,9 +42,8 @@ class Server(ABC):
         self.setup: SetupServer = setup
         self.servers: list[Server] = []
         self._preempted = threading.Event()
-        self._halted = threading.Event()
 
-    def preempt(self) -> None:
+    def _preempt(self) -> None:
         self._log("preempting current computation")
         self._preempted.set()
 
@@ -53,24 +51,30 @@ class Server(ABC):
     def _is_preempted(self) -> bool:
         return self._preempted.is_set()
 
+    # @final
+    # def _wait_until_preemption(self) -> None:
+    #     self._log("waiting until the server is preempted")
+    #     self._preempted.wait()
+
     @final
-    def _resume(self) -> None:
-        self._log("clearing the preempted flag if not halted")
-        if self._is_halted():
-            raise GenerationComplete(self.setup.model.setup.state.v)
+    def _clear_preemption(self) -> None:
+        self._log("clearing the preempted flag")
         self._preempted.clear()
 
-    def halt(self) -> None:
+    @final
+    def _halt(self) -> None:
         self._log("Halting")
-        self._halted.set()
+        ts: float = time.time()
+        self.setup._result_pipe.send(ts)
+        raise GenerationComplete(self.setup.model.setup.state.v)
 
-    @final
-    def _is_halted(self) -> bool:
-        return self._halted.is_set()
+    # @final
+    # def _is_halted(self) -> bool:
+    #     return self._halted.is_set()
 
-    @final
-    def _is_preempted_or_halted(self) -> bool:
-        return self._is_preempted() or self._is_halted()
+    # @final
+    # def _is_preempted(self) -> bool:
+    #     return self._is_preempted() or self._is_halted()
 
     @abstractmethod
     def run(self) -> None:
@@ -90,10 +94,12 @@ class Server(ABC):
             self._log(f"Updating state with {m=}")
             if self.setup.model.setup.state.is_aligned(m):
                 self._log("State is aligned")
-                self.setup.model.setup.state.v = m.v
+                self.setup.model.setup.state.v = max(
+                    m.v, self.setup.model.setup.state.v
+                )
             else:
                 self._log("State is not aligned")
-                self.preempt()
+                self._preempt()
                 try:
                     self._log(f"Rolling back to {m.v - 1}")
                     self.setup.model.setup.state.rollback(m.v - 1)
@@ -101,11 +107,20 @@ class Server(ABC):
                     self.setup.model.setup.state.extend([m.tok_id], verified=True)
                 except InvalidRollbackError as e:
                     self._log(f"Invalid rollback: {e}")
-                    self._log(f"Cloning the state of {sender_id=}")
-                    self.setup.model.setup.state = self.servers[
-                        sender_id
-                    ].setup.model.setup.state.clone(only_verified=True)
+                    # self._log(f"Cloning the state of {sender_id=}")
+                    # self.setup.model.setup.state = self.servers[
+                    #     sender_id
+                    # ].setup.model.setup.state.clone(only_verified=True)
+                    self._clone_state_from(sender_id)
             self._log(f"State updated: {self.setup.model.setup.state=}")
+
+    def _clone_state_from(self, server_id: int) -> None:
+        """Clones the state from another server."""
+        self._log(f"Cloning the state of {server_id=}")
+        with self.setup.model.setup.state.lock:
+            self.setup.model.setup.state = self.servers[
+                server_id
+            ].setup.model.setup.state.clone(only_verified=True)
 
     def _log(self, log_msg: str) -> None:
         pid = os.getpid()
@@ -118,52 +133,77 @@ class Server(ABC):
 
 
 class ServerDrafter(Server):
-    _lookahead: int = 5
+    def __init__(self, setup: SetupServer):
+        super().__init__(setup)
+        self._lookahead: int = 5
 
-    def preempt(self) -> None:
-        super().preempt()
+    def _preempt(self) -> None:
+        super()._preempt()
         self._log("Clearing the job queue")
         self.setup._job_queue.empty()
 
-    def _draft(self) -> list[int]:
-        """Generates draft tokens. Returns their ids."""
-        self._log("Acquiring lock to draft tokens...")
-        with self.setup.model.setup.state.lock:
-            curr_lookahead: int = min(
-                self._lookahead, self._S - 1 - len(self.setup.model.setup.state.tok_ids)
-            )
-            self._log("Drafting tokens... ")
-            tok_ids: list[int] = []
-            if curr_lookahead > 0:
-                tok_ids = self.setup.model.draft(curr_lookahead)
-            self._log(f"Drafted: {tok_ids=}")
-            self._log(f"State after drafting: {self.setup.model.setup.state=}")
-            return tok_ids
+    # def _draft(self) -> list[int]:
+    #     """Generates draft tokens. Returns their ids."""
+    #     self._log("Acquiring lock to draft tokens...")
+    #     with self.setup.model.setup.state.lock:
+    #         curr_lookahead: int = min(
+    #             self._lookahead,
+    #             self._S - 1 - len(self.setup.model.setup.state.tok_ids)
+    #         )
+    #         self._log("Drafting tokens... ")
+    #         tok_ids: list[int] = []
+    #         if curr_lookahead > 0:
+    #             tok_ids = self.setup.model.draft(curr_lookahead)
+    #         self._log(f"Drafted: {tok_ids=}")
+    #         self._log(f"State after drafting: {self.setup.model.setup.state=}")
+    #         return tok_ids
 
-    def halt(self) -> None:
-        ts: float = time.time()
-        self.setup._result_pipe.send(ts)
-        super().halt()
-        self._log("Halting other servers")
-        for server in self.servers[1:]:
-            server.halt()
-        self._log("Clearing the job queue and message bus")
-        self.setup._job_queue.empty()
-        self.setup._msg_bus.empty()
-        raise GenerationComplete(self.setup.model.setup.state.v)
+    # def _halt(self) -> None:
+    #     ts: float = time.time()
+    #     self.setup._result_pipe.send(ts)
+    #     raise GenerationComplete(self.setup.model.setup.state.v)
+
+    # def run(self) -> None:
+    #     """Returns the timestamp when the generation is complete."""
+    #     while self.setup.model.setup.state.v < self._S:
+    #         # TODO: Consider avoiding busy waiting when
+    #         #       `len(self.setup.model.setup.state.tok_ids) == self._S`.
+    #         #       Instead, wake up the drafter if the state is rolled back.
+    #         tok_ids: list[int] = self._draft()
+    #         if not self._is_preempted():
+    #             self.setup._job_queue.put((self.setup.model.setup.gpu_id, tok_ids))
+    #         else:
+    #             self._resume()
+    #     self.halt()
 
     def run(self) -> None:
         """Returns the timestamp when the generation is complete."""
         while self.setup.model.setup.state.v < self._S:
-            # TODO: Consider avoiding busy waiting when
-            #       `len(self.setup.model.setup.state.tok_ids) == self._S`.
-            #       Instead, wake up the drafter if the state is rolled back.
-            tok_ids: list[int] = self._draft()
-            if not self._is_preempted():
-                self.setup._job_queue.put((self.setup.model.setup.gpu_id, tok_ids))
+            tok_ids: list[int] = []
+            self._log("Acquiring lock to draft tokens...")
+            with self.setup.model.setup.state.lock:
+                curr_lookahead: int = min(
+                    self._lookahead,
+                    self._S - 1 - len(self.setup.model.setup.state.tok_ids),
+                )
+                self._log("Drafting tokens... ")
+                if curr_lookahead > 0:
+                    tok_ids = self.setup.model.draft(curr_lookahead)
+                self._log(f"Drafted: {tok_ids=}")
+                self._log(f"State after drafting: {self.setup.model.setup.state=}")
+            # if not self._is_preempted():
+            #     self.setup._job_queue.put((self.setup.model.setup.gpu_id, tok_ids))
+            #     if not tok_ids:
+            #         self._wait_on_preemption()
+            # else:
+            #     self._clear_preemption()
+            if self._is_preempted():
+                self._log("preempted and will not send job to queue.")
+                self._clear_preemption()
             else:
-                self._resume()
-        self.halt()
+                self.setup._job_queue.put((self.setup.model.setup.gpu_id, tok_ids))
+                # if not tok_ids:
+                #     self._wait_until_preemption()
 
 
 class ServerTarget(Server):
@@ -172,8 +212,8 @@ class ServerTarget(Server):
         Verifies the given drafts.
         Returns the token id and index of the last verified token.
         """
-        if self._is_preempted_or_halted():
-            self._log("preempted or halted.")
+        if self._is_preempted():
+            self._log("preempted.")
             return None
         self._log(f"Verifying: {tok_ids=}")
         msg: MsgVerifiedRightmost = self.setup.model.verify(tok_ids)
@@ -184,12 +224,14 @@ class ServerTarget(Server):
     def run(self) -> None:
         sender_id: int
         tok_ids: list[int]
-        while not self._is_halted():
+        while True:
             self._log("Reading from the job queue... If empty, will block.")
             sender_id, tok_ids = self.setup._job_queue.get()
             self._log(f"Received tokens from {sender_id=}: {tok_ids=}")
             msg: None | MsgVerifiedRightmost = self._verify(tok_ids)
             if self._is_preempted():
-                self._resume()
+                self._clear_preemption()
+            elif msg.v >= self._S:
+                self._halt()
             else:
                 self.setup._msg_bus.put((self.setup.model.setup.gpu_id, msg))
