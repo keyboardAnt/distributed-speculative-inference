@@ -104,10 +104,9 @@ class Model:
         Returns the number of draft tokens accepted based on an exact match.
         We only accept tokens that match the argmax tokens up to the first mismatch.
         """
-        with self.setup.state.lock:
-            tok_ids: Tensor = torch.tensor(
-                self.setup.state.tok_ids[self.setup.state.v + 1 :], dtype=torch.int
-            )
+        tok_ids: Tensor = torch.tensor(
+            self.setup.state.tok_ids[self.setup.state.v + 1 :], dtype=torch.int
+        )
         pred_ids: Tensor = logits.argmax(dim=-1)
         mismatches: Tensor = (tok_ids != pred_ids).nonzero(as_tuple=True)[0]
         if mismatches.numel() == 0:

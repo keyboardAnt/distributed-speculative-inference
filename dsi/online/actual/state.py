@@ -1,8 +1,10 @@
 from contextlib import suppress
 
-from torch.multiprocessing import Manager, RLock
+from torch.multiprocessing import RLock
 
 from dsi.online.actual.message import MsgVerifiedRightmost
+
+# import asyncio
 
 
 class InvalidRollbackError(Exception):
@@ -18,10 +20,14 @@ class State:
         """
         v is the index of the rightmost verified token. If no token is verified, v = -1.
         """
-        manager = Manager()
-        self._tok_ids: list[int] = manager.list(tok_ids[:])
-        self._v = manager.Value("i", len(tok_ids) - 1)
-        self.lock = RLock()
+        #     manager = Manager()
+        #     self._tok_ids: list[int] = manager.list(tok_ids[:])
+        #     self._v = manager.Value("i", len(tok_ids) - 1)
+        #     self.lock = RLock()
+
+        self._tok_ids: list[int] = tok_ids[:]
+        self._v: int = len(tok_ids) - 1
+        self.lock: RLock = RLock()
 
     @property
     def tok_ids(self) -> list[int]:
