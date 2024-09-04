@@ -24,7 +24,7 @@ class Request:
 @dataclass
 class Response:
     task_id: str
-    result: int
+    result: torch.Tensor
     worker_type: str
 
 
@@ -203,11 +203,12 @@ class Worker:
         await asyncio.sleep(
             4 if self.worker_type == "Drafter" else 10
         )  # Simulating work
-        result = (
-            random.randint(100, 999)
-            if self.worker_type == "Drafter"
-            else random.randint(1000, 9999)
-        )
+        with torch.no_grad():
+            result = torch.tensor(
+                random.randint(100, 999)
+                if self.worker_type == "Drafter"
+                else random.randint(1000, 9999)
+            )
         return Response(
             task_id=request.task_id, result=result, worker_type=self.worker_type
         )
