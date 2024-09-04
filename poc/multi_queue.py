@@ -3,6 +3,7 @@ import random
 import time
 import uuid
 from dataclasses import dataclass
+from typing import Set
 
 import aioconsole
 import torch
@@ -16,7 +17,7 @@ class Request:
     timestamp: float
 
     @classmethod
-    def create(cls, command: str):
+    def create(cls, command: str) -> "Request":
         return cls(task_id=str(uuid.uuid4()), command=command, timestamp=time.time())
 
 
@@ -32,13 +33,17 @@ class PreemptMessage:
     timestamp: float
 
     @classmethod
-    def create(cls):
+    def create(cls) -> "PreemptMessage":
         return cls(timestamp=time.time())
 
 
 class Manager:
     def __init__(
-        self, draft_queue, verify_queue, draft_response_queue, verify_response_queue
+        self,
+        draft_queue: asyncio.Queue[Request],
+        verify_queue: asyncio.Queue[Request],
+        draft_response_queue: asyncio.Queue[Response],
+        verify_response_queue: asyncio.Queue[Response],
     ):
         print("ManagerServer: Initializing with queues")
         self.draft_queue = draft_queue
@@ -48,7 +53,7 @@ class Manager:
         self.pubsub = PubSub()
         print("ManagerServer: Initialized with PubSub")
 
-    async def handle_requests(self):
+    async def handle_requests(self) -> None:
         print("ManagerServer: Starting to handle requests")
         while True:
             command = (
@@ -72,7 +77,7 @@ class Manager:
             else:
                 print(f"ManagerServer: Invalid command received: {command}")
 
-    async def empty_queue(self, queue):
+    async def empty_queue(self, queue: asyncio.Queue) -> None:
         while not queue.empty():
             try:
                 queue.get_nowait()
@@ -80,7 +85,7 @@ class Manager:
             except asyncio.QueueEmpty:
                 pass
 
-    async def preempt_all(self):
+    async def preempt_all(self) -> None:
         print("ManagerServer: Preempt command received, preempting all workers")
         # Clear the queues
         await self.empty_queue(self.draft_queue)
@@ -90,7 +95,7 @@ class Manager:
         await self.pubsub.publish(PreemptMessage.create())
         print("ManagerServer: Preempt message sent to workers")
 
-    async def handle_responses(self):
+    async def handle_responses(self) -> None:
         print("ManagerServer: Starting to handle responses")
         while True:
             # Always check verify queue first
@@ -102,13 +107,20 @@ class Manager:
                 print(f"ManagerServer: Received draft response {response}")
             await asyncio.sleep(0.1)  # Small delay to prevent busy waiting
 
-    async def start(self):
+    async def start(self) -> None:
         asyncio.create_task(self.pubsub.broadcast())
         print("ManagerServer: Started PubSub broadcast task")
 
 
 class Worker:
-    def __init__(self, queue, response_queue, manager, worker_type, gpu_id):
+    def __init__(
+        self,
+        queue: asyncio.Queue[Request],
+        response_queue: asyncio.Queue[Response],
+        manager: Manager,
+        worker_type: str,
+        gpu_id: int,
+    ):
         self.manager = manager
         self.queue = queue
         self.response_queue = response_queue
@@ -135,7 +147,7 @@ class Worker:
             self.model.to(device)
         print(f"{self.worker_type}Worker: Model loaded on {device}")
 
-    async def process_tasks(self):
+    async def process_tasks(self) -> None:
         print(f"{self.worker_type}Worker: Starting to process tasks")
         self.preempt_queue = await self.manager.pubsub.subscribe()
         print(f"{self.worker_type}Worker: Subscribed to PubSub")
@@ -190,7 +202,7 @@ class Worker:
                 print(f"{self.worker_type}Worker: Process tasks cancelled")
                 break
 
-    async def perform_task(self, request: Request):
+    async def perform_task(self, request: Request) -> Response:
         print(
             f"{self.worker_type}Worker: Processing"
             f" {self.worker_type.lower()} for ID {request.task_id}"
@@ -207,7 +219,7 @@ class Worker:
             task_id=request.task_id, result=result, worker_type=self.worker_type
         )
 
-    async def stop(self):
+    async def stop(self) -> None:
         if self.preempt_queue:
             await self.manager.pubsub.unsubscribe(self.preempt_queue)
             print(f"{self.worker_type}Worker: Unsubscribed from PubSub")
@@ -215,17 +227,17 @@ class Worker:
 
 class PubSub:
     def __init__(self):
-        self.queue = asyncio.Queue()
-        self.subscribers = set()
+        self.queue: asyncio.Queue[PreemptMessage] = asyncio.Queue()
+        self.subscribers: Set[asyncio.Queue[PreemptMessage]] = set()
         print("PubSub: Initialized with 0 subscribers")
 
-    async def publish(self, message):
+    async def publish(self, message: PreemptMessage) -> None:
         await self.queue.put(message)
         print(
             f"PubSub: Published message '{message}'. Queue size: {self.queue.qsize()}"
         )
 
-    async def subscribe(self):
+    async def subscribe(self) -> asyncio.Queue[PreemptMessage]:
         subscriber = asyncio.Queue()
         self.subscribers.add(subscriber)
         print(
@@ -233,11 +245,11 @@ class PubSub:
         )
         return subscriber
 
-    async def unsubscribe(self, subscriber):
+    async def unsubscribe(self, subscriber: asyncio.Queue[PreemptMessage]) -> None:
         self.subscribers.remove(subscriber)
         print(f"PubSub: Subscriber removed. Total subscribers: {len(self.subscribers)}")
 
-    async def broadcast(self):
+    async def broadcast(self) -> None:
         print("PubSub: Starting broadcast loop")
         while True:
             message = await self.queue.get()
@@ -250,7 +262,7 @@ class PubSub:
             print(f"PubSub: Broadcast complete. Queue size: {self.queue.qsize()}")
 
 
-async def main():
+async def main() -> None:
     print("Main: Initializing queues")
     draft_queue = asyncio.Queue()
     verify_queue = asyncio.Queue()
