@@ -40,13 +40,13 @@ class Request(Message):
 
 @dataclass
 class Response(Message):
-    worker_type: str
+    is_verified: bool
     scores: torch.Tensor
 
     def __repr__(self) -> str:
         return (
             f"Response(id={self.id}, timestamp={self.timestamp},"
-            f" worker_type='{self.worker_type}', scores_shape={self.scores.shape})"
+            f" is_verified={self.is_verified}, scores_shape={self.scores.shape})"
         )
 
 
@@ -116,7 +116,7 @@ class Manager:
         print("ManagerServer: Starting to handle responses")
         while True:
             response = await self.response_queue.get()
-            print(f"ManagerServer: Received {response.worker_type} response {response}")
+            print(f"ManagerServer: Received {response=}")
             self.response_queue.task_done()
 
     async def start(self) -> None:
@@ -130,18 +130,16 @@ class Worker(ABC):
         queue: asyncio.Queue[Request],
         response_queue: asyncio.Queue[Response],
         manager: Manager,
-        worker_type: str,
         gpu_id: int,
     ):
         self.manager = manager
         self.queue = queue
         self.response_queue = response_queue
         self.current_task = None
-        self.worker_type = worker_type
         self.gpu_id = gpu_id
         self.model = None
         self.preempt_queue = None
-        print(f"{self.worker_type}Worker: Initialized with queues")
+        print(f"{self.__class__.__name__}: Initialized with queues")
 
     @abstractmethod
     async def _get_scores(self, request: Request) -> torch.Tensor:
@@ -155,25 +153,22 @@ class Worker(ABC):
             device = f"cuda:{self.gpu_id}"
         else:
             print(f"GPU {self.gpu_id} not available. Using CPU.")
-        print(f"{self.worker_type}Worker: Loading model {name} on {device}")
+        print(f"{self.__class__.__name__}: Loading model {name} on {device}")
         self.model = AutoModelForCausalLM.from_pretrained(name)
         self.model.eval()
         if device != cpu:
-            print(f"{self.worker_type}Worker: Moving model to {device}")
+            print(f"{self.__class__.__name__}: Moving model to {device}")
             self.model.to(device)
-        print(f"{self.worker_type}Worker: Model loaded on {device}")
+        print(f"{self.__class__.__name__}: Model loaded on {device}")
 
     async def process_tasks(self) -> None:
-        print(f"{self.worker_type}Worker: Starting to process tasks")
+        print(f"{self.__class__.__name__}: Starting to process tasks")
         self.preempt_queue = await self.manager.pubsub.subscribe()
-        print(f"{self.worker_type}Worker: Subscribed to PubSub")
+        print(f"{self.__class__.__name__}: Subscribed to PubSub")
         while True:
             try:
                 request = await self.queue.get()
-                print(
-                    f"{self.worker_type}Worker: Received {self.worker_type.lower()}"
-                    f" task with ID {request.id}"
-                )
+                print(f"{self.__class__.__name__}: Received task with ID {request.id}")
                 self.current_task = asyncio.create_task(self.perform_task(request))
                 preempt_task = asyncio.create_task(self.preempt_queue.get())
 
@@ -185,28 +180,25 @@ class Worker(ABC):
                 if self.current_task in done:
                     response = self.current_task.result()
                     await self.response_queue.put(response)
-                    print(
-                        f"{self.worker_type}Worker: Completed"
-                        f" {self.worker_type.lower()} for {response=}"
-                    )
+                    print(f"{self.__class__.__name__}: Completed for {response=}")
                     preempt_task.cancel()
                 else:
                     preempt_message = preempt_task.result()
                     if preempt_message.timestamp > request.timestamp:
                         print(
-                            f"{self.worker_type}Worker: Received preemption message"
+                            f"{self.__class__.__name__}: Received preemption message"
                             f" at {preempt_message.timestamp} for task started"
                             f" at {request.timestamp}"
                         )
                         self.current_task.cancel()
                         await asyncio.wait([self.current_task])
                         print(
-                            f"{self.worker_type}Worker: Task {request.id}"
+                            f"{self.__class__.__name__}: Task {request.id}"
                             " was preempted"
                         )
                     else:
                         print(
-                            f"{self.worker_type}Worker: Ignoring outdated"
+                            f"{self.__class__.__name__}: Ignoring outdated"
                             " preemption message"
                         )
                         continue
@@ -214,25 +206,22 @@ class Worker(ABC):
                 self.current_task = None
 
             except asyncio.CancelledError:
-                print(f"{self.worker_type}Worker: Process tasks cancelled")
+                print(f"{self.__class__.__name__}: Process tasks cancelled")
                 break
 
     async def perform_task(self, request: Request) -> Response:
-        print(
-            f"{self.worker_type}Worker: Processing"
-            f" {self.worker_type.lower()} for ID {request.id}"
-        )
+        print(f"{self.__class__.__name__}: Processing for ID {request.id}")
         scores: torch.Tensor = await self.get_scores(request)
         return Response(
             id=request.id,
             timestamp=time.time(),
-            worker_type=self.worker_type,
+            is_verified=isinstance(self, Verifier),
             scores=scores,
         )
 
     @torch.no_grad()
     async def get_scores(self, request: Request) -> torch.Tensor:
-        print(f"{self.worker_type}Worker: Getting scores for task {request.id}")
+        print(f"{self.__class__.__name__}: Getting scores for task {request.id}")
         return await self._get_scores(request)
 
     async def _get_scores(self, request: Request) -> torch.Tensor:
@@ -323,9 +312,9 @@ async def main() -> None:
 
     print("Main: Creating server instances")
     manager = Manager(draft_queue, verify_queue, response_queue)
-    drafter = Drafter(draft_queue, response_queue, manager, "Drafter", 0)
-    verifier_1 = Verifier(verify_queue, response_queue, manager, "Verifier", 1)
-    verifier_2 = Verifier(verify_queue, response_queue, manager, "Verifier", 2)
+    drafter = Drafter(draft_queue, response_queue, manager, 0)
+    verifier_1 = Verifier(verify_queue, response_queue, manager, 1)
+    verifier_2 = Verifier(verify_queue, response_queue, manager, 2)
 
     print("Main: Loading all models")
     await asyncio.gather(
