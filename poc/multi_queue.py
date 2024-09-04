@@ -313,14 +313,19 @@ async def main() -> None:
     print("Main: Creating server instances")
     manager = Manager(draft_queue, verify_queue, response_queue)
     drafter = Drafter(draft_queue, response_queue, manager, 0)
-    verifier_1 = Verifier(verify_queue, response_queue, manager, 1)
-    verifier_2 = Verifier(verify_queue, response_queue, manager, 2)
+    available_gpus = torch.cuda.device_count()
+    print(f"Main: Available GPUs: {available_gpus}")
+    num_verifiers = max(available_gpus - 1, 1)
+    print(f"Main: Number of verifiers: {num_verifiers}")
+    verifiers = [
+        Verifier(verify_queue, response_queue, manager, i)
+        for i in range(1, num_verifiers + 1)
+    ]
 
     print("Main: Loading all models")
     await asyncio.gather(
         drafter.load_model("gpt2"),
-        verifier_1.load_model("gpt2"),
-        verifier_2.load_model("gpt2"),
+        *[verifier.load_model("gpt2") for verifier in verifiers],
     )
     print("Main: All models loaded")
 
@@ -330,8 +335,7 @@ async def main() -> None:
         manager.handle_requests(),
         manager.handle_responses(),
         drafter.process_tasks(),
-        verifier_1.process_tasks(),
-        verifier_2.process_tasks(),
+        *[verifier.process_tasks() for verifier in verifiers],
     )
 
 
