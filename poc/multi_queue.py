@@ -5,6 +5,8 @@ import uuid
 from dataclasses import dataclass
 
 import aioconsole
+import torch
+from transformers import AutoModelForCausalLM
 
 
 @dataclass
@@ -106,14 +108,32 @@ class Manager:
 
 
 class Worker:
-    def __init__(self, queue, response_queue, manager, worker_type):
+    def __init__(self, queue, response_queue, manager, worker_type, gpu_id):
         self.manager = manager
         self.queue = queue
         self.response_queue = response_queue
         self.current_task = None
         self.worker_type = worker_type
+        self.gpu_id = gpu_id
+        self.model = None
         self.preempt_queue = None
         print(f"{self.worker_type}Worker: Initialized with queues")
+
+    async def load_model(self, name: str) -> None:
+        """Loads the model from the given name and moves it to the device."""
+        device = cpu = "cpu"
+        if torch.cuda.device_count() > self.gpu_id:
+            print(f"GPU {self.gpu_id} available. Using GPU.")
+            device = f"cuda:{self.gpu_id}"
+        else:
+            print(f"GPU {self.gpu_id} not available. Using CPU.")
+        print(f"{self.worker_type}Worker: Loading model {name} on {device}")
+        self.model = AutoModelForCausalLM.from_pretrained(name)
+        self.model.eval()
+        if device != cpu:
+            print(f"{self.worker_type}Worker: Moving model to {device}")
+            self.model.to(device)
+        print(f"{self.worker_type}Worker: Model loaded on {device}")
 
     async def process_tasks(self):
         print(f"{self.worker_type}Worker: Starting to process tasks")
@@ -241,8 +261,17 @@ async def main():
     manager = Manager(
         draft_queue, verify_queue, draft_response_queue, verify_response_queue
     )
-    drafter = Worker(draft_queue, draft_response_queue, manager, "Drafter")
-    verifier = Worker(verify_queue, verify_response_queue, manager, "Verifier")
+    drafter = Worker(draft_queue, draft_response_queue, manager, "Drafter", 0)
+    verifier_1 = Worker(verify_queue, verify_response_queue, manager, "Verifier", 1)
+    verifier_2 = Worker(verify_queue, verify_response_queue, manager, "Verifier", 2)
+
+    print("Main: Loading all models")
+    await asyncio.gather(
+        drafter.load_model("gpt2"),
+        verifier_1.load_model("gpt2"),
+        verifier_2.load_model("gpt2"),
+    )
+    print("Main: All models loaded")
 
     print("Main: Starting all tasks")
     await asyncio.gather(
@@ -250,7 +279,8 @@ async def main():
         manager.handle_requests(),
         manager.handle_responses(),
         drafter.process_tasks(),
-        verifier.process_tasks(),
+        verifier_1.process_tasks(),
+        verifier_2.process_tasks(),
     )
 
 
