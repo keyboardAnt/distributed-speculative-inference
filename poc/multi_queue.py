@@ -42,14 +42,12 @@ class Manager:
         self,
         draft_queue: asyncio.Queue[Request],
         verify_queue: asyncio.Queue[Request],
-        draft_response_queue: asyncio.Queue[Response],
-        verify_response_queue: asyncio.Queue[Response],
+        response_queue: asyncio.Queue[Response],
     ):
         print("ManagerServer: Initializing with queues")
         self.draft_queue = draft_queue
         self.verify_queue = verify_queue
-        self.draft_response_queue = draft_response_queue
-        self.verify_response_queue = verify_response_queue
+        self.response_queue = response_queue
         self.pubsub = PubSub()
         print("ManagerServer: Initialized with PubSub")
 
@@ -72,7 +70,7 @@ class Manager:
                 elif command == "verify":
                     await self.verify_queue.put(request)
             elif command == "preempt":
-                print("ManagerServer: Preempt command received, preempting all workers")
+                print("ManagerServer: Preempt command received.")
                 await self.preempt_all()
             else:
                 print(f"ManagerServer: Invalid command received: {command}")
@@ -86,7 +84,7 @@ class Manager:
                 pass
 
     async def preempt_all(self) -> None:
-        print("ManagerServer: Preempt command received, preempting all workers")
+        print("ManagerServer: Preempting all workers")
         # Clear the queues
         await self.empty_queue(self.draft_queue)
         await self.empty_queue(self.verify_queue)
@@ -98,14 +96,9 @@ class Manager:
     async def handle_responses(self) -> None:
         print("ManagerServer: Starting to handle responses")
         while True:
-            # Always check verify queue first
-            if not self.verify_response_queue.empty():
-                response = await self.verify_response_queue.get()
-                print(f"ManagerServer: Received verify response {response}")
-            elif not self.draft_response_queue.empty():
-                response = await self.draft_response_queue.get()
-                print(f"ManagerServer: Received draft response {response}")
-            await asyncio.sleep(0.1)  # Small delay to prevent busy waiting
+            response = await self.response_queue.get()
+            print(f"ManagerServer: Received {response.worker_type} response {response}")
+            self.response_queue.task_done()
 
     async def start(self) -> None:
         asyncio.create_task(self.pubsub.broadcast())
@@ -266,16 +259,13 @@ async def main() -> None:
     print("Main: Initializing queues")
     draft_queue = asyncio.Queue()
     verify_queue = asyncio.Queue()
-    draft_response_queue = asyncio.Queue()
-    verify_response_queue = asyncio.Queue()
+    response_queue = asyncio.Queue()
 
     print("Main: Creating server instances")
-    manager = Manager(
-        draft_queue, verify_queue, draft_response_queue, verify_response_queue
-    )
-    drafter = Worker(draft_queue, draft_response_queue, manager, "Drafter", 0)
-    verifier_1 = Worker(verify_queue, verify_response_queue, manager, "Verifier", 1)
-    verifier_2 = Worker(verify_queue, verify_response_queue, manager, "Verifier", 2)
+    manager = Manager(draft_queue, verify_queue, response_queue)
+    drafter = Worker(draft_queue, response_queue, manager, "Drafter", 0)
+    verifier_1 = Worker(verify_queue, response_queue, manager, "Verifier", 1)
+    verifier_2 = Worker(verify_queue, response_queue, manager, "Verifier", 2)
 
     print("Main: Loading all models")
     await asyncio.gather(
