@@ -1,5 +1,4 @@
 import asyncio
-import random
 import time
 from dataclasses import dataclass
 from typing import Set
@@ -11,29 +10,48 @@ from transformers import AutoModelForCausalLM
 
 
 @dataclass
-class Request:
-    task_id: UUID
+class Event:
     timestamp: float
 
     @classmethod
-    def create(cls) -> "Request":
-        return cls(task_id=uuid4(), timestamp=time.time())
-
-
-@dataclass
-class Response:
-    task_id: str
-    result: torch.Tensor
-    worker_type: str
-
-
-@dataclass
-class PreemptMessage:
-    timestamp: float
-
-    @classmethod
-    def create(cls) -> "PreemptMessage":
+    def create(cls) -> "Event":
         return cls(timestamp=time.time())
+
+
+@dataclass
+class Message(Event):
+    id: UUID
+
+    @classmethod
+    def create(cls) -> "Message":
+        return cls(id=uuid4(), timestamp=time.time())
+
+
+@dataclass
+class Request(Message):
+    tok_ids: torch.Tensor
+    n: int
+
+    @classmethod
+    def create(cls, tok_ids: torch.Tensor, n: int) -> "Request":
+        return cls(id=uuid4(), timestamp=time.time(), tok_ids=tok_ids, n=n)
+
+
+@dataclass
+class Response(Message):
+    worker_type: str
+    logits: torch.Tensor
+
+    def __repr__(self) -> str:
+        return (
+            f"Response(id={self.id}, timestamp={self.timestamp},"
+            f" worker_type='{self.worker_type}', logits_shape={self.logits.shape})"
+        )
+
+
+@dataclass
+class Preemption(Event):
+    pass
 
 
 class Manager:
@@ -60,10 +78,11 @@ class Manager:
             )
             print(f"ManagerServer: Received command: {command}")
             if command in ["draft", "verify"]:
-                request = Request.create()
-                print(
-                    f"ManagerServer: Enqueuing {command} task with ID {request.task_id}"
-                )
+                # Simulating token IDs and n for the request
+                tok_ids = torch.randint(0, 50000, (10,))
+                n: int = 10 if command == "draft" else 100
+                request = Request.create(tok_ids, n)
+                print(f"ManagerServer: Enqueuing {command} task with ID {request.id}")
                 if command == "draft":
                     await self.draft_queue.put(request)
                 elif command == "verify":
@@ -89,7 +108,7 @@ class Manager:
         await self.empty_queue(self.verify_queue)
         print("ManagerServer: Queues cleared")
         # Send preempt message to workers
-        await self.pubsub.publish(PreemptMessage.create())
+        await self.pubsub.publish(Preemption.create())
         print("ManagerServer: Preempt message sent to workers")
 
     async def handle_responses(self) -> None:
@@ -148,7 +167,7 @@ class Worker:
                 request = await self.queue.get()
                 print(
                     f"{self.worker_type}Worker: Received {self.worker_type.lower()}"
-                    f" task with ID {request.task_id}"
+                    f" task with ID {request.id}"
                 )
                 self.current_task = asyncio.create_task(self.perform_task(request))
                 preempt_task = asyncio.create_task(self.preempt_queue.get())
@@ -163,8 +182,7 @@ class Worker:
                     await self.response_queue.put(response)
                     print(
                         f"{self.worker_type}Worker: Completed"
-                        f" {self.worker_type.lower()} for ID {response.task_id}"
-                        f" with result {response.result}"
+                        f" {self.worker_type.lower()} for {response=}"
                     )
                     preempt_task.cancel()
                 else:
@@ -178,7 +196,7 @@ class Worker:
                         self.current_task.cancel()
                         await asyncio.wait([self.current_task])
                         print(
-                            f"{self.worker_type}Worker: Task {request.task_id}"
+                            f"{self.worker_type}Worker: Task {request.id}"
                             " was preempted"
                         )
                     else:
@@ -197,19 +215,20 @@ class Worker:
     async def perform_task(self, request: Request) -> Response:
         print(
             f"{self.worker_type}Worker: Processing"
-            f" {self.worker_type.lower()} for ID {request.task_id}"
+            f" {self.worker_type.lower()} for ID {request.id}"
         )
         await asyncio.sleep(
             4 if self.worker_type == "Drafter" else 10
         )  # Simulating work
         with torch.no_grad():
-            result = torch.tensor(
-                random.randint(100, 999)
-                if self.worker_type == "Drafter"
-                else random.randint(1000, 9999)
-            )
+            logits = torch.randn(
+                request.n, len(request.tok_ids), 50000
+            )  # Simulating logits
         return Response(
-            task_id=request.task_id, result=result, worker_type=self.worker_type
+            id=request.id,
+            timestamp=time.time(),
+            worker_type=self.worker_type,
+            logits=logits,
         )
 
     async def stop(self) -> None:
@@ -220,17 +239,17 @@ class Worker:
 
 class PubSub:
     def __init__(self):
-        self.queue: asyncio.Queue[PreemptMessage] = asyncio.Queue()
-        self.subscribers: Set[asyncio.Queue[PreemptMessage]] = set()
+        self.queue: asyncio.Queue[Preemption] = asyncio.Queue()
+        self.subscribers: Set[asyncio.Queue[Preemption]] = set()
         print("PubSub: Initialized with 0 subscribers")
 
-    async def publish(self, message: PreemptMessage) -> None:
+    async def publish(self, message: Preemption) -> None:
         await self.queue.put(message)
         print(
             f"PubSub: Published message '{message}'. Queue size: {self.queue.qsize()}"
         )
 
-    async def subscribe(self) -> asyncio.Queue[PreemptMessage]:
+    async def subscribe(self) -> asyncio.Queue[Preemption]:
         subscriber = asyncio.Queue()
         self.subscribers.add(subscriber)
         print(
@@ -238,7 +257,7 @@ class PubSub:
         )
         return subscriber
 
-    async def unsubscribe(self, subscriber: asyncio.Queue[PreemptMessage]) -> None:
+    async def unsubscribe(self, subscriber: asyncio.Queue[Preemption]) -> None:
         self.subscribers.remove(subscriber)
         print(f"PubSub: Subscriber removed. Total subscribers: {len(self.subscribers)}")
 
