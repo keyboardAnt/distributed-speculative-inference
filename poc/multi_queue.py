@@ -13,12 +13,11 @@ from transformers import AutoModelForCausalLM
 @dataclass
 class Request:
     task_id: UUID
-    command: str
     timestamp: float
 
     @classmethod
-    def create(cls, command: str) -> "Request":
-        return cls(task_id=uuid4(), command=command, timestamp=time.time())
+    def create(cls) -> "Request":
+        return cls(task_id=uuid4(), timestamp=time.time())
 
 
 @dataclass
@@ -61,7 +60,7 @@ class Manager:
             )
             print(f"ManagerServer: Received command: {command}")
             if command in ["draft", "verify"]:
-                request = Request.create(command)
+                request = Request.create()
                 print(
                     f"ManagerServer: Enqueuing {command} task with ID {request.task_id}"
                 )
