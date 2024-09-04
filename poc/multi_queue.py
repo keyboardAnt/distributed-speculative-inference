@@ -1,9 +1,9 @@
 import asyncio
 import random
 import time
-import uuid
 from dataclasses import dataclass
 from typing import Set
+from uuid import UUID, uuid4
 
 import aioconsole
 import torch
@@ -12,13 +12,13 @@ from transformers import AutoModelForCausalLM
 
 @dataclass
 class Request:
-    task_id: str
+    task_id: UUID
     command: str
     timestamp: float
 
     @classmethod
     def create(cls, command: str) -> "Request":
-        return cls(task_id=str(uuid.uuid4()), command=command, timestamp=time.time())
+        return cls(task_id=uuid4(), command=command, timestamp=time.time())
 
 
 @dataclass
