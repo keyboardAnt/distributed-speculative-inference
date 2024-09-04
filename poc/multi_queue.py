@@ -1,5 +1,6 @@
 import asyncio
 import time
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Set
 from uuid import UUID, uuid4
@@ -40,12 +41,12 @@ class Request(Message):
 @dataclass
 class Response(Message):
     worker_type: str
-    logits: torch.Tensor
+    scores: torch.Tensor
 
     def __repr__(self) -> str:
         return (
             f"Response(id={self.id}, timestamp={self.timestamp},"
-            f" worker_type='{self.worker_type}', logits_shape={self.logits.shape})"
+            f" worker_type='{self.worker_type}', scores_shape={self.scores.shape})"
         )
 
 
@@ -79,7 +80,7 @@ class Manager:
             print(f"ManagerServer: Received command: {command}")
             if command in ["draft", "verify"]:
                 # Simulating token IDs and n for the request
-                tok_ids = torch.randint(0, 50000, (10,))
+                tok_ids = torch.tensor([[15496, 11, 616, 1438, 318]])
                 n: int = 10 if command == "draft" else 100
                 request = Request.create(tok_ids, n)
                 print(f"ManagerServer: Enqueuing {command} task with ID {request.id}")
@@ -123,7 +124,7 @@ class Manager:
         print("ManagerServer: Started PubSub broadcast task")
 
 
-class Worker:
+class Worker(ABC):
     def __init__(
         self,
         queue: asyncio.Queue[Request],
@@ -141,6 +142,10 @@ class Worker:
         self.model = None
         self.preempt_queue = None
         print(f"{self.worker_type}Worker: Initialized with queues")
+
+    @abstractmethod
+    async def _get_scores(self, request: Request) -> torch.Tensor:
+        pass
 
     async def load_model(self, name: str) -> None:
         """Loads the model from the given name and moves it to the device."""
@@ -217,24 +222,60 @@ class Worker:
             f"{self.worker_type}Worker: Processing"
             f" {self.worker_type.lower()} for ID {request.id}"
         )
-        await asyncio.sleep(
-            4 if self.worker_type == "Drafter" else 10
-        )  # Simulating work
-        with torch.no_grad():
-            logits = torch.randn(
-                request.n, len(request.tok_ids), 50000
-            )  # Simulating logits
+        scores: torch.Tensor = await self.get_scores(request)
         return Response(
             id=request.id,
             timestamp=time.time(),
             worker_type=self.worker_type,
-            logits=logits,
+            scores=scores,
         )
 
-    async def stop(self) -> None:
-        if self.preempt_queue:
-            await self.manager.pubsub.unsubscribe(self.preempt_queue)
-            print(f"{self.worker_type}Worker: Unsubscribed from PubSub")
+    @torch.no_grad()
+    async def get_scores(self, request: Request) -> torch.Tensor:
+        print(f"{self.worker_type}Worker: Getting scores for task {request.id}")
+        return await self._get_scores(request)
+
+    async def _get_scores(self, request: Request) -> torch.Tensor:
+        raise NotImplementedError("Subclasses must implement _get_scores")
+
+
+class Drafter(Worker):
+    async def _get_scores(self, request: Request) -> torch.Tensor:
+        """
+        Generates up to `n` new tokens given the prompt `tok_ids`.
+        Returns the scores (logits) of the generated tokens. Shape: (n, vocab_size)
+        """
+        outputs = self.model.generate(
+            input_ids=request.tok_ids,
+            attention_mask=torch.ones_like(request.tok_ids),
+            max_new_tokens=request.n,
+            do_sample=False,
+            use_cache=False,
+            return_dict_in_generate=True,
+            output_scores=True,
+            output_logits=False,
+            output_hidden_states=False,
+            output_attentions=False,
+        )
+        return torch.stack(outputs.scores, dim=0).squeeze(1)
+
+
+class Verifier(Worker):
+    async def _get_scores(self, request: Request) -> torch.Tensor:
+        # TODO
+        outputs = self.model.generate(
+            input_ids=request.tok_ids,
+            attention_mask=torch.ones_like(request.tok_ids),
+            max_new_tokens=request.n,
+            do_sample=False,
+            use_cache=False,
+            return_dict_in_generate=True,
+            output_scores=True,
+            output_logits=False,
+            output_hidden_states=False,
+            output_attentions=False,
+        )
+        return torch.stack(outputs.scores, dim=0).squeeze(1)
 
 
 class PubSub:
@@ -282,9 +323,9 @@ async def main() -> None:
 
     print("Main: Creating server instances")
     manager = Manager(draft_queue, verify_queue, response_queue)
-    drafter = Worker(draft_queue, response_queue, manager, "Drafter", 0)
-    verifier_1 = Worker(verify_queue, response_queue, manager, "Verifier", 1)
-    verifier_2 = Worker(verify_queue, response_queue, manager, "Verifier", 2)
+    drafter = Drafter(draft_queue, response_queue, manager, "Drafter", 0)
+    verifier_1 = Verifier(verify_queue, response_queue, manager, "Verifier", 1)
+    verifier_2 = Verifier(verify_queue, response_queue, manager, "Verifier", 2)
 
     print("Main: Loading all models")
     await asyncio.gather(
