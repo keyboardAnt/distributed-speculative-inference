@@ -4,7 +4,7 @@ import threading
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Set
+from typing import Set, Dict
 from uuid import UUID, uuid4
 
 import aioconsole
@@ -42,13 +42,15 @@ class Request(Message):
 
 @dataclass
 class Response(Message):
+    request_timestamp: float
     is_verified: bool
     scores: torch.Tensor
 
     def __repr__(self) -> str:
         return (
-            f"Response(id={self.id}, timestamp={self.timestamp},"
-            f" is_verified={self.is_verified}, scores_shape={self.scores.shape})"
+            f"Response(id={self.id}, timestamp={self.timestamp}, "
+            f"request_timestamp={self.request_timestamp}, "
+            f"is_verified={self.is_verified}, scores_shape={self.scores.shape})"
         )
 
 
@@ -173,7 +175,7 @@ class Manager:
         print("Manager: Starting to handle responses")
         while True:
             response = await self.response_queue.get()
-            if response.timestamp < self.last_preemption_timestamp:
+            if response.request_timestamp < self.last_preemption_timestamp:
                 print(f"Manager: Dropping outdated response {response.id}")
                 self.response_queue.task_done()
                 continue
@@ -226,10 +228,8 @@ class Worker(ABC):
         self.manager = manager
         self.queue = queue
         self.response_queue = response_queue
-        self.current_task = None
         self.gpu_id = gpu_id
         self.model = None
-        self.preempt_queue = None
         print(f"{self.__class__.__name__}: Initialized with queues")
         print(f"{self.__class__.__name__}: Using thread ID {threading.get_native_id()}")
         self.last_preemption_timestamp = 0  # Initialize with 0
@@ -259,73 +259,78 @@ class Worker(ABC):
         - Multiple preemption messages may be received while processing a single task.
 
         Guarantees:
+        - Valid preemptions are immediately processed and terminate the current task so that the GPU is released.
         - Tasks older than the last preemption will be dropped without processing.
-        - A task will be immediately preempted if a valid preemption message is received.
-        - The worker will continuously process tasks and listen for preemptions.
-        - All exceptions during task processing will be caught and logged.
+        - The worker will continuously process tasks and listen for preemptions. In particular, computing a response must be interrupted if a preemption is received.
 
-        Implementation details:
-        - Uses asyncio.wait to simultaneously wait for task completion and preemption messages.
-        - Updates last_preemption_timestamp when a valid preemption is received.
-        - Cancels the current task if a valid preemption is received.
+        Implementation:
+        - We use two queues to get requests and preemptions. We wait for either one of them to complete.
+        - If a preemption is received, we cancel the current task and update the last preemption timestamp. This will raise a CancelledError.
+        - Otherwise (a request is received), we verify that it is valid (newer than the last preemption) and process it. The processing of the request is done in a separate thread to ensure the worker keeps listening for preemptions.
         """
         print(f"{self.__class__.__name__}: Starting to process tasks")
-        self.preempt_queue = await self.manager.pubsub.subscribe()
-        print(f"{self.__class__.__name__}: Subscribed to PubSub")
-
         while True:
+            preempt_queue = await self.manager.pubsub.subscribe(self.gpu_id)
+            print(f"{self.__class__.__name__}: Subscribed to PubSub for GPU {self.gpu_id}")
+            get_request = asyncio.create_task(self.queue.get())
+            get_preempt = asyncio.create_task(preempt_queue.get())
+            current_task = None
             try:
-                print(f"{self.__class__.__name__}: Waiting for a new task...")
-                request = await self.queue.get()
+                print(f"{self.__class__.__name__}: Waiting for either request or preemption...")
+                done, pending = await asyncio.wait(
+                    {get_request, get_preempt},
+                    return_when=asyncio.FIRST_COMPLETED
+                )
                 
-                print(f"{self.__class__.__name__}: Received task with ID {request.id} at timestamp {request.timestamp}")
-                print(f"{self.__class__.__name__}: Last preemption timestamp: {self.last_preemption_timestamp}")
-                
-                if request.timestamp < self.last_preemption_timestamp:
-                    print(f"{self.__class__.__name__}: Dropping outdated request {request.id}")
-                    self.queue.task_done()
-                    continue
+                if get_preempt in done:
+                    preempt_message = get_preempt.result()
+                    print(f"{self.__class__.__name__}: Received preemption message at {preempt_message.timestamp}")
+                    self.last_preemption_timestamp = max(self.last_preemption_timestamp, preempt_message.timestamp)
+                    print(f"{self.__class__.__name__}: Updated last_preemption_timestamp to {self.last_preemption_timestamp}")
+                    
+                    get_request.cancel()
+                    if current_task is not None:
+                        print(f"{self.__class__.__name__}: Preempting current task")
+                        current_task.cancel()
+                        print(f"{self.__class__.__name__}: Current task was preempted")
+                    else:
+                        print(f"{self.__class__.__name__}: No current task to preempt")
 
-                print(f"{self.__class__.__name__}: Processing task with ID {request.id}")
-                self.current_task = asyncio.create_task(self.perform_task(request))
-                
-                while not self.current_task.done():
-                    preempt_task = asyncio.create_task(self.preempt_queue.get())
+                else:  # get_request in done
+                    request = get_request.result()
+                    print(f"{self.__class__.__name__}: Received request with ID {request.id} at timestamp {request.timestamp}")
+                    print(f"{self.__class__.__name__}: Last preemption timestamp: {self.last_preemption_timestamp}")
+                    
+                    if request.timestamp < self.last_preemption_timestamp:
+                        print(f"{self.__class__.__name__}: Dropping outdated request {request.id}")
+                        self.queue.task_done()
+                        continue
+                    
+                    print(f"{self.__class__.__name__}: Processing request with ID {request.id}")
+                    current_task = asyncio.create_task(self.perform_task(request))
                     done, pending = await asyncio.wait(
-                        {self.current_task, preempt_task},
+                        {current_task, get_preempt},
                         return_when=asyncio.FIRST_COMPLETED
                     )
                     
-                    if self.current_task in done:
+                    if get_preempt in done:
+                        preempt_message = get_preempt.result()
+                        print(f"{self.__class__.__name__}: Received preemption message at {preempt_message.timestamp}")
+                        self.last_preemption_timestamp = max(self.last_preemption_timestamp, preempt_message.timestamp)
+                        print(f"{self.__class__.__name__}: Updated last_preemption_timestamp to {self.last_preemption_timestamp}")
+                        
+                        current_task.cancel()
+                        print(f"{self.__class__.__name__}: Current task was preempted")
+                    else:
+                        response = current_task.result()
                         print(f"{self.__class__.__name__}: Task {request.id} completed")
-                        response = self.current_task.result()
                         await self.response_queue.put(response)
                         print(f"{self.__class__.__name__}: Response for task {request.id} enqueued")
-                        break
-                    else:
-                        preempt_message = preempt_task.result()
-                        print(f"{self.__class__.__name__}: Received preemption message at {preempt_message.timestamp}")
-                        
-                        if preempt_message.timestamp > request.timestamp:
-                            print(f"{self.__class__.__name__}: Preempting task {request.id}")
-                            self.current_task.cancel()
-                            await asyncio.wait([self.current_task])
-                            self.last_preemption_timestamp = preempt_message.timestamp
-                            print(f"{self.__class__.__name__}: Task {request.id} was preempted")
-                            print(f"{self.__class__.__name__}: Updated last_preemption_timestamp to {self.last_preemption_timestamp}")
-                            break
-                        else:
-                            print(f"{self.__class__.__name__}: Ignoring outdated preemption message")
-
-                print(f"{self.__class__.__name__}: Finished processing or preempting task {request.id}")
-                self.current_task = None
-                self.queue.task_done()
 
             except asyncio.CancelledError:
-                print(f"{self.__class__.__name__}: Process tasks cancelled")
-                break
+                print(f"{self.__class__.__name__}: Task {request.id} was cancelled")
+                self.queue.task_done()
 
-        print(f"{self.__class__.__name__}: Process tasks finished")
 
     @torch.no_grad()
     async def perform_task(self, request: Request) -> Response:
@@ -360,6 +365,7 @@ class Worker(ABC):
         return Response(
             id=request.id,
             timestamp=time.time(),
+            request_timestamp=request.timestamp,
             is_verified=isinstance(self, Verifier),
             scores=scores,
         )
@@ -418,7 +424,7 @@ class Verifier(Worker):
 class PubSub:
     def __init__(self):
         self.queue: asyncio.Queue[Preemption] = asyncio.Queue()
-        self.subscribers: Set[asyncio.Queue[Preemption]] = set()
+        self.subscribers: Dict[int, asyncio.Queue[Preemption]] = {}
         print("PubSub: Initialized with 0 subscribers")
 
     async def publish(self, message: Preemption) -> None:
@@ -427,17 +433,17 @@ class PubSub:
             f"PubSub: Published message '{message}'. Queue size: {self.queue.qsize()}"
         )
 
-    async def subscribe(self) -> asyncio.Queue[Preemption]:
+    async def subscribe(self, gpu_id: int) -> asyncio.Queue[Preemption]:
+        if gpu_id in self.subscribers:
+            print(f"PubSub: GPU {gpu_id} already subscribed. Replacing existing queue.")
+            # Delete the old queue
+            del self.subscribers[gpu_id]
+        
+        # Create a new queue
         subscriber = asyncio.Queue()
-        self.subscribers.add(subscriber)
-        print(
-            f"PubSub: New subscriber added. Total subscribers: {len(self.subscribers)}"
-        )
+        self.subscribers[gpu_id] = subscriber
+        print(f"PubSub: New subscriber added for GPU {gpu_id}. Total subscribers: {len(self.subscribers)}")
         return subscriber
-
-    async def unsubscribe(self, subscriber: asyncio.Queue[Preemption]) -> None:
-        self.subscribers.remove(subscriber)
-        print(f"PubSub: Subscriber removed. Total subscribers: {len(self.subscribers)}")
 
     async def broadcast(self) -> None:
         print("PubSub: Starting broadcast loop")
@@ -447,7 +453,7 @@ class PubSub:
                 f"PubSub: Broadcasting message '{message}' to"
                 f" {len(self.subscribers)} subscribers"
             )
-            for subscriber in self.subscribers:
+            for subscriber in self.subscribers.values():
                 await subscriber.put(message)
             print(f"PubSub: Broadcast complete. Queue size: {self.queue.qsize()}")
 
