@@ -81,7 +81,7 @@ class Manager:
             if command in ["draft", "verify"]:
                 # Simulating token IDs and n for the request
                 tok_ids = torch.tensor([[15496, 11, 616, 1438, 318]])
-                n: int = 10 if command == "draft" else 100
+                n: int = 10 if command == "draft" else 1000
                 request = Request.create(tok_ids, n)
                 print(f"ManagerServer: Enqueuing {command} task with ID {request.id}")
                 if command == "draft":
@@ -142,7 +142,7 @@ class Worker(ABC):
         print(f"{self.__class__.__name__}: Initialized with queues")
 
     @abstractmethod
-    async def _get_scores(self, request: Request) -> torch.Tensor:
+    async def _get_scores(self, tok_ids: torch.Tensor, n: int) -> torch.Tensor:
         pass
 
     async def load_model(self, name: str) -> None:
@@ -222,22 +222,25 @@ class Worker(ABC):
     @torch.no_grad()
     async def get_scores(self, request: Request) -> torch.Tensor:
         print(f"{self.__class__.__name__}: Getting scores for task {request.id}")
-        return await self._get_scores(request)
+        device = next(self.model.parameters()).device
+        tok_ids = request.tok_ids.to(device)
+        return await self._get_scores(tok_ids, request.n)
 
-    async def _get_scores(self, request: Request) -> torch.Tensor:
-        raise NotImplementedError("Subclasses must implement _get_scores")
+    @abstractmethod
+    async def _get_scores(self, tok_ids: torch.Tensor, n: int) -> torch.Tensor:
+        pass
 
 
 class Drafter(Worker):
-    async def _get_scores(self, request: Request) -> torch.Tensor:
+    async def _get_scores(self, tok_ids: torch.Tensor, n: int) -> torch.Tensor:
         """
         Generates up to `n` new tokens given the prompt `tok_ids`.
         Returns the scores (logits) of the generated tokens. Shape: (n, vocab_size)
         """
         outputs = self.model.generate(
-            input_ids=request.tok_ids,
-            attention_mask=torch.ones_like(request.tok_ids),
-            max_new_tokens=request.n,
+            input_ids=tok_ids,
+            attention_mask=torch.ones_like(tok_ids),
+            max_new_tokens=n,
             do_sample=False,
             use_cache=False,
             return_dict_in_generate=True,
@@ -250,12 +253,12 @@ class Drafter(Worker):
 
 
 class Verifier(Worker):
-    async def _get_scores(self, request: Request) -> torch.Tensor:
+    async def _get_scores(self, tok_ids: torch.Tensor, n: int) -> torch.Tensor:
         # TODO
         outputs = self.model.generate(
-            input_ids=request.tok_ids,
-            attention_mask=torch.ones_like(request.tok_ids),
-            max_new_tokens=request.n,
+            input_ids=tok_ids,
+            attention_mask=torch.ones_like(tok_ids),
+            max_new_tokens=n,
             do_sample=False,
             use_cache=False,
             return_dict_in_generate=True,
