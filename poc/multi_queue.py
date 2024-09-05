@@ -324,9 +324,6 @@ class Worker(ABC):
             except asyncio.CancelledError:
                 print(f"{self.__class__.__name__}: Process tasks cancelled")
                 break
-            except Exception as e:
-                print(f"{self.__class__.__name__}: Unexpected error in process_tasks: {e}")
-                raise e
 
         print(f"{self.__class__.__name__}: Process tasks finished")
 
