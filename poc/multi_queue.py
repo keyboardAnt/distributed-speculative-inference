@@ -1,5 +1,7 @@
 import asyncio
 import time
+import threading
+import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Set
@@ -62,37 +64,38 @@ class Manager:
         verify_queue: asyncio.Queue[Request],
         response_queue: asyncio.Queue[Response],
     ):
-        print("ManagerServer: Initializing with queues")
+        print("Manager: Initializing with queues")
         self.draft_queue = draft_queue
         self.verify_queue = verify_queue
         self.response_queue = response_queue
         self.pubsub = PubSub()
-        print("ManagerServer: Initialized with PubSub")
+        print("Manager: Initialized with PubSub")
+        self.last_preemption_timestamp = 0  # Initialize with 0
 
     async def handle_requests(self) -> None:
-        print("ManagerServer: Starting to handle requests")
+        print("Manager: Starting to handle requests")
         while True:
             command = (
                 (await aioconsole.ainput("Enter command (draft, verify, preempt):\n"))
                 .strip()
                 .lower()
             )
-            print(f"ManagerServer: Received command: {command}")
+            print(f"Manager: Received command: {command}")
             if command in ["draft", "verify"]:
                 # Simulating token IDs and n for the request
                 tok_ids = torch.tensor([[15496, 11, 616, 1438, 318]])
                 n: int = 10 if command == "draft" else 1000
                 request = Request.create(tok_ids, n)
-                print(f"ManagerServer: Enqueuing {command} task with ID {request.id}")
+                print(f"Manager: Enqueuing {command} task with ID {request.id}")
                 if command == "draft":
                     await self.draft_queue.put(request)
                 elif command == "verify":
                     await self.verify_queue.put(request)
             elif command == "preempt":
-                print("ManagerServer: Preempt command received.")
+                print("Manager: Preempt command received.")
                 await self.preempt_all()
             else:
-                print(f"ManagerServer: Invalid command received: {command}")
+                print(f"Manager: Invalid command received: {command}")
 
     async def empty_queue(self, queue: asyncio.Queue) -> None:
         while not queue.empty():
@@ -103,25 +106,34 @@ class Manager:
                 pass
 
     async def preempt_all(self) -> None:
-        print("ManagerServer: Preempting all workers")
+        print("Manager: Preempting all workers")
+        # Update the last preemption timestamp
+        self.last_preemption_timestamp = time.time()
+        # Send preempt message to workers
+        print("Manager: Sending preempt message to workers")
+        await self.pubsub.publish(Preemption.create())
+        print(f"Manager: Preempt message sent to workers at {self.last_preemption_timestamp}")
         # Clear the queues
+        print("Manager: Clearing queues")
         await self.empty_queue(self.draft_queue)
         await self.empty_queue(self.verify_queue)
-        print("ManagerServer: Queues cleared")
-        # Send preempt message to workers
-        await self.pubsub.publish(Preemption.create())
-        print("ManagerServer: Preempt message sent to workers")
+        print("Manager: Queues cleared")
 
     async def handle_responses(self) -> None:
-        print("ManagerServer: Starting to handle responses")
+        print("Manager: Starting to handle responses")
         while True:
             response = await self.response_queue.get()
-            print(f"ManagerServer: Received {response=}")
+            if response.timestamp < self.last_preemption_timestamp:
+                print(f"Manager: Dropping outdated response {response.id}")
+                self.response_queue.task_done()
+                continue
+            print(f"Manager: Received {response=}")
+            # Process the response...
             self.response_queue.task_done()
 
     async def start(self) -> None:
         asyncio.create_task(self.pubsub.broadcast())
-        print("ManagerServer: Started PubSub broadcast task")
+        print("Manager: Started PubSub broadcast task")
 
 
 class Worker(ABC):
@@ -140,6 +152,8 @@ class Worker(ABC):
         self.model = None
         self.preempt_queue = None
         print(f"{self.__class__.__name__}: Initialized with queues")
+        print(f"{self.__class__.__name__}: Using thread ID {threading.get_native_id()}")
+        self.last_preemption_timestamp = 0  # Initialize with 0
 
     async def load_model(self, name: str) -> None:
         """Loads the model from the given name and moves it to the device."""
@@ -161,53 +175,68 @@ class Worker(ABC):
         print(f"{self.__class__.__name__}: Starting to process tasks")
         self.preempt_queue = await self.manager.pubsub.subscribe()
         print(f"{self.__class__.__name__}: Subscribed to PubSub")
+
         while True:
             try:
+                print(f"{self.__class__.__name__}: Waiting for a new task...")
                 request = await self.queue.get()
-                print(f"{self.__class__.__name__}: Received task with ID {request.id}")
+                
+                print(f"{self.__class__.__name__}: Received task with ID {request.id} at timestamp {request.timestamp}")
+                print(f"{self.__class__.__name__}: Last preemption timestamp: {self.last_preemption_timestamp}")
+                
+                if request.timestamp < self.last_preemption_timestamp:
+                    print(f"{self.__class__.__name__}: Dropping outdated request {request.id}")
+                    self.queue.task_done()
+                    continue
+
+                print(f"{self.__class__.__name__}: Processing task with ID {request.id}")
                 self.current_task = asyncio.create_task(self.perform_task(request))
-                preempt_task = asyncio.create_task(self.preempt_queue.get())
-
-                done, pending = await asyncio.wait(
-                    {self.current_task, preempt_task},
-                    return_when=asyncio.FIRST_COMPLETED,
-                )
-
-                if self.current_task in done:
-                    response = self.current_task.result()
-                    await self.response_queue.put(response)
-                    print(f"{self.__class__.__name__}: Completed for {response=}")
-                    preempt_task.cancel()
-                else:
-                    preempt_message = preempt_task.result()
-                    if preempt_message.timestamp > request.timestamp:
-                        print(
-                            f"{self.__class__.__name__}: Received preemption message"
-                            f" at {preempt_message.timestamp} for task started"
-                            f" at {request.timestamp}"
-                        )
-                        self.current_task.cancel()
-                        await asyncio.wait([self.current_task])
-                        print(
-                            f"{self.__class__.__name__}: Task {request.id}"
-                            " was preempted"
-                        )
+                
+                while not self.current_task.done():
+                    preempt_task = asyncio.create_task(self.preempt_queue.get())
+                    done, pending = await asyncio.wait(
+                        {self.current_task, preempt_task},
+                        return_when=asyncio.FIRST_COMPLETED
+                    )
+                    
+                    if self.current_task in done:
+                        print(f"{self.__class__.__name__}: Task {request.id} completed")
+                        response = self.current_task.result()
+                        await self.response_queue.put(response)
+                        print(f"{self.__class__.__name__}: Response for task {request.id} enqueued")
+                        break
                     else:
-                        print(
-                            f"{self.__class__.__name__}: Ignoring outdated"
-                            " preemption message"
-                        )
-                        continue
+                        preempt_message = preempt_task.result()
+                        print(f"{self.__class__.__name__}: Received preemption message at {preempt_message.timestamp}")
+                        
+                        if preempt_message.timestamp > request.timestamp:
+                            print(f"{self.__class__.__name__}: Preempting task {request.id}")
+                            self.current_task.cancel()
+                            await asyncio.wait([self.current_task])
+                            self.last_preemption_timestamp = preempt_message.timestamp
+                            print(f"{self.__class__.__name__}: Task {request.id} was preempted")
+                            print(f"{self.__class__.__name__}: Updated last_preemption_timestamp to {self.last_preemption_timestamp}")
+                            break
+                        else:
+                            print(f"{self.__class__.__name__}: Ignoring outdated preemption message")
 
+                print(f"{self.__class__.__name__}: Finished processing or preempting task {request.id}")
                 self.current_task = None
+                self.queue.task_done()
 
             except asyncio.CancelledError:
                 print(f"{self.__class__.__name__}: Process tasks cancelled")
                 break
+            except Exception as e:
+                print(f"{self.__class__.__name__}: Unexpected error in process_tasks: {e}")
+                raise e
+
+        print(f"{self.__class__.__name__}: Process tasks finished")
 
     async def perform_task(self, request: Request) -> Response:
         print(f"{self.__class__.__name__}: Processing for ID {request.id}")
         scores: torch.Tensor = await self.get_scores(request)
+        print(f"{self.__class__.__name__}: Computed scores of shape {scores.shape}")
         return Response(
             id=request.id,
             timestamp=time.time(),
@@ -240,6 +269,10 @@ class Drafter(Worker):
         Generates up to `n` new tokens given the prompt `tok_ids`.
         Returns the scores (logits) of the generated tokens. Shape: (n, vocab_size)
         """
+        print(
+            f"{self.__class__.__name__}: Using thread ID"
+            f" {threading.get_native_id()} (PID: {os.getpid()})"
+        )
         outputs = self.model.generate(
             input_ids=tok_ids,
             attention_mask=torch.ones_like(tok_ids),
@@ -257,7 +290,10 @@ class Drafter(Worker):
 
 class Verifier(Worker):
     def _get_scores(self, tok_ids: torch.Tensor, n: int) -> torch.Tensor:
-        # TODO
+        print(
+            f"{self.__class__.__name__}: Using thread ID"
+            f" {threading.get_native_id()} (PID: {os.getpid()})"
+        )
         outputs = self.model.generate(
             input_ids=tok_ids,
             attention_mask=torch.ones_like(tok_ids),
