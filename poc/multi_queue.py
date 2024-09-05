@@ -58,6 +58,24 @@ class Preemption(Event):
 
 
 class Manager:
+    """
+    Manages the overall system, handling requests, responses, and preemptions.
+
+    Assumptions:
+    - There is only one Manager instance in the system.
+    - The Manager has exclusive access to modify the request queues.
+
+    Guarantees:
+    - Preemptions are broadcasted to all workers via PubSub.
+    - Requests and responses older than the last preemption will be dropped.
+
+    Attributes:
+        draft_queue (asyncio.Queue): Queue for draft requests.
+        verify_queue (asyncio.Queue): Queue for verification requests.
+        response_queue (asyncio.Queue): Queue for responses from workers.
+        pubsub (PubSub): PubSub system for broadcasting preemptions.
+        last_preemption_timestamp (float): Timestamp of the last preemption.
+    """
     def __init__(
         self,
         draft_queue: asyncio.Queue[Request],
@@ -73,6 +91,16 @@ class Manager:
         self.last_preemption_timestamp = 0  # Initialize with 0
 
     async def handle_requests(self) -> None:
+        """
+        Continuously processes responses from workers.
+
+        Assumptions:
+        - Responses are received in the order they were sent by workers.
+
+        Guarantees:
+        - Responses older than the last preemption will be dropped.
+        - All valid responses will be processed in the order received.
+        """
         print("Manager: Starting to handle requests")
         while True:
             command = (
@@ -106,6 +134,18 @@ class Manager:
                 pass
 
     async def preempt_all(self) -> None:
+        """
+        Broadcasts a preemption message to all workers and clears the request queues.
+        Updates the last preemption timestamp to the current time.
+
+        Assumptions:
+        - This method has exclusive access to modify the last_preemption_timestamp.
+
+        Guarantees:
+        - All workers will be notified of the preemption.
+        - All request queues will be emptied.
+        - The last_preemption_timestamp will be updated.
+        """
         print("Manager: Preempting all workers")
         # Update the last preemption timestamp
         self.last_preemption_timestamp = time.time()
@@ -120,6 +160,16 @@ class Manager:
         print("Manager: Queues cleared")
 
     async def handle_responses(self) -> None:
+        """
+        Continuously processes responses from workers.
+
+        Assumptions:
+        - Responses are received in the order they were sent by workers.
+
+        Guarantees:
+        - Responses older than the last preemption will be dropped.
+        - All valid responses will be processed in the order received.
+        """
         print("Manager: Starting to handle responses")
         while True:
             response = await self.response_queue.get()
@@ -132,11 +182,40 @@ class Manager:
             self.response_queue.task_done()
 
     async def start(self) -> None:
+        """
+        Starts the PubSub broadcast loop.
+
+        Guarantees:
+        - The broadcast loop will run indefinitely until the program is terminated.
+        """
         asyncio.create_task(self.pubsub.broadcast())
         print("Manager: Started PubSub broadcast task")
 
 
 class Worker(ABC):
+    """
+    Abstract base class for workers (Drafters and Verifiers).
+
+    Assumptions:
+    - Each worker runs on a separate GPU.
+    - Workers can handle preemptions at any point during task processing.
+    - Workers are stateless and do not maintain any internal state between tasks.
+      Therefore, a request must encapsulate all necessary information for a worker to
+      process a task.
+
+    Guarantees:
+    - Only one task will be processed at a time per worker.
+    - Tasks will be preempted if a valid preemption message is received.
+    - Outdated tasks (older than last preemption) will not be processed.
+
+    Attributes:
+        queue (asyncio.Queue): Queue of incoming tasks.
+        response_queue (asyncio.Queue): Queue for sending responses.
+        manager (Manager): Reference to the manager for system-wide operations.
+        gpu_id (int): ID of the GPU this worker is using.
+        model: The loaded model for processing tasks.
+        last_preemption_timestamp (float): Timestamp of the last processed preemption.
+    """
     def __init__(
         self,
         queue: asyncio.Queue[Request],
@@ -172,6 +251,24 @@ class Worker(ABC):
         print(f"{self.__class__.__name__}: Model loaded on {device}")
 
     async def process_tasks(self) -> None:
+        """
+        Main loop for processing tasks and handling preemptions.
+
+        Assumptions:
+        - Preemption messages can be received at any time.
+        - Multiple preemption messages may be received while processing a single task.
+
+        Guarantees:
+        - Tasks older than the last preemption will be dropped without processing.
+        - A task will be immediately preempted if a valid preemption message is received.
+        - The worker will continuously process tasks and listen for preemptions.
+        - All exceptions during task processing will be caught and logged.
+
+        Implementation details:
+        - Uses asyncio.wait to simultaneously wait for task completion and preemption messages.
+        - Updates last_preemption_timestamp when a valid preemption is received.
+        - Cancels the current task if a valid preemption is received.
+        """
         print(f"{self.__class__.__name__}: Starting to process tasks")
         self.preempt_queue = await self.manager.pubsub.subscribe()
         print(f"{self.__class__.__name__}: Subscribed to PubSub")
@@ -233,9 +330,35 @@ class Worker(ABC):
 
         print(f"{self.__class__.__name__}: Process tasks finished")
 
+    @torch.no_grad()
     async def perform_task(self, request: Request) -> Response:
-        print(f"{self.__class__.__name__}: Processing for ID {request.id}")
-        scores: torch.Tensor = await self.get_scores(request)
+        """
+        Performs the actual task processing.
+
+        Assumptions:
+        - The model is loaded and ready for inference.
+
+        Guarantees:
+        - Will return a Response object with the processing results.
+        - GPU operations are performed asynchronously to avoid blocking the event loop.
+
+        Args:
+            request (Request): The request to process.
+
+        Returns:
+            Response: The processed response.
+        """
+        print(f"{self.__class__.__name__}: Getting scores for task {request.id}")
+        device = next(self.model.parameters()).device
+        tok_ids = request.tok_ids.to(device)
+        loop = asyncio.get_running_loop()
+        # Run in executor (i.e., separate thread) to avoid blocking the event loop
+        scores: torch.Tensor = await loop.run_in_executor(
+            None,
+            self.get_scores,
+            tok_ids,
+            request.n,
+        )
         print(f"{self.__class__.__name__}: Computed scores of shape {scores.shape}")
         return Response(
             id=request.id,
@@ -244,27 +367,13 @@ class Worker(ABC):
             scores=scores,
         )
 
-    @torch.no_grad()
-    async def get_scores(self, request: Request) -> torch.Tensor:
-        print(f"{self.__class__.__name__}: Getting scores for task {request.id}")
-        device = next(self.model.parameters()).device
-        tok_ids = request.tok_ids.to(device)
-        loop = asyncio.get_running_loop()
-        # Run in executor (i.e., separate thread) to avoid blocking the event loop
-        return await loop.run_in_executor(
-            None,
-            self._get_scores,
-            tok_ids,
-            request.n,
-        )
-
     @abstractmethod
-    def _get_scores(self, tok_ids: torch.Tensor, n: int) -> torch.Tensor:
+    def get_scores(self, tok_ids: torch.Tensor, n: int) -> torch.Tensor:
         pass
 
 
 class Drafter(Worker):
-    def _get_scores(self, tok_ids: torch.Tensor, n: int) -> torch.Tensor:
+    def get_scores(self, tok_ids: torch.Tensor, n: int) -> torch.Tensor:
         """
         Generates up to `n` new tokens given the prompt `tok_ids`.
         Returns the scores (logits) of the generated tokens. Shape: (n, vocab_size)
@@ -289,7 +398,7 @@ class Drafter(Worker):
 
 
 class Verifier(Worker):
-    def _get_scores(self, tok_ids: torch.Tensor, n: int) -> torch.Tensor:
+    def get_scores(self, tok_ids: torch.Tensor, n: int) -> torch.Tensor:
         print(
             f"{self.__class__.__name__}: Using thread ID"
             f" {threading.get_native_id()} (PID: {os.getpid()})"
