@@ -141,10 +141,6 @@ class Worker(ABC):
         self.preempt_queue = None
         print(f"{self.__class__.__name__}: Initialized with queues")
 
-    @abstractmethod
-    async def _get_scores(self, tok_ids: torch.Tensor, n: int) -> torch.Tensor:
-        pass
-
     async def load_model(self, name: str) -> None:
         """Loads the model from the given name and moves it to the device."""
         device = cpu = "cpu"
@@ -224,15 +220,22 @@ class Worker(ABC):
         print(f"{self.__class__.__name__}: Getting scores for task {request.id}")
         device = next(self.model.parameters()).device
         tok_ids = request.tok_ids.to(device)
-        return await self._get_scores(tok_ids, request.n)
+        loop = asyncio.get_running_loop()
+        # Run in executor (i.e., separate thread) to avoid blocking the event loop
+        return await loop.run_in_executor(
+            None,
+            self._get_scores,
+            tok_ids,
+            request.n,
+        )
 
     @abstractmethod
-    async def _get_scores(self, tok_ids: torch.Tensor, n: int) -> torch.Tensor:
+    def _get_scores(self, tok_ids: torch.Tensor, n: int) -> torch.Tensor:
         pass
 
 
 class Drafter(Worker):
-    async def _get_scores(self, tok_ids: torch.Tensor, n: int) -> torch.Tensor:
+    def _get_scores(self, tok_ids: torch.Tensor, n: int) -> torch.Tensor:
         """
         Generates up to `n` new tokens given the prompt `tok_ids`.
         Returns the scores (logits) of the generated tokens. Shape: (n, vocab_size)
@@ -253,7 +256,7 @@ class Drafter(Worker):
 
 
 class Verifier(Worker):
-    async def _get_scores(self, tok_ids: torch.Tensor, n: int) -> torch.Tensor:
+    def _get_scores(self, tok_ids: torch.Tensor, n: int) -> torch.Tensor:
         # TODO
         outputs = self.model.generate(
             input_ids=tok_ids,
