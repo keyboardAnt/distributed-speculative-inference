@@ -197,7 +197,7 @@ class Worker(ABC):
     Abstract base class for workers (Drafters and Verifiers).
 
     Assumptions:
-    - Each worker runs on a separate GPU.
+    - Each worker runs on a separate GPU if available, otherwise on CPU.
     - Workers can handle preemptions at any point during task processing.
     - Workers are stateless and do not maintain any internal state between tasks.
       Therefore, a request must encapsulate all necessary information for a worker to
