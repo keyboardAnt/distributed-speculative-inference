@@ -254,7 +254,7 @@ class Worker(ABC):
             self.model.to(device)
         print(f"{self.__class__.__name__}: Model loaded on {device}")
 
-    async def process_tasks(self) -> None:
+    async def run(self) -> None:
         """
         Main loop for processing tasks and handling preemptions.
 
@@ -312,12 +312,8 @@ class Worker(ABC):
                 else:  # get_request in done
                     request = get_request.result()
                     print(
-                        f"{self.__class__.__name__}: Received request with ID {request.id} at timestamp {request.timestamp}"
+                        f"{self.__class__.__name__}: Received request with ID {request.id} at timestamp {request.timestamp}. Last preemption timestamp: {self.last_preemption_timestamp}"
                     )
-                    print(
-                        f"{self.__class__.__name__}: Last preemption timestamp: {self.last_preemption_timestamp}"
-                    )
-
                     if request.timestamp < self.last_preemption_timestamp:
                         print(
                             f"{self.__class__.__name__}: Dropping outdated request {request.id}"
@@ -518,8 +514,8 @@ async def main() -> None:
         manager.start(),
         manager.handle_requests(),
         manager.handle_responses(),
-        drafter.process_tasks(),
-        *[verifier.process_tasks() for verifier in verifiers],
+        drafter.run(),
+        *[verifier.run() for verifier in verifiers],
     )
 
 
