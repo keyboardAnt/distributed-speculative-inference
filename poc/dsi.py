@@ -43,14 +43,14 @@ class Request(Message):
 @dataclass
 class Response(Message):
     request_timestamp: float
-    is_verified: bool
+    is_draft: bool
     scores: torch.Tensor
 
     def __repr__(self) -> str:
         return (
             f"Response(id={self.id}, timestamp={self.timestamp}, "
             f"request_timestamp={self.request_timestamp}, "
-            f"is_verified={self.is_verified}, scores_shape={self.scores.shape})"
+            f"is_draft={self.is_draft}, scores_shape={self.scores.shape})"
         )
 
 
@@ -115,7 +115,7 @@ class Manager:
             if command in ["draft", "verify"]:
                 # Simulating token IDs and n for the request
                 tok_ids = torch.tensor([[15496, 11, 616, 1438, 318]])
-                n: int = 10 if command == "draft" else 1000
+                n: int = 10 if command == "draft" else 100
                 request = Request.create(tok_ids, n)
                 print(f"Manager: Enqueuing {command} task with ID {request.id}")
                 if command == "draft":
@@ -128,7 +128,8 @@ class Manager:
             else:
                 print(f"Manager: Invalid command received: {command}")
 
-    async def empty_queue(self, queue: asyncio.Queue) -> None:
+    @staticmethod
+    async def _empty_queue(queue: asyncio.Queue) -> None:
         while not queue.empty():
             try:
                 queue.get_nowait()
@@ -160,8 +161,8 @@ class Manager:
         )
         # Clear the queues
         print("Manager: Clearing queues")
-        await self.empty_queue(self.draft_queue)
-        await self.empty_queue(self.verify_queue)
+        await self._empty_queue(self.draft_queue)
+        await self._empty_queue(self.verify_queue)
         print("Manager: Queues cleared")
 
     async def handle_responses(self) -> None:
@@ -389,7 +390,7 @@ class Worker(ABC):
             id=request.id,
             timestamp=time.time(),
             request_timestamp=request.timestamp,
-            is_verified=isinstance(self, Verifier),
+            is_draft=isinstance(self, Drafter),
             scores=scores,
         )
 
