@@ -4,10 +4,9 @@ import threading
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Dict
+from typing import Dict, Tuple
 from uuid import UUID, uuid4
 
-import aioconsole
 import torch
 from transformers import AutoModelForCausalLM
 
@@ -32,6 +31,14 @@ class Message(Event):
 
 @dataclass
 class Request(Message):
+    """
+    Args:
+        tok_ids (torch.Tensor): The token IDs of the prompt. Shape: (seq_len,).
+                                The prompt populates the first part of the sequence,
+                                and the remaining positions are torch.nan.
+        n (int): The number of tokens to generate.
+    """
+
     tok_ids: torch.Tensor
     n: int
 
@@ -39,18 +46,64 @@ class Request(Message):
     def create(cls, tok_ids: torch.Tensor, n: int) -> "Request":
         return cls(id=uuid4(), timestamp=time.time(), tok_ids=tok_ids, n=n)
 
+    def get_mask(self, seq_len: int, is_draft: bool) -> torch.Tensor:
+        """
+        Returns a boolean mask of shape (seq_len, ) where entries are True only at the
+        positions that correspond to the response.
+        If is_draft is True, the mask is True at n positions that follow the prompt (up
+        to the end of the sequence).
+        Otherwise, the mask is True at the n consecutive positions that end at the first
+        nan in tok_ids or the end of the sequence if there is no nan.
+        Examples:
+        If tok_ids = [5, 3, 2, nan, nan] and n = 2, then if is_draft is True, the
+        mask is [False, False, False, True, True], and if is_draft is False, the mask is
+        [False, False, True, True, False].
+        If tok_ids = [5, 3, 2, nan, nan] and n = 3, then if is_draft is True, the
+        function raises an exception, since there are not enough tokens in the
+        sequence to generate 3 tokens. If is_draft is False, the mask is
+        [False, True, True, True, False].
+        If tok_ids = [5, 3, 2, 1, 0] and n=2, then if is_draft is True, the function
+        raises an exception (and for any n > 0), since there are not enough tokens in
+        the sequence. If is_draft is False, the mask is
+        [False, False, False, True, True].
+        """
+        nan_positions = torch.nonzero(
+            torch.isnan(self.tok_ids), as_tuple=False
+        ).flatten()
+        if is_draft:
+            if len(nan_positions) == 0:  # No NaNs, all positions are filled
+                raise Exception(
+                    "No space in sequence to generate response in draft mode."
+                )
+            start_idx = nan_positions[0]
+            if start_idx + self.n > seq_len:
+                raise Exception(
+                    "Not enough tokens in sequence to generate response in draft mode."
+                )
+            mask = torch.zeros(seq_len, dtype=bool)
+            mask[start_idx : start_idx + self.n] = True
+        else:
+            end_idx = seq_len if len(nan_positions) == 0 else nan_positions[0]
+            if end_idx - self.n < 0:
+                raise Exception("Not enough tokens in sequence to generate response.")
+            mask = torch.zeros(seq_len, dtype=bool)
+            mask[max(0, end_idx - self.n) : end_idx] = True  # Ensure non-negative index
+        return mask
+
 
 @dataclass
 class Response(Message):
     request_timestamp: float
     is_draft: bool
     scores: torch.Tensor
+    tok_ids: torch.Tensor
 
     def __repr__(self) -> str:
         return (
             f"Response(id={self.id}, timestamp={self.timestamp}, "
             f"request_timestamp={self.request_timestamp}, "
-            f"is_draft={self.is_draft}, scores_shape={self.scores.shape})"
+            f"is_draft={self.is_draft}, scores_shape={self.scores.shape}, "
+            f"tok_ids={self.tok_ids})"
         )
 
 
@@ -76,6 +129,9 @@ class Manager:
         verify_queue (asyncio.Queue): Queue for verification requests.
         response_queue (asyncio.Queue): Queue for responses from workers.
         pubsub (PubSub): PubSub system for broadcasting preemptions.
+        tok_ids (torch.Tensor): Token IDs of the prompt.
+        max_new_tokens (int): Maximum number of tokens to generate.
+        draft_scores_dim (int): Dimension of the draft scores.
         last_preemption_timestamp (float): Timestamp of the last preemption.
     """
 
@@ -84,49 +140,81 @@ class Manager:
         draft_queue: asyncio.Queue[Request],
         verify_queue: asyncio.Queue[Request],
         response_queue: asyncio.Queue[Response],
+        tok_ids: torch.Tensor,
+        max_new_tokens: int,
+        draft_scores_dim: int,
+        lookahead: int,
     ):
         print("Manager: Initializing with queues")
         self.draft_queue = draft_queue
         self.verify_queue = verify_queue
         self.response_queue = response_queue
+        self.tok_ids = tok_ids
+        self.max_new_tokens = max_new_tokens
+        self.lookahead = lookahead
+        # Initialize with nans
+        self.draft_scores = torch.full(
+            (max_new_tokens, draft_scores_dim),
+            torch.nan,
+            dtype=torch.float32,
+        )
+        self.draft_tok_ids = torch.full(
+            (max_new_tokens,),
+            torch.nan,
+            dtype=torch.int64,
+        )
+        self.id_to_mask: Dict[UUID, torch.Tensor] = {}
         self.pubsub = PubSub()
         print("Manager: Initialized with PubSub")
         self.last_preemption_timestamp = 0  # Initialize with 0
 
-    async def handle_requests(self) -> None:
-        """
-        Continuously processes responses from workers.
+    async def _send(self, request: Request, queue: asyncio.Queue[Request]) -> None:
+        self.id_to_mask[request.id] = request.get_mask()
+        await queue.put(request)
 
-        Assumptions:
-        - Responses are received in the order they were sent by workers.
+    def _reset(self) -> None:
+        self._fill_nans(self.draft_scores)
+        self._fill_nans(self.draft_tok_ids)
+        self.id_to_mask.clear()
 
-        Guarantees:
-        - Responses older than the last preemption will be dropped.
-        - All valid responses will be processed in the order received.
-        """
-        print("Manager: Starting to handle requests")
-        while True:
-            command = (
-                (await aioconsole.ainput("Enter command (draft, verify, preempt):\n"))
-                .strip()
-                .lower()
-            )
-            print(f"Manager: Received command: {command}")
-            if command in ["draft", "verify"]:
-                # Simulating token IDs and n for the request
-                tok_ids = torch.tensor([[15496, 11, 616, 1438, 318]])
-                n: int = 10 if command == "draft" else 100
-                request = Request.create(tok_ids, n)
-                print(f"Manager: Enqueuing {command} task with ID {request.id}")
-                if command == "draft":
-                    await self.draft_queue.put(request)
-                elif command == "verify":
-                    await self.verify_queue.put(request)
-            elif command == "preempt":
-                print("Manager: Preempt command received.")
-                await self.preempt_all()
-            else:
-                print(f"Manager: Invalid command received: {command}")
+    @staticmethod
+    def _fill_nans(t: torch.Tensor) -> None:
+        t.fill_(torch.nan)
+
+    # async def handle_requests(self) -> None:
+    #     """
+    #     Continuously processes responses from workers.
+
+    #     Assumptions:
+    #     - Responses are received in the order they were sent by workers.
+
+    #     Guarantees:
+    #     - Responses older than the last preemption will be dropped.
+    #     - All valid responses will be processed in the order received.
+    #     """
+    #     print("Manager: Starting to handle requests")
+    #     while True:
+    #         command = (
+    #             (await aioconsole.ainput("Enter command (draft, verify, preempt):\n"))
+    #             .strip()
+    #             .lower()
+    #         )
+    #         print(f"Manager: Received command: {command}")
+    #         if command in ["draft", "verify"]:
+    #             # Simulating token IDs and n for the request
+    #             tok_ids = torch.tensor([[15496, 11, 616, 1438, 318]])
+    #             n: int = 10 if command == "draft" else 100
+    #             request = Request.create(tok_ids, n)
+    #             print(f"Manager: Enqueuing {command} task with ID {request.id}")
+    #             if command == "draft":
+    #                 await self.draft_queue.put(request)
+    #             elif command == "verify":
+    #                 await self.verify_queue.put(request)
+    #         elif command == "preempt":
+    #             print("Manager: Preempt command received.")
+    #             await self.preempt_all()
+    #         else:
+    #             print(f"Manager: Invalid command received: {command}")
 
     @staticmethod
     async def _empty_queue(queue: asyncio.Queue) -> None:
@@ -165,29 +253,97 @@ class Manager:
         await self._empty_queue(self.verify_queue)
         print("Manager: Queues cleared")
 
-    async def handle_responses(self) -> None:
-        """
-        Continuously processes responses from workers.
+    # async def handle_responses(self) -> None:
+    #     """
+    #     Continuously processes responses from workers.
 
-        Assumptions:
-        - Responses are received in the order they were sent by workers.
+    #     Assumptions:
+    #     - Responses are received in the order they were sent by workers.
 
-        Guarantees:
-        - Responses older than the last preemption will be dropped.
-        - All valid responses will be processed in the order received.
-        """
-        print("Manager: Starting to handle responses")
-        while True:
-            response = await self.response_queue.get()
-            if response.request_timestamp < self.last_preemption_timestamp:
-                print(f"Manager: Dropping outdated response {response.id}")
+    #     Guarantees:
+    #     - Responses older than the last preemption will be dropped.
+    #     - All valid responses will be processed in the order received.
+    #     """
+    #     print("Manager: Starting to handle responses")
+    #     while True:
+    #         response = await self.response_queue.get()
+    #         if response.request_timestamp < self.last_preemption_timestamp:
+    #             print(f"Manager: Dropping outdated response {response.id}")
+    #             self.response_queue.task_done()
+    #             continue
+    #         print(f"Manager: Received {response=}")
+    #         # Process the response...
+    #         self.response_queue.task_done()
+
+    async def run(self) -> None:
+        while self.tok_ids.is_nan().any():  # On init or rejection
+            print("Manager: Resetting (on init or rejection)")
+            self._reset()
+            self._send(
+                Request.create(self.tok_ids, self.max_new_tokens), self.verify_queue
+            )
+            print(
+                f"Manager: Sent verify request with tok_ids={self.tok_ids} and n={self.max_new_tokens}"
+            )
+            curr_lookahead: int = min(self.lookahead, self.tok_ids.is_nan().sum() - 1)
+            print(f"Manager: The current lookahead is {curr_lookahead}")
+            self._send(
+                Request.create(self.get_tok_ids_with_drafts(), curr_lookahead),
+                self.draft_queue,
+            )
+            print(
+                f"Manager: Sent draft request with tok_ids={self.get_tok_ids_with_drafts()} and n={curr_lookahead}"
+            )
+            while (
+                self.tok_ids.is_nan().any()
+            ):  # continue on acceptance; stop on rejection
+                print("Manager: Waiting for response")
+                response: Response = await self.response_queue.get()
+                print(
+                    f"Manager: Received response {response}. Will process if not outdated."
+                )
+                if response.request_timestamp <= self.last_preemption_timestamp:
+                    print(f"Manager: Dropping outdated response {response.id}")
+                    self.response_queue.task_done()
+                    continue
+                print(f"Manager: Processing response {response}. (It is not outdated.)")
+                mask: torch.Tensor = self.id_to_mask.pop(response.id)
+                print(f"Manager: Popped mask {mask} for response {response.id}")
+                if response.is_draft:
+                    print(
+                        f"Manager: Updating draft scores and tok_ids with response {response.id}"
+                    )
+                    self.draft_scores[mask] = response.scores
+                    print(f"Manager: Updated draft scores with response {response.id}")
+                    self.draft_tok_ids[mask] = response.tok_ids
+                    print(f"Manager: Updated draft tok_ids with response {response.id}")
+
+                else:
+                    tok_ids: torch.Tensor
+                    any_rejected: bool
+                    tok_ids, any_rejected = self.rejection_sampler(response, mask)
+                    self.tok_ids[mask] = tok_ids
+                    print(
+                        f"Manager: Updated tok_ids with response {response.id} to {tok_ids}"
+                    )
+                    if any_rejected:
+                        print(f"Manager: Rejected response {response.id}")
+                        self.response_queue.task_done()
+                        break
                 self.response_queue.task_done()
-                continue
-            print(f"Manager: Received {response=}")
-            # Process the response...
-            self.response_queue.task_done()
 
-    async def start(self) -> None:
+    def rejection_sampler(
+        self, response: Response, mask: torch.Tensor
+    ) -> Tuple[torch.Tensor, bool]:
+        # TODO: Implement rejection sampling
+        raise NotImplementedError
+
+    def get_tok_ids_with_drafts(self) -> torch.Tensor:
+        ret: torch.Tensor = self.draft_tok_ids.clone()
+        ret[~self.tok_ids.is_nan()] = self.tok_ids[~self.tok_ids.is_nan()]
+        return ret
+
+    async def run_pubsub(self) -> None:
         """
         Starts the PubSub broadcast loop.
 
@@ -379,9 +535,11 @@ class Worker(ABC):
         tok_ids = request.tok_ids.to(device)
         loop = asyncio.get_running_loop()
         # Run in executor (i.e., separate thread) to avoid blocking the event loop
-        scores: torch.Tensor = await loop.run_in_executor(
+        scores: torch.Tensor
+        tok_ids: torch.Tensor
+        scores, tok_ids = await loop.run_in_executor(
             None,
-            self.get_scores,
+            self.forward,
             tok_ids,
             request.n,
         )
@@ -392,15 +550,20 @@ class Worker(ABC):
             request_timestamp=request.timestamp,
             is_draft=isinstance(self, Drafter),
             scores=scores,
+            tok_ids=tok_ids,
         )
 
     @abstractmethod
-    def get_scores(self, tok_ids: torch.Tensor, n: int) -> torch.Tensor:
+    def forward(
+        self, tok_ids: torch.Tensor, n: int
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         pass
 
 
 class Drafter(Worker):
-    def get_scores(self, tok_ids: torch.Tensor, n: int) -> torch.Tensor:
+    def forward(
+        self, tok_ids: torch.Tensor, n: int
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Generates up to `n` new tokens given the prompt `tok_ids`.
         Returns the scores (logits) of the generated tokens. Shape: (n, vocab_size)
@@ -421,11 +584,13 @@ class Drafter(Worker):
             output_hidden_states=False,
             output_attentions=False,
         )
-        return torch.stack(outputs.scores, dim=0).squeeze(1)
+        return torch.stack(outputs.scores, dim=0).squeeze(1), outputs.sequences
 
 
 class Verifier(Worker):
-    def get_scores(self, tok_ids: torch.Tensor, n: int) -> torch.Tensor:
+    def forward(
+        self, tok_ids: torch.Tensor, n: int
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         print(
             f"{self.__class__.__name__}: Using thread ID"
             f" {threading.get_native_id()} (PID: {os.getpid()})"
@@ -442,7 +607,7 @@ class Verifier(Worker):
             output_hidden_states=False,
             output_attentions=False,
         )
-        return torch.stack(outputs.scores, dim=0).squeeze(1)
+        return torch.stack(outputs.scores, dim=0).squeeze(1), outputs.sequences
 
 
 class PubSub:
@@ -512,7 +677,7 @@ async def main() -> None:
 
     print("Main: Starting all tasks")
     await asyncio.gather(
-        manager.start(),
+        manager.run_pubsub(),
         manager.handle_requests(),
         manager.handle_responses(),
         drafter.run(),
