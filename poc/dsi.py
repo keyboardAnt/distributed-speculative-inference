@@ -8,7 +8,7 @@ from typing import Dict, Tuple
 from uuid import UUID, uuid4
 
 import torch
-from transformers import AutoModelForCausalLM
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 
 @dataclass
@@ -149,19 +149,24 @@ class Manager:
         self.draft_queue = draft_queue
         self.verify_queue = verify_queue
         self.response_queue = response_queue
-        self.tok_ids = tok_ids
-        self.max_new_tokens = max_new_tokens
+        self.seq_len = len(tok_ids) + max_new_tokens
+        self.tok_ids = torch.full(
+            (self.seq_len,),
+            torch.nan,
+            dtype=torch.float16,
+        )
+        self.tok_ids[: len(tok_ids)] = tok_ids
         self.lookahead = lookahead
         # Initialize with nans
         self.draft_scores = torch.full(
-            (max_new_tokens, draft_scores_dim),
+            (self.seq_len, draft_scores_dim),
             torch.nan,
             dtype=torch.float32,
         )
         self.draft_tok_ids = torch.full(
-            (max_new_tokens,),
+            (self.seq_len,),
             torch.nan,
-            dtype=torch.int64,
+            dtype=torch.float16,
         )
         self.id_to_mask: Dict[UUID, torch.Tensor] = {}
         self.pubsub = PubSub()
@@ -169,7 +174,9 @@ class Manager:
         self.last_preemption_timestamp = 0  # Initialize with 0
 
     async def _send(self, request: Request, queue: asyncio.Queue[Request]) -> None:
-        self.id_to_mask[request.id] = request.get_mask()
+        self.id_to_mask[request.id] = request.get_mask(
+            seq_len=self.seq_len, is_draft=queue == self.draft_queue
+        )
         await queue.put(request)
 
     def _reset(self) -> None:
@@ -276,18 +283,16 @@ class Manager:
     #         self.response_queue.task_done()
 
     async def run(self) -> None:
-        while self.tok_ids.is_nan().any():  # On init or rejection
+        print("Manager: Starting run")
+        print(f"Manager: tok_ids: {self.tok_ids}")
+        while self.tok_ids.isnan().any():  # On init or rejection
             print("Manager: Resetting (on init or rejection)")
             self._reset()
-            self._send(
-                Request.create(self.tok_ids, self.max_new_tokens), self.verify_queue
-            )
-            print(
-                f"Manager: Sent verify request with tok_ids={self.tok_ids} and n={self.max_new_tokens}"
-            )
-            curr_lookahead: int = min(self.lookahead, self.tok_ids.is_nan().sum() - 1)
+            await self._send(Request.create(self.tok_ids, n=1), self.verify_queue)
+            print(f"Manager: Sent verify request with tok_ids={self.tok_ids} and n=1")
+            curr_lookahead: int = min(self.lookahead, self.tok_ids.isnan().sum() - 1)
             print(f"Manager: The current lookahead is {curr_lookahead}")
-            self._send(
+            await self._send(
                 Request.create(self.get_tok_ids_with_drafts(), curr_lookahead),
                 self.draft_queue,
             )
@@ -295,7 +300,7 @@ class Manager:
                 f"Manager: Sent draft request with tok_ids={self.get_tok_ids_with_drafts()} and n={curr_lookahead}"
             )
             while (
-                self.tok_ids.is_nan().any()
+                self.tok_ids.isnan().any()
             ):  # continue on acceptance; stop on rejection
                 print("Manager: Waiting for response")
                 response: Response = await self.response_queue.get()
@@ -340,18 +345,8 @@ class Manager:
 
     def get_tok_ids_with_drafts(self) -> torch.Tensor:
         ret: torch.Tensor = self.draft_tok_ids.clone()
-        ret[~self.tok_ids.is_nan()] = self.tok_ids[~self.tok_ids.is_nan()]
+        ret[~self.tok_ids.isnan()] = self.tok_ids[~self.tok_ids.isnan()]
         return ret
-
-    async def run_pubsub(self) -> None:
-        """
-        Starts the PubSub broadcast loop.
-
-        Guarantees:
-        - The broadcast loop will run indefinitely until the program is terminated.
-        """
-        asyncio.create_task(self.pubsub.broadcast())
-        print("Manager: Started PubSub broadcast task")
 
 
 class Worker(ABC):
@@ -377,6 +372,7 @@ class Worker(ABC):
         gpu_id (int): ID of the GPU this worker is using.
         model: The loaded model for processing tasks.
         last_preemption_timestamp (float): Timestamp of the last processed preemption.
+        ready (asyncio.Event): Event to signal when the worker is ready.
     """
 
     def __init__(
@@ -391,6 +387,7 @@ class Worker(ABC):
         self.response_queue = response_queue
         self.gpu_id = gpu_id
         self.model = None
+        self.ready = asyncio.Event()
         print(f"{self.__class__.__name__}: Initialized with queues")
         print(f"{self.__class__.__name__}: Using thread ID {threading.get_native_id()}")
         self.last_preemption_timestamp = 0  # Initialize with 0
@@ -430,6 +427,7 @@ class Worker(ABC):
         - Otherwise (a request is received), we verify that it is valid (newer than the last preemption) and process it. The processing of the request is done in a separate thread to ensure the worker keeps listening for preemptions.
         """
         print(f"{self.__class__.__name__}: Starting to process tasks")
+        self.ready.set()  # Ensure the ready event is set when run starts
         while True:
             preempt_queue = await self.manager.pubsub.subscribe(self.gpu_id)
             print(
@@ -508,9 +506,11 @@ class Worker(ABC):
                             f"{self.__class__.__name__}: Response for task {request.id} enqueued"
                         )
 
-            except asyncio.CancelledError:
+            except asyncio.CancelledError as e:
                 print(f"{self.__class__.__name__}: Task {request.id} was cancelled")
+                print(f"{self.__class__.__name__}: CancelledError: {e}")
                 self.queue.task_done()
+                raise e
 
     @torch.no_grad()
     async def perform_task(self, request: Request) -> Response:
@@ -572,6 +572,8 @@ class Drafter(Worker):
             f"{self.__class__.__name__}: Using thread ID"
             f" {threading.get_native_id()} (PID: {os.getpid()})"
         )
+        # Add the batch dimension
+        tok_ids = tok_ids.unsqueeze(0)
         outputs = self.model.generate(
             input_ids=tok_ids,
             attention_mask=torch.ones_like(tok_ids),
@@ -614,6 +616,7 @@ class PubSub:
     def __init__(self):
         self.queue: asyncio.Queue[Preemption] = asyncio.Queue()
         self.subscribers: Dict[int, asyncio.Queue[Preemption]] = {}
+        self.ready = asyncio.Event()
         print("PubSub: Initialized with 0 subscribers")
 
     async def publish(self, message: Preemption) -> None:
@@ -639,6 +642,7 @@ class PubSub:
 
     async def broadcast(self) -> None:
         print("PubSub: Starting broadcast loop")
+        self.ready.set()  # Signal that the broadcast loop is ready
         while True:
             message = await self.queue.get()
             print(
@@ -657,7 +661,25 @@ async def main() -> None:
     response_queue = asyncio.Queue()
 
     print("Main: Creating server instances")
-    manager = Manager(draft_queue, verify_queue, response_queue)
+    # Define the missing arguments
+    model_name = "gpt2"
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    tok_ids = tokenizer.encode(
+        "Hello, world! My name is ", return_tensors="pt"
+    ).squeeze(0)
+    max_new_tokens = 20  # Example value
+    draft_scores_dim = 50257  # GPT-2 vocabulary size
+    lookahead = 5  # Example value
+
+    manager = Manager(
+        draft_queue,
+        verify_queue,
+        response_queue,
+        tok_ids,
+        max_new_tokens,
+        draft_scores_dim,
+        lookahead,
+    )
     drafter = Drafter(draft_queue, response_queue, manager, 0)
     available_gpus = torch.cuda.device_count()
     print(f"Main: Available GPUs: {available_gpus}")
@@ -670,19 +692,36 @@ async def main() -> None:
 
     print("Main: Loading all models")
     await asyncio.gather(
-        drafter.load_model("gpt2"),
-        *[verifier.load_model("gpt2") for verifier in verifiers],
+        drafter.load_model(model_name),
+        *[verifier.load_model(model_name) for verifier in verifiers],
     )
     print("Main: All models loaded")
 
     print("Main: Starting all tasks")
+    broadcast_task = asyncio.create_task(manager.pubsub.broadcast())
+    print("Main: Started PubSub broadcast task")
+
+    # Wait for the PubSub system to be ready
+    await manager.pubsub.ready.wait()
+    print("Main: PubSub system is ready")
+
+    # Start all worker tasks
+    worker_tasks = [
+        asyncio.create_task(drafter.run()),
+        *[asyncio.create_task(verifier.run()) for verifier in verifiers],
+    ]
+
+    # Wait for all workers to be ready
     await asyncio.gather(
-        manager.run_pubsub(),
-        manager.handle_requests(),
-        manager.handle_responses(),
-        drafter.run(),
-        *[verifier.run() for verifier in verifiers],
+        drafter.ready.wait(), *[verifier.ready.wait() for verifier in verifiers]
     )
+    print("Main: All workers are ready")
+
+    # Now start the manager
+    manager_task = asyncio.create_task(manager.run())
+
+    # Wait for all tasks to complete
+    await asyncio.gather(manager_task, *worker_tasks, broadcast_task)
 
 
 if __name__ == "__main__":
