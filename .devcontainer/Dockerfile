@@ -2,8 +2,7 @@
 # The default base image supports MacBook M1 (ARM).
 # To run on RunPod GPU node (x86), set the `BASE_IMAGE` to:
 # `runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04`
-# For example, to build a new image, run:
-# `docker build --build-arg BASE_IMAGE=runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04 -t dsi:gpu-x86 .`
+# For building instructions see the README.md file.
 ARG BASE_IMAGE=mcr.microsoft.com/devcontainers/base:jammy
 FROM ${BASE_IMAGE}
 

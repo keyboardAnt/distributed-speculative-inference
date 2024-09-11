@@ -34,8 +34,6 @@ This repo includes an implementation of DSI and all four experiments from the pa
 3. Estimating the acceptance rate of off-the-shelf LLMs
 4. Estimating the forward latency of off-the-shelf LLMs
 
-
-
 ## Getting Started
 
 #### Installation
@@ -90,17 +88,43 @@ For more sophisticated combinations of configurations, check out Hydra's documen
 
 By default, running new experiments will also visualize the results. To visualize existing results (pre-computed), provide their path: `python -m dsi type=heatmap load_results="results/offline/heatmap/heatmap-20240702-012750.csv"`
 
-#### Testing
+#### Developing
+
+<details>
+<summary>Testing
 
 [![Python tests](https://github.com/keyboardAnt/distributed-speculative-inference/actions/workflows/python-tests.yaml/badge.svg)](https://github.com/keyboardAnt/distributed-speculative-inference/actions/workflows/python-tests.yaml)
+
+</summary>
 
 Run tests: `python ./scripts/test.py all` (from the project root)
 
 It runs tests that measure wall time serially and then the rest of the tests in parallel. You can run only the online tests (for example, with `python ./scripts/test.py online -- -vvv`) or only the offline (`poetry run python ./scripts/test.py offline -- -vvv`).
 
-#### Formatting
+</details>
+
+<details>
+<summary>Formatting</summary>
 
 Run `pre-commit run --all-files` to check formating and re-format when possible.
+
+</details>
+
+<details>
+<summary>Building Docker Images</summary>
+
+Our supported Dockerfile is located at `.devcontainer/Dockerfile`. Its default base image supports MacBook M1 (ARM). To build an image for x84 GPU nodes (like RunPod's), set the `BASE_IMAGE` to:
+`runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04`.
+For example, to build a new image, run:
+`docker build --build-arg BASE_IMAGE=runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04 -t kayboardAnt/dsi:gpu-x86 .`.
+If you are building the image on a non-x86 machine (like MacBook), you might need to create a custom builder (`docker buildx create --name myarmbuilder --use`) before building:
+```sh
+docker buildx build --platform linux/amd64 \
+  --build-arg BASE_IMAGE=runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04 \
+  -t keyboardant/dsi:gpu-x86 . --push
+```
+
+</details>
 
 #### Stored results
 
