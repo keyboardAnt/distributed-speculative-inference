@@ -121,7 +121,8 @@ If you are building the image on a non-x86 machine (like MacBook), you might nee
 ```sh
 docker buildx build --platform linux/amd64 \
   --build-arg BASE_IMAGE=runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04 \
-  -t keyboardant/dsi:gpu-x86 . --push
+  -t keyboardant/dsi:gpu-x86 . --load \
+  --cache-from=runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04
 ```
 
 </details>
