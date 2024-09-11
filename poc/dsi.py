@@ -582,6 +582,7 @@ class Worker(ABC):
         """
         # only the prefix of tok_ids that is not -1 is the prompt
         tok_ids = tok_ids[:, : (tok_ids[0] != -1).sum()]
+        n = max(n, 1)  # Ensure n is at least 1
         scores, sequences = self._forward(tok_ids, n)
         pad_amount = (tok_ids == -1).sum()
         scores = torch.nn.functional.pad(scores, (pad_amount, 0), value=torch.nan)
