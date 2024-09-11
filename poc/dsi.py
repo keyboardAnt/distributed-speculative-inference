@@ -176,9 +176,11 @@ class Manager:
         self.id_to_mask[request.id] = request.get_mask(
             seq_len=self.seq_len, is_draft=queue == self.draft_queue
         )
+        print(f"Manager: Enqueuing request {request.id} to queue {queue}")
         await queue.put(request)
 
     def _reset(self) -> None:
+        print("Manager: Resetting draft_scores, draft_tok_ids, and id_to_mask")
         self._empty(self.draft_scores)
         self._empty(self.draft_tok_ids)
         self.id_to_mask.clear()
@@ -311,6 +313,12 @@ class Manager:
                     self.response_queue.task_done()
                     continue
                 print(f"Manager: Processing response {response}. (It is not outdated.)")
+                if response.id not in self.id_to_mask:
+                    print(
+                        f"Manager: Response {response.id} is not in id_to_mask. Dropping."
+                    )
+                    self.response_queue.task_done()
+                    continue
                 mask: torch.Tensor = self.id_to_mask.pop(response.id)
                 print(f"Manager: Popped mask {mask} for response {response.id}")
                 if response.is_draft:
