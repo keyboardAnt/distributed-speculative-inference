@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import os
 import threading
 import time
@@ -733,18 +734,14 @@ async def main() -> None:
     print("Main: All models loaded")
 
     print("Main: Starting all tasks")
-    broadcast_task = asyncio.create_task(manager.pubsub.broadcast())
+    asyncio.create_task(manager.pubsub.broadcast())
     print("Main: Started PubSub broadcast task")
 
     # Wait for the PubSub system to be ready
     await manager.pubsub.ready.wait()
     print("Main: PubSub system is ready")
-
-    # Start all worker tasks
-    worker_tasks = [
-        asyncio.create_task(drafter.run()),
-        *[asyncio.create_task(verifier.run()) for verifier in verifiers],
-    ]
+    asyncio.create_task(drafter.run())
+    [asyncio.create_task(verifier.run()) for verifier in verifiers]
 
     # Wait for all workers to be ready
     await asyncio.gather(
@@ -754,11 +751,19 @@ async def main() -> None:
 
     # Now start the manager
     manager_task = asyncio.create_task(manager.run())
-
-    # Wait for all tasks to complete
-    await asyncio.gather(manager_task, *worker_tasks, broadcast_task)
+    await manager_task
+    print("Main: Manager task completed")
+    print(f"Main: Final tok_ids: {manager.tok_ids}")
+    # Close all asyncio tasks or resources without waiting for them to complete
+    for task in asyncio.all_tasks():
+        if task is not asyncio.current_task():
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
+    print("Main: All servers are closed")
 
 
 if __name__ == "__main__":
     print("Script started")
     asyncio.run(main())
+    print("Script completed")
