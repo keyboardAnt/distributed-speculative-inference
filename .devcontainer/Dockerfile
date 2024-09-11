@@ -7,7 +7,6 @@ ARG BASE_IMAGE=mcr.microsoft.com/devcontainers/base:jammy
 FROM ${BASE_IMAGE}
 
 ARG DEBIAN_FRONTEND=noninteractive
-ARG USER=vscode
 
 RUN DEBIAN_FRONTEND=noninteractive \
     && apt-get update \
@@ -31,8 +30,17 @@ RUN DEBIAN_FRONTEND=noninteractive \
     liblzma-dev
 
 # Python and poetry installation
-USER $USER
-ARG HOME="/home/$USER"
+ARG USERNAME=vscode
+RUN if getent passwd ${USERNAME} > /dev/null 2>&1; then \
+      echo "User ${USERNAME} exists"; \
+    else \
+      groupadd -r ${USERNAME} && \
+      useradd -r -g ${USERNAME} ${USERNAME} -m -s /bin/bash; \
+      echo "User ${USERNAME} created"; \
+    fi
+
+USER $USERNAME
+ARG HOME="/home/$USERNAME"
 ARG PYTHON_VERSION=3.11
 
 ENV PYENV_ROOT="${HOME}/.pyenv"
