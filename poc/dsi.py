@@ -35,7 +35,7 @@ class Request(Message):
     Args:
         tok_ids (torch.Tensor): The token IDs of the prompt. Shape: (seq_len,).
                                 The prompt populates the first part of the sequence,
-                                and the remaining positions are torch.nan.
+                                and the remaining positions are -1.
         n (int): The number of tokens to generate.
     """
 
@@ -53,29 +53,23 @@ class Request(Message):
         If is_draft is True, the mask is True at n positions that follow the prompt (up
         to the end of the sequence).
         Otherwise, the mask is True at the n consecutive positions that end at the first
-        nan in tok_ids or the end of the sequence if there is no nan.
+        -1 in tok_ids or the end of the sequence if there is no -1s.
         Examples:
-        If tok_ids = [5, 3, 2, nan, nan] and n = 2, then if is_draft is True, the
-        mask is [False, False, False, True, True], and if is_draft is False, the mask is
+        If tok_ids = [5, 3, 2, -1, -1], n = 2, and is_draft is True, then the mask is
+        [False, False, False, True, True], and if is_draft is False, then the mask is
         [False, False, True, True, False].
-        If tok_ids = [5, 3, 2, nan, nan] and n = 3, then if is_draft is True, the
-        function raises an exception, since there are not enough tokens in the
-        sequence to generate 3 tokens. If is_draft is False, the mask is
+        If tok_ids = [5, 3, 2, -1, -1], n = 3, and is_draft is True, then the
+        function raises an exception, since there are not enough empty positions in the
+        sequence for generating 3 tokens. If is_draft is False, the mask is
         [False, True, True, True, False].
-        If tok_ids = [5, 3, 2, 1, 0] and n=2, then if is_draft is True, the function
-        raises an exception (and for any n > 0), since there are not enough tokens in
+        If tok_ids = [5, 3, 2, 1, 0], n=2, and is_draft is True, then the function
+        raises an exception (and for any n > 0), since there are no empty positions in
         the sequence. If is_draft is False, the mask is
         [False, False, False, True, True].
         """
-        nan_positions = torch.nonzero(
-            torch.isnan(self.tok_ids), as_tuple=False
-        ).flatten()
+        empty_positions = torch.nonzero(self.tok_ids[0] == -1)
         if is_draft:
-            if len(nan_positions) == 0:  # No NaNs, all positions are filled
-                raise Exception(
-                    "No space in sequence to generate response in draft mode."
-                )
-            start_idx = nan_positions[0]
+            start_idx = empty_positions[0]
             if start_idx + self.n > seq_len:
                 raise Exception(
                     "Not enough tokens in sequence to generate response in draft mode."
@@ -83,11 +77,13 @@ class Request(Message):
             mask = torch.zeros(seq_len, dtype=bool)
             mask[start_idx : start_idx + self.n] = True
         else:
-            end_idx = seq_len if len(nan_positions) == 0 else nan_positions[0]
+            end_idx = seq_len if not empty_positions.any() else empty_positions[0]
             if end_idx - self.n < 0:
                 raise Exception("Not enough tokens in sequence to generate response.")
             mask = torch.zeros(seq_len, dtype=bool)
-            mask[max(0, end_idx - self.n) : end_idx] = True  # Ensure non-negative index
+            mask[max(0, end_idx + 1 - self.n) : end_idx + 1] = (
+                True  # Ensure non-negative index
+            )
         return mask
 
 
@@ -149,24 +145,27 @@ class Manager:
         self.draft_queue = draft_queue
         self.verify_queue = verify_queue
         self.response_queue = response_queue
-        self.seq_len = len(tok_ids) + max_new_tokens
+        self.seq_len = tok_ids.shape[1] + max_new_tokens
         self.tok_ids = torch.full(
-            (self.seq_len,),
-            torch.nan,
-            dtype=torch.float16,
+            (1, self.seq_len),
+            -1,
+            dtype=torch.int,
         )
-        self.tok_ids[: len(tok_ids)] = tok_ids
+        self.tok_ids[:, : tok_ids.shape[1]] = tok_ids
         self.lookahead = lookahead
-        # Initialize with nans
+        # Initialize with -1s
         self.draft_scores = torch.full(
-            (self.seq_len, draft_scores_dim),
-            torch.nan,
-            dtype=torch.float32,
+            (1, self.seq_len, draft_scores_dim),
+            -1,
+            dtype=torch.float,
         )
         self.draft_tok_ids = torch.full(
-            (self.seq_len,),
-            torch.nan,
-            dtype=torch.float16,
+            (
+                1,
+                self.seq_len,
+            ),
+            -1,
+            dtype=torch.int,
         )
         self.id_to_mask: Dict[UUID, torch.Tensor] = {}
         self.pubsub = PubSub()
@@ -180,13 +179,13 @@ class Manager:
         await queue.put(request)
 
     def _reset(self) -> None:
-        self._fill_nans(self.draft_scores)
-        self._fill_nans(self.draft_tok_ids)
+        self._empty(self.draft_scores)
+        self._empty(self.draft_tok_ids)
         self.id_to_mask.clear()
 
     @staticmethod
-    def _fill_nans(t: torch.Tensor) -> None:
-        t.fill_(torch.nan)
+    def _empty(t: torch.Tensor) -> None:
+        t.fill_(-1)
 
     # async def handle_requests(self) -> None:
     #     """
@@ -285,12 +284,12 @@ class Manager:
     async def run(self) -> None:
         print("Manager: Starting run")
         print(f"Manager: tok_ids: {self.tok_ids}")
-        while self.tok_ids.isnan().any():  # On init or rejection
+        while (self.tok_ids == -1).any():  # On init or rejection
             print("Manager: Resetting (on init or rejection)")
             self._reset()
             await self._send(Request.create(self.tok_ids, n=1), self.verify_queue)
             print(f"Manager: Sent verify request with tok_ids={self.tok_ids} and n=1")
-            curr_lookahead: int = min(self.lookahead, self.tok_ids.isnan().sum() - 1)
+            curr_lookahead: int = min(self.lookahead, (self.tok_ids == -1).sum() - 1)
             print(f"Manager: The current lookahead is {curr_lookahead}")
             await self._send(
                 Request.create(self.get_tok_ids_with_drafts(), curr_lookahead),
@@ -300,8 +299,8 @@ class Manager:
                 f"Manager: Sent draft request with tok_ids={self.get_tok_ids_with_drafts()} and n={curr_lookahead}"
             )
             while (
-                self.tok_ids.isnan().any()
-            ):  # continue on acceptance; stop on rejection
+                self.tok_ids == -1
+            ).any():  # continue on acceptance; stop on rejection
                 print("Manager: Waiting for response")
                 response: Response = await self.response_queue.get()
                 print(
@@ -318,16 +317,15 @@ class Manager:
                     print(
                         f"Manager: Updating draft scores and tok_ids with response {response.id}"
                     )
-                    self.draft_scores[mask] = response.scores
+                    self.draft_scores[0, mask] = response.scores
                     print(f"Manager: Updated draft scores with response {response.id}")
-                    self.draft_tok_ids[mask] = response.tok_ids
+                    self.draft_tok_ids[0, mask] = response.tok_ids
                     print(f"Manager: Updated draft tok_ids with response {response.id}")
-
                 else:
                     tok_ids: torch.Tensor
                     any_rejected: bool
                     tok_ids, any_rejected = self.rejection_sampler(response, mask)
-                    self.tok_ids[mask] = tok_ids
+                    self.tok_ids[0, mask] = tok_ids
                     print(
                         f"Manager: Updated tok_ids with response {response.id} to {tok_ids}"
                     )
@@ -337,15 +335,27 @@ class Manager:
                         break
                 self.response_queue.task_done()
 
+    @torch.no_grad()
     def rejection_sampler(
         self, response: Response, mask: torch.Tensor
     ) -> Tuple[torch.Tensor, bool]:
-        # TODO: Implement rejection sampling
-        raise NotImplementedError
+        print(f"Manager: Running an exact match check for response {response.id}.")
+        response_len = response.tok_ids.shape[1]
+        print(f"Manager: The response has length {response_len}.")
+        tok_ids_accepted = response.tok_ids.clone()[0, mask[:response_len]]
+        print(
+            f"Manager: Accepting new tok_ids of the verified response: {tok_ids_accepted}"
+        )
+        any_rejected = (self.draft_tok_ids[0, mask] != tok_ids_accepted).any()
+        print(
+            f"Manager: The new tok_ids are not identical to the existing ones: {any_rejected}"
+        )
+        return tok_ids_accepted, any_rejected
 
     def get_tok_ids_with_drafts(self) -> torch.Tensor:
         ret: torch.Tensor = self.draft_tok_ids.clone()
-        ret[~self.tok_ids.isnan()] = self.tok_ids[~self.tok_ids.isnan()]
+        nonempty_mask = self.tok_ids != -1
+        ret[nonempty_mask] = self.tok_ids[nonempty_mask]
         return ret
 
 
@@ -553,27 +563,45 @@ class Worker(ABC):
             tok_ids=tok_ids,
         )
 
-    @abstractmethod
     def forward(
+        self, tok_ids: torch.Tensor, n: int
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Args:
+            tok_ids: An int tensor of shape (1, current_seq_len) representing the
+            current prompt. All entries in tok_ids should be non-negative.
+            n: The number of positions for which the return value should contain scores.
+        """
+        # only the prefix of tok_ids that is not -1 is the prompt
+        tok_ids = tok_ids[:, : (tok_ids[0] != -1).sum()]
+        scores, sequences = self._forward(tok_ids, n)
+        pad_amount = (tok_ids == -1).sum()
+        scores = torch.nn.functional.pad(scores, (pad_amount, 0), value=torch.nan)
+        sequences = torch.nn.functional.pad(sequences, (pad_amount, 0), value=-1)
+        return scores, sequences
+
+    @abstractmethod
+    def _forward(
         self, tok_ids: torch.Tensor, n: int
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         pass
 
 
 class Drafter(Worker):
-    def forward(
+    def _forward(
         self, tok_ids: torch.Tensor, n: int
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Generates up to `n` new tokens given the prompt `tok_ids`.
-        Returns the scores (logits) of the generated tokens. Shape: (n, vocab_size)
+        Returns a tuple of two tensors:
+        - The scores (logits) of the generated tokens. Shape: (1, n, vocab_size)
+        - The generated sequences. Shape: (1, n+current_seq_len, 1)
         """
         print(
             f"{self.__class__.__name__}: Using thread ID"
             f" {threading.get_native_id()} (PID: {os.getpid()})"
         )
         # Add the batch dimension
-        tok_ids = tok_ids.unsqueeze(0)
         outputs = self.model.generate(
             input_ids=tok_ids,
             attention_mask=torch.ones_like(tok_ids),
@@ -586,11 +614,11 @@ class Drafter(Worker):
             output_hidden_states=False,
             output_attentions=False,
         )
-        return torch.stack(outputs.scores, dim=0).squeeze(1), outputs.sequences
+        return torch.stack(outputs.scores, dim=0), outputs.sequences
 
 
 class Verifier(Worker):
-    def forward(
+    def _forward(
         self, tok_ids: torch.Tensor, n: int
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         print(
@@ -609,7 +637,7 @@ class Verifier(Worker):
             output_hidden_states=False,
             output_attentions=False,
         )
-        return torch.stack(outputs.scores, dim=0).squeeze(1), outputs.sequences
+        return torch.stack(outputs.scores, dim=0), outputs.sequences
 
 
 class PubSub:
@@ -664,9 +692,7 @@ async def main() -> None:
     # Define the missing arguments
     model_name = "gpt2"
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    tok_ids = tokenizer.encode(
-        "Hello, world! My name is ", return_tensors="pt"
-    ).squeeze(0)
+    tok_ids = tokenizer.encode("Hello, world! My name is ", return_tensors="pt")
     max_new_tokens = 20  # Example value
     draft_scores_dim = 50257  # GPT-2 vocabulary size
     lookahead = 5  # Example value
