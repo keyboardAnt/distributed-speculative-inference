@@ -706,12 +706,6 @@ async def main() -> None:
     print(f"Main: Set Hugging Face cache directory to {os.environ['TRANSFORMERS_CACHE']}")
     print(f"Main: Set Hugging Face home directory to {os.environ['HF_HOME']}")
 
-    # Clear existing cache if any
-    import shutil
-    if os.path.exists(os.environ['TRANSFORMERS_CACHE']):
-        shutil.rmtree(os.environ['TRANSFORMERS_CACHE'])
-        print(f"Main: Cleared existing cache at {os.environ['TRANSFORMERS_CACHE']}")
-
     print("Main: Initializing queues")
     draft_queue = asyncio.Queue()
     verify_queue = asyncio.Queue()
