@@ -563,13 +563,6 @@ class Worker:
         print(
             f"{self.name}: Generated sequences of shape {sequences.shape}"
         )
-        # pad_amount = (tok_ids == -1).sum()
-        # print(f"{self.name}: Padding scores with {pad_amount} nan values")
-        # scores = torch.nn.functional.pad(scores, (pad_amount, 0), value=torch.nan)
-        # print(
-        #     f"{self.name}: Padding sequences with {pad_amount} -1 values"
-        # )
-        # sequences = torch.nn.functional.pad(sequences, (pad_amount, 0), value=-1)
         return scores, sequences
 
 
