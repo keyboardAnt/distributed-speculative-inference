@@ -117,10 +117,10 @@ Our supported Dockerfile is located at `.devcontainer/Dockerfile`. Its default b
 `runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04`.
 For example, to build a new image, run: (replace `keyboardant` with your usename)
 `docker build --build-arg BASE_IMAGE=runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04 -t kayboardAnt/dsi:gpu-x86 .`.
-If you are building the image on a non-x86 machine (like MacBook), you might need to create a custom builder (`docker buildx create --name mybuilder --use`) before building:
+If you are building the image on a non-x86 machine (like MacBook), you might need to create a custom builder (`docker buildx create --name mybuilder --use`) before building. Building an image to run on RunPod:
 ```sh
-docker buildx build --platform linux/amd64 \
-  --build-arg BASE_IMAGE=runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04 \
+ddocker buildx build --platform linux/amd64 \
+  --build-arg USERNAME=root --build-arg BASE_IMAGE=runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04 \
   -t keyboardant/dsi:gpu-x86 . --load \
   --cache-from=runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04
 ```
