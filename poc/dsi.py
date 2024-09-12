@@ -535,6 +535,7 @@ class Worker(ABC):
     async def perform_task(self, request: Request) -> Response:
         """
         Performs the actual task processing.
+        Moves tensors to the model's device and back to the CPU.
 
         Assumptions:
         - The model is loaded and ready for inference.
@@ -562,6 +563,9 @@ class Worker(ABC):
             tok_ids,
             request.n,
         )
+        # Move scores and tok_ids to the CPU
+        scores = scores.to("cpu")
+        tok_ids = tok_ids.to("cpu")
         print(f"{self.__class__.__name__}: Computed scores of shape {scores.shape}")
         return Response(
             id=request.id,
