@@ -232,8 +232,6 @@ class Manager:
         while (self.tok_ids == -1).any():  # On init or rejection
             print("Manager: Resetting (on init or rejection)")
             self._reset()
-            await self._send(Request.create(self.tok_ids, n=1), self.verify_queue)
-            print(f"Manager: Sent verify request with tok_ids={self.tok_ids} and n=1")
             curr_lookahead: int = min(self.lookahead, (self.tok_ids == -1).sum() - 1)
             print(f"Manager: The current lookahead is {curr_lookahead}")
             await self._send(
@@ -246,6 +244,8 @@ class Manager:
             while (
                 self.tok_ids == -1
             ).any():  # continue on acceptance; stop on rejection
+                await self._send(Request.create(self.tok_ids, n=1), self.verify_queue)
+                print(f"Manager: Sent verify request with tok_ids={self.tok_ids} and n=1")
                 print("Manager: Waiting for response")
                 response: Response = await self.response_queue.get()
                 print(
