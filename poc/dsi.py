@@ -6,6 +6,7 @@ import time
 from dataclasses import dataclass
 from typing import Dict, Tuple
 from uuid import UUID, uuid4
+from abc import ABC, abstractmethod
 
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -244,8 +245,11 @@ class Manager:
             while (
                 self.tok_ids == -1
             ).any():  # continue on acceptance; stop on rejection
-                await self._send(Request.create(self.tok_ids, n=1), self.verify_queue)
-                print(f"Manager: Sent verify request with tok_ids={self.tok_ids} and n=1")
+                # Select n based on the number of draft tokens waiting for verification
+                mask_draft_tok_ids_waiting = (self.tok_ids == -1) & (self.draft_tok_ids != -1)
+                n = mask_draft_tok_ids_waiting.sum()
+                await self._send(Request.create(self.tok_ids, n=n), self.verify_queue)
+                print(f"Manager: Sent verify request with tok_ids={self.tok_ids} and n={n}")
                 print("Manager: Waiting for response")
                 response: Response = await self.response_queue.get()
                 print(
@@ -302,7 +306,7 @@ class Manager:
         draft_tok_ids = self.draft_tok_ids[0, mask]
         any_rejected = (draft_tok_ids != tok_ids_accepted).any()
         print(
-            f"Manager: Comparing draft tok_ids {draft_tok_ids} with accepted tok_ids {tok_ids_accepted}:\n{draft_tok_ids != tok_ids_accepted}"
+            f"Manager: Comparing draft tok_ids {draft_tok_ids} with accepted tok_ids {tok_ids_accepted}:\n{draft_tok_ids == tok_ids_accepted}"
         )
         return tok_ids_accepted, any_rejected
 
@@ -313,7 +317,7 @@ class Manager:
         return ret
 
 
-class Worker:
+class Worker(ABC):
     """
     Worker (Drafters and Verifiers).
 
@@ -345,18 +349,15 @@ class Worker:
         response_queue: asyncio.Queue[Response],
         manager: Manager,
         gpu_id: int,
-        is_drafter: bool,
     ):
         self.manager = manager
         self.queue = queue
         self.response_queue = response_queue
         self.gpu_id = gpu_id
         self.model = None
-        self.is_drafter = is_drafter
-        self.name = "Drafter" if self.is_drafter else "Verifier"
         self.ready = asyncio.Event()
-        print(f"{self.name}: Initialized with queues")
-        print(f"{self.name}: Using thread ID {threading.get_native_id()}")
+        print(f"{self.__class__.__name__}: Initialized with queues")
+        print(f"{self.__class__.__name__}: Using thread ID {threading.get_native_id()}")
         self.last_preemption_timestamp = 0  # Initialize with 0
 
     async def load_model(self, name: str, cache_dir: None | str = None) -> None:
@@ -367,15 +368,15 @@ class Worker:
             device = f"cuda:{self.gpu_id}"
         else:
             print(f"GPU {self.gpu_id} not available. Using CPU.")
-        print(f"{self.name}: Loading model {name} on {device}")
+        print(f"{self.__class__.__name__}: Loading model {name} on {device}")
         if cache_dir is None:
             cache_dir = os.environ["TRANSFORMERS_CACHE"]
         self.model = AutoModelForCausalLM.from_pretrained(name, cache_dir=cache_dir)
         self.model.eval()
         if device != cpu:
-            print(f"{self.name}: Moving model to {device}")
+            print(f"{self.__class__.__name__}: Moving model to {device}")
             self.model.to(device)
-        print(f"{self.name}: Model loaded on {device}")
+        print(f"{self.__class__.__name__}: Model loaded on {device}")
 
     async def run(self) -> None:
         """
@@ -395,19 +396,19 @@ class Worker:
         - If a preemption is received, we cancel the current task and update the last preemption timestamp. This will raise a CancelledError.
         - Otherwise (a request is received), we verify that it is valid (newer than the last preemption) and process it. The processing of the request is done in a separate thread to ensure the worker keeps listening for preemptions.
         """
-        print(f"{self.name}: Starting to process tasks")
+        print(f"{self.__class__.__name__}: Starting to process tasks")
         self.ready.set()  # Ensure the ready event is set when run starts
         while True:
             preempt_queue = await self.manager.pubsub.subscribe(self.gpu_id)
             print(
-                f"{self.name}: Subscribed to PubSub for GPU {self.gpu_id}"
+                f"{self.__class__.__name__}: Subscribed to PubSub for GPU {self.gpu_id}"
             )
             get_request = asyncio.create_task(self.queue.get())
             get_preempt = asyncio.create_task(preempt_queue.get())
             current_task = None
             try:
                 print(
-                    f"{self.name}: Waiting for either request or preemption..."
+                    f"{self.__class__.__name__}: Waiting for either request or preemption..."
                 )
                 done, pending = await asyncio.wait(
                     {get_request, get_preempt}, return_when=asyncio.FIRST_COMPLETED
@@ -416,37 +417,37 @@ class Worker:
                 if get_preempt in done:
                     preempt_message = get_preempt.result()
                     print(
-                        f"{self.name}: Received preemption message at {preempt_message.timestamp}"
+                        f"{self.__class__.__name__}: Received preemption message at {preempt_message.timestamp}"
                     )
                     self.last_preemption_timestamp = max(
                         self.last_preemption_timestamp, preempt_message.timestamp
                     )
                     print(
-                        f"{self.name}: Updated last_preemption_timestamp to {self.last_preemption_timestamp}"
+                        f"{self.__class__.__name__}: Updated last_preemption_timestamp to {self.last_preemption_timestamp}"
                     )
 
                     get_request.cancel()
                     if current_task is not None:
-                        print(f"{self.name}: Preempting current task")
+                        print(f"{self.__class__.__name__}: Preempting current task")
                         current_task.cancel()
-                        print(f"{self.name}: Current task was preempted")
+                        print(f"{self.__class__.__name__}: Current task was preempted")
                     else:
-                        print(f"{self.name}: No current task to preempt")
+                        print(f"{self.__class__.__name__}: No current task to preempt")
 
                 else:  # get_request in done
                     request = get_request.result()
                     print(
-                        f"{self.name}: Received request with ID {request.id} at timestamp {request.timestamp}. Last preemption timestamp: {self.last_preemption_timestamp}"
+                        f"{self.__class__.__name__}: Received request with ID {request.id} at timestamp {request.timestamp}. Last preemption timestamp: {self.last_preemption_timestamp}"
                     )
                     if request.timestamp < self.last_preemption_timestamp:
                         print(
-                            f"{self.name}: Dropping outdated request {request.id}"
+                            f"{self.__class__.__name__}: Dropping outdated request {request.id}"
                         )
                         self.queue.task_done()
                         continue
 
                     print(
-                        f"{self.name}: Processing request with ID {request.id}"
+                        f"{self.__class__.__name__}: Processing request with ID {request.id}"
                     )
                     current_task = asyncio.create_task(self.perform_task(request))
                     done, pending = await asyncio.wait(
@@ -456,28 +457,28 @@ class Worker:
                     if get_preempt in done:
                         preempt_message = get_preempt.result()
                         print(
-                            f"{self.name}: Received preemption message at {preempt_message.timestamp}"
+                            f"{self.__class__.__name__}: Received preemption message at {preempt_message.timestamp}"
                         )
                         self.last_preemption_timestamp = max(
                             self.last_preemption_timestamp, preempt_message.timestamp
                         )
                         print(
-                            f"{self.name}: Updated last_preemption_timestamp to {self.last_preemption_timestamp}"
+                            f"{self.__class__.__name__}: Updated last_preemption_timestamp to {self.last_preemption_timestamp}"
                         )
 
                         current_task.cancel()
-                        print(f"{self.name}: Current task was preempted")
+                        print(f"{self.__class__.__name__}: Current task was preempted")
                     else:
                         response = current_task.result()
-                        print(f"{self.name}: Task {request.id} completed")
+                        print(f"{self.__class__.__name__}: Task {request.id} completed")
                         await self.response_queue.put(response)
                         print(
-                            f"{self.name}: Response for task {request.id} enqueued"
+                            f"{self.__class__.__name__}: Response for task {request.id} enqueued"
                         )
 
             except asyncio.CancelledError as e:
-                print(f"{self.name}: Task {request.id} was cancelled")
-                print(f"{self.name}: CancelledError: {e}")
+                print(f"{self.__class__.__name__}: Task {request.id} was cancelled")
+                print(f"{self.__class__.__name__}: CancelledError: {e}")
                 self.queue.task_done()
                 raise e
 
@@ -500,7 +501,7 @@ class Worker:
         Returns:
             Response: The processed response.
         """
-        print(f"{self.name}: Getting scores for task {request.id}")
+        print(f"{self.__class__.__name__}: Getting scores for task {request.id}")
         device = next(self.model.parameters()).device
         tok_ids = request.tok_ids.to(device)
         loop = asyncio.get_running_loop()
@@ -516,12 +517,12 @@ class Worker:
         # Move scores and tok_ids to the CPU
         scores = scores.to("cpu")
         tok_ids = tok_ids.to("cpu")
-        print(f"{self.name}: Computed scores of shape {scores.shape}")
+        print(f"{self.__class__.__name__}: Computed scores of shape {scores.shape}")
         return Response(
             id=request.id,
             timestamp=time.time(),
             request_timestamp=request.timestamp,
-            is_draft=self.is_drafter,
+            is_draft=isinstance(self, Drafter),
             scores=scores,
             tok_ids=tok_ids,
         )
@@ -530,23 +531,53 @@ class Worker:
         self, tok_ids: torch.Tensor, n: int
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        Generates up to `n` new tokens given the prompt `tok_ids`.
-        Returns a tuple of two tensors:
-        - The scores (logits) of the generated tokens. Shape: (1, n, vocab_size)
-        - The generated sequences. Shape: (1, n+current_seq_len, 1)
-
         Args:
             tok_ids: An int tensor of shape (1, current_seq_len) representing the
             current prompt. All entries in tok_ids should be non-negative.
             n: The number of positions for which the return value should contain scores.
         """
         print(
-            f"{self.name}: Using thread ID"
+            f"{self.__class__.__name__}: Using thread ID"
             f" {threading.get_native_id()} (PID: {os.getpid()})"
         )
         # only the prefix of tok_ids that is not -1 is the prompt
         tok_ids = tok_ids[:, : (tok_ids[0] != -1).sum()]
         n = max(n, 1)  # Ensure n is at least 1
+        # outputs = self.model.generate(
+        #     input_ids=tok_ids,
+        #     attention_mask=torch.ones_like(tok_ids),
+        #     max_new_tokens=n,
+        #     do_sample=False,
+        #     use_cache=False,
+        #     return_dict_in_generate=True,
+        #     output_scores=True,
+        #     output_logits=False,
+        #     output_hidden_states=False,
+        #     output_attentions=False,
+        # )
+        # scores = torch.stack(outputs.scores, dim=1)
+        # sequences = outputs.sequences
+        scores, sequences = self._forward(tok_ids, n)
+        print(
+            f"{self.__class__.__name__}: Generated sequences of shape {sequences.shape}"
+        )
+        return scores, sequences
+
+
+    @abstractmethod
+    def _forward(self, tok_ids: torch.Tensor, n: int) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Generates up to `n` new tokens given the prompt `tok_ids`.
+        Returns a tuple of two tensors:
+        - The scores (logits) of the generated tokens. Shape: (1, n, vocab_size)
+        - The generated sequences. Shape: (1, n+current_seq_len)
+        """
+        pass
+
+
+
+class Verifier(Worker):
+    def _forward(self, tok_ids: torch.Tensor, n: int) -> Tuple[torch.Tensor, torch.Tensor]:
         outputs = self.model.generate(
             input_ids=tok_ids,
             attention_mask=torch.ones_like(tok_ids),
@@ -561,11 +592,25 @@ class Worker:
         )
         scores = torch.stack(outputs.scores, dim=1)
         sequences = outputs.sequences
-        print(
-            f"{self.name}: Generated sequences of shape {sequences.shape}"
-        )
         return scores, sequences
 
+class Drafter(Worker):
+    def _forward(self, tok_ids: torch.Tensor, n: int) -> Tuple[torch.Tensor, torch.Tensor]:
+        outputs = self.model.generate(
+            input_ids=tok_ids,
+            attention_mask=torch.ones_like(tok_ids),
+            max_new_tokens=n,
+            do_sample=False,
+            use_cache=False,
+            return_dict_in_generate=True,
+            output_scores=True,
+            output_logits=False,
+            output_hidden_states=False,
+            output_attentions=False,
+        )
+        scores = torch.stack(outputs.scores, dim=1)
+        sequences = outputs.sequences
+        return scores, sequences
 
 class PubSub:
     def __init__(self):
@@ -619,12 +664,12 @@ def setup_hf_cache():
     print(f"Main: Set Hugging Face home directory to {os.environ.get('HF_HOME', 'Not set')}")
 
 async def run(
-    verifier_name: str = "lmsys/vicuna-7b-v1.3",
-    drafter_name: str = "double7/vicuna-68m",
-    vocab_size: int = 32000,
-    lookahead: int = 5,
-    prompt: str = "Hello, world! My name is ",
-    max_new_tokens: int = 20,
+    verifier_name: str,
+    drafter_name: str,
+    vocab_size: int,
+    lookahead: int,
+    prompt: str,
+    max_new_tokens: int,
 ) -> None:
     setup_hf_cache()
 
@@ -648,13 +693,13 @@ async def run(
         vocab_size,
         lookahead,
     )
-    drafter = Worker(draft_queue, response_queue, manager, 0, is_drafter=True)
+    drafter = Drafter(draft_queue, response_queue, manager, 0)
     available_gpus = torch.cuda.device_count()
     print(f"Main: Available GPUs: {available_gpus}")
     num_verifiers = max(available_gpus - 1, 1)
     print(f"Main: Number of verifiers: {num_verifiers}")
     verifiers = [
-        Worker(verify_queue, response_queue, manager, i, is_drafter=False)
+        Verifier(verify_queue, response_queue, manager, i)
         for i in range(1, num_verifiers + 1)
     ]
 
@@ -732,6 +777,24 @@ def generate(model_name: str, prompt: str, max_new_tokens: int) -> str:
 
 if __name__ == "__main__":
     print("Script started")
-    # asyncio.run(run())
-    print(generate("lmsys/vicuna-7b-v1.3", "Hello, world! My name is ", 20))
+
+    verifier_name: str = "lmsys/vicuna-7b-v1.3"
+    drafter_name: str = "double7/vicuna-68m"
+    vocab_size: int = 32000
+    lookahead: int = 5
+    max_new_tokens: int = 1000
+    prompt: str = """Below is an instruction that describes a
+task, paired with an input that provides
+further context. Write a response that
+appropriately completes the request.
+### Instruction:
+Produce an annotated bibliography for the provided paper.
+### Input:
+Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request. ### Instruction: Produce an annotated bibliography for the provided paper. ### Input: The provided paper is an article about the impact of social media on mental health titled “Exploring the Impact of Social Media on Mental Health”. ### Response: Chou, S., S. C. Y., & Ioerger, M. (2019). Exploring the Impact of Social Media on Mental Health. International Journal of Mental Health, 32(2). This paper discusses the impacts of different kinds of social media on the mental health of users. Firstly, the paper uses a systematic review to explore the existing research on the link between social media use and mental health. The review provides an overview of the current state of the research and discusses both positive and negative impacts that social media can have. Results suggest that there is both a positive and a negative correlation between the use of social media and mental health. The authors then proceed to focus on the effects of four specific types of social media: Instagram, Facebook, Twitter and Youtube. For each type of social media, the authors explore the effects on three specific mental health domains: depression, anxiety, and self-esteem. The paper concludes that more research is needed to understand the relationship between social media and mental health. Bates, M., & LeMesurier, S. (2017). The effect of social media on mental health. Mental Illness, 5(1). This paper examines the potential effects of social media on aspects of mental health such as self-esteem, depression, and anxiety. The authors use an online survey of 644 participants to investigate the relationship between mental health and particular uses of Facebook and Instagram. The survey looks at different users' motives for using social media, the frequency with which they use it, feelings of loneliness or anxiety while using it, and how their real life values and perspectives are impacted by social media. Results indicate that several factors influence the relationship between social media and mental health, including positive and negative attributes of different social media types. The findings of the paper suggest that research into what might influence how users engage with social media and the particular effects of platforms and ways of using them could be beneficial to understanding the relationship between social media and mental health. Olah, Z., Z. Szatmári, & Font, S. (2019). Effects of Social Media on Mental Health. Frontiers in Psychology, 10(2). The authors of this paper explore the potential effects of social media on mental health. The paper highlights both positive and negative outcomes from the use of different types of social media. It also highlights the ways in which our mental health is inextricably linked to our social life and environment. Results from a systematic review suggest that different types of social media have different effects on individuals. For example, it found that social media use has a positive effect on collaboration, connectedness, and communication, while it can also have a negative effect on loneliness, anxiety, depression and self-esteem. The paper concludes that more research is needed to understand how these different types of social media affect our mental wellbeing.
+### Response:
+"""
+
+    asyncio.run(run(verifier_name=verifier_name, drafter_name=drafter_name, vocab_size=vocab_size, lookahead=lookahead, prompt=prompt, max_new_tokens=max_new_tokens))
+    # print(generate(model_name=verifier_name, prompt=prompt, max_new_tokens=max_new_tokens))
+
     print("Script completed")
