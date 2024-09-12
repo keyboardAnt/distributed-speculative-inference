@@ -3,10 +3,10 @@ import contextlib
 import os
 import threading
 import time
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Dict, Tuple
 from uuid import UUID, uuid4
-from abc import ABC, abstractmethod
 
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -177,7 +177,9 @@ class Manager:
         self.id_to_mask[request.id] = request.get_mask(
             seq_len=self.seq_len, is_draft=queue == self.draft_queue
         )
-        print(f"Manager: Enqueuing request {request.id} to {'draft' if queue == self.draft_queue else 'verify'} queue")
+        print(
+            f"Manager: Enqueuing request {request.id} to {'draft' if queue == self.draft_queue else 'verify'} queue"
+        )
         await queue.put(request)
 
     def _reset(self) -> None:
@@ -246,10 +248,14 @@ class Manager:
                 self.tok_ids == -1
             ).any():  # continue on acceptance; stop on rejection
                 # Select n based on the number of draft tokens waiting for verification
-                mask_draft_tok_ids_waiting = (self.tok_ids == -1) & (self.draft_tok_ids != -1)
+                mask_draft_tok_ids_waiting = (self.tok_ids == -1) & (
+                    self.draft_tok_ids != -1
+                )
                 n = mask_draft_tok_ids_waiting.sum()
                 await self._send(Request.create(self.tok_ids, n=n), self.verify_queue)
-                print(f"Manager: Sent verify request with tok_ids={self.tok_ids} and n={n}")
+                print(
+                    f"Manager: Sent verify request with tok_ids={self.tok_ids} and n={n}"
+                )
                 print("Manager: Waiting for response")
                 response: Response = await self.response_queue.get()
                 print(
@@ -259,7 +265,9 @@ class Manager:
                     print(f"Manager: Dropping outdated response {response.id}")
                     self.response_queue.task_done()
                     continue
-                print(f"Manager: Processing response {response.id}. (It is not outdated.)")
+                print(
+                    f"Manager: Processing response {response.id}. (It is not outdated.)"
+                )
                 if response.id not in self.id_to_mask:
                     print(
                         f"Manager: Response {response.id} is not in id_to_mask. Dropping."
@@ -549,9 +557,10 @@ class Worker(ABC):
         )
         return scores, sequences
 
-
     @abstractmethod
-    def _forward(self, tok_ids: torch.Tensor, n: int) -> Tuple[torch.Tensor, torch.Tensor]:
+    def _forward(
+        self, tok_ids: torch.Tensor, n: int
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Generates up to `n` new tokens given the prompt `tok_ids`.
         Returns a tuple of two tensors:
@@ -561,9 +570,10 @@ class Worker(ABC):
         pass
 
 
-
 class Verifier(Worker):
-    def _forward(self, tok_ids: torch.Tensor, n: int) -> Tuple[torch.Tensor, torch.Tensor]:
+    def _forward(
+        self, tok_ids: torch.Tensor, n: int
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         outputs = self.model.generate(
             input_ids=tok_ids,
             attention_mask=torch.ones_like(tok_ids),
@@ -579,9 +589,12 @@ class Verifier(Worker):
         scores = torch.stack(outputs.scores, dim=1)
         sequences = outputs.sequences
         return scores, sequences
+
 
 class Drafter(Worker):
-    def _forward(self, tok_ids: torch.Tensor, n: int) -> Tuple[torch.Tensor, torch.Tensor]:
+    def _forward(
+        self, tok_ids: torch.Tensor, n: int
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         outputs = self.model.generate(
             input_ids=tok_ids,
             attention_mask=torch.ones_like(tok_ids),
@@ -597,6 +610,7 @@ class Drafter(Worker):
         scores = torch.stack(outputs.scores, dim=1)
         sequences = outputs.sequences
         return scores, sequences
+
 
 class PubSub:
     def __init__(self):
@@ -647,7 +661,10 @@ def setup_hf_cache():
     print(
         f"Main: Set Hugging Face cache directory to {os.environ.get('TRANSFORMERS_CACHE', 'Not set')}"
     )
-    print(f"Main: Set Hugging Face home directory to {os.environ.get('HF_HOME', 'Not set')}")
+    print(
+        f"Main: Set Hugging Face home directory to {os.environ.get('HF_HOME', 'Not set')}"
+    )
+
 
 async def run(
     verifier_name: str,
@@ -722,7 +739,9 @@ async def run(
     manager_task = asyncio.create_task(manager.run())
     await manager_task
     time_end = time.time()
-    print(f"Main: Manager task completed. Time taken: {time_end - time_start:.2f} seconds")
+    print(
+        f"Main: Manager task completed. Time taken: {time_end - time_start:.2f} seconds"
+    )
     print(f"Main: Final tok_ids: {manager.tok_ids}")
     decoded_output = tokenizer.batch_decode(manager.tok_ids, skip_special_tokens=True)
     print(f"Main: Final output: {decoded_output}")
@@ -739,7 +758,9 @@ def generate(model_name: str, prompt: str, max_new_tokens: int) -> str:
     setup_hf_cache()
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     tok_ids = tokenizer.encode(prompt, return_tensors="pt")
-    model = AutoModelForCausalLM.from_pretrained(model_name, cache_dir=os.environ["TRANSFORMERS_CACHE"])
+    model = AutoModelForCausalLM.from_pretrained(
+        model_name, cache_dir=os.environ["TRANSFORMERS_CACHE"]
+    )
     model.eval()
     model.to("cuda" if torch.cuda.is_available() else "cpu")
     time_start = time.time()
@@ -758,8 +779,11 @@ def generate(model_name: str, prompt: str, max_new_tokens: int) -> str:
         output_attentions=False,
     )
     time_end = time.time()
-    print(f"Generating with model {model_name} took {time_end - time_start:.2f} seconds")
+    print(
+        f"Generating with model {model_name} took {time_end - time_start:.2f} seconds"
+    )
     return tokenizer.decode(outputs.sequences[0], skip_special_tokens=True)
+
 
 if __name__ == "__main__":
     print("Script started")
@@ -780,7 +804,16 @@ Below is an instruction that describes a task, paired with an input that provide
 ### Response:
 """
 
-    asyncio.run(run(verifier_name=verifier_name, drafter_name=drafter_name, vocab_size=vocab_size, lookahead=lookahead, prompt=prompt, max_new_tokens=max_new_tokens))
+    asyncio.run(
+        run(
+            verifier_name=verifier_name,
+            drafter_name=drafter_name,
+            vocab_size=vocab_size,
+            lookahead=lookahead,
+            prompt=prompt,
+            max_new_tokens=max_new_tokens,
+        )
+    )
     # print(generate(model_name=verifier_name, prompt=prompt, max_new_tokens=max_new_tokens))
 
     print("Script completed")
