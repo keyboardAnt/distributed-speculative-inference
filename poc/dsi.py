@@ -686,6 +686,8 @@ async def main() -> None:
     await manager_task
     print("Main: Manager task completed")
     print(f"Main: Final tok_ids: {manager.tok_ids}")
+    decoded_output = tokenizer.batch_decode(manager.tok_ids, skip_special_tokens=True)
+    print(f"Main: Final output: {decoded_output}")
     # Close all asyncio tasks or resources without waiting for them to complete
     for task in asyncio.all_tasks():
         if task is not asyncio.current_task():
