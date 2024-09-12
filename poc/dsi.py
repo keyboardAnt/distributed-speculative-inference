@@ -479,7 +479,7 @@ class Worker:
                 print(f"{self.name}: Task {request.id} was cancelled")
                 print(f"{self.name}: CancelledError: {e}")
                 self.queue.task_done()
-                t
+                raise e
 
     @torch.no_grad()
     async def perform_task(self, request: Request) -> Response:
@@ -618,7 +618,7 @@ def setup_hf_cache():
     )
     print(f"Main: Set Hugging Face home directory to {os.environ.get('HF_HOME', 'Not set')}")
 
-async def main(
+async def run(
     verifier_name: str = "lmsys/vicuna-7b-v1.3",
     drafter_name: str = "double7/vicuna-68m",
     vocab_size: int = 32000,
@@ -670,7 +670,8 @@ async def main(
     )
     print("Main: All models loaded")
 
-    print("Main: Starting all tasks")
+    print("Main: Starting all tasks. Start measuring time NOW.")
+    time_start = time.time()
     asyncio.create_task(manager.pubsub.broadcast())
     print("Main: Started PubSub broadcast task")
 
@@ -689,7 +690,8 @@ async def main(
     # Now start the manager
     manager_task = asyncio.create_task(manager.run())
     await manager_task
-    print("Main: Manager task completed")
+    time_end = time.time()
+    print(f"Main: Manager task completed. Time taken: {time_end - time_start:.2f} seconds")
     print(f"Main: Final tok_ids: {manager.tok_ids}")
     decoded_output = tokenizer.batch_decode(manager.tok_ids, skip_special_tokens=True)
     print(f"Main: Final output: {decoded_output}")
@@ -704,5 +706,5 @@ async def main(
 
 if __name__ == "__main__":
     print("Script started")
-    asyncio.run(main())
+    asyncio.run(run())
     print("Script completed")
