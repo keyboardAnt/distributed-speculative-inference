@@ -176,7 +176,7 @@ class Manager:
         self.id_to_mask[request.id] = request.get_mask(
             seq_len=self.seq_len, is_draft=queue == self.draft_queue
         )
-        print(f"Manager: Enqueuing request {request.id} to queue {queue}")
+        print(f"Manager: Enqueuing request {request.id} to {'draft' if queue == self.draft_queue else 'verify'} queue")
         await queue.put(request)
 
     def _reset(self) -> None:
@@ -255,7 +255,7 @@ class Manager:
                     print(f"Manager: Dropping outdated response {response.id}")
                     self.response_queue.task_done()
                     continue
-                print(f"Manager: Processing response {response}. (It is not outdated.)")
+                print(f"Manager: Processing response {response.id}. (It is not outdated.)")
                 if response.id not in self.id_to_mask:
                     print(
                         f"Manager: Response {response.id} is not in id_to_mask. Dropping."
@@ -299,9 +299,10 @@ class Manager:
         print(
             f"Manager: Accepting new tok_ids of the verified response: {tok_ids_accepted}"
         )
-        any_rejected = (self.draft_tok_ids[0, mask] != tok_ids_accepted).any()
+        draft_tok_ids = self.draft_tok_ids[0, mask]
+        any_rejected = (draft_tok_ids != tok_ids_accepted).any()
         print(
-            f"Manager: The new tok_ids are not identical to the existing ones: {any_rejected}"
+            f"Manager: Comparing draft tok_ids {draft_tok_ids} with accepted tok_ids {tok_ids_accepted}:\n{draft_tok_ids != tok_ids_accepted}"
         )
         return tok_ids_accepted, any_rejected
 
