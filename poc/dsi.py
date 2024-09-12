@@ -3,13 +3,12 @@ import contextlib
 import os
 import threading
 import time
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Dict, Tuple
 from uuid import UUID, uuid4
 
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer, TRANSFORMERS_CACHE
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 
 @dataclass
@@ -190,41 +189,6 @@ class Manager:
     def _empty(t: torch.Tensor) -> None:
         t.fill_(-1)
 
-    # async def handle_requests(self) -> None:
-    #     """
-    #     Continuously processes responses from workers.
-
-    #     Assumptions:
-    #     - Responses are received in the order they were sent by workers.
-
-    #     Guarantees:
-    #     - Responses older than the last preemption will be dropped.
-    #     - All valid responses will be processed in the order received.
-    #     """
-    #     print("Manager: Starting to handle requests")
-    #     while True:
-    #         command = (
-    #             (await aioconsole.ainput("Enter command (draft, verify, preempt):\n"))
-    #             .strip()
-    #             .lower()
-    #         )
-    #         print(f"Manager: Received command: {command}")
-    #         if command in ["draft", "verify"]:
-    #             # Simulating token IDs and n for the request
-    #             tok_ids = torch.tensor([[15496, 11, 616, 1438, 318]])
-    #             n: int = 10 if command == "draft" else 100
-    #             request = Request.create(tok_ids, n)
-    #             print(f"Manager: Enqueuing {command} task with ID {request.id}")
-    #             if command == "draft":
-    #                 await self.draft_queue.put(request)
-    #             elif command == "verify":
-    #                 await self.verify_queue.put(request)
-    #         elif command == "preempt":
-    #             print("Manager: Preempt command received.")
-    #             await self.preempt_all()
-    #         else:
-    #             print(f"Manager: Invalid command received: {command}")
-
     @staticmethod
     async def _empty_queue(queue: asyncio.Queue) -> None:
         while not queue.empty():
@@ -261,28 +225,6 @@ class Manager:
         await self._empty_queue(self.draft_queue)
         await self._empty_queue(self.verify_queue)
         print("Manager: Queues cleared")
-
-    # async def handle_responses(self) -> None:
-    #     """
-    #     Continuously processes responses from workers.
-
-    #     Assumptions:
-    #     - Responses are received in the order they were sent by workers.
-
-    #     Guarantees:
-    #     - Responses older than the last preemption will be dropped.
-    #     - All valid responses will be processed in the order received.
-    #     """
-    #     print("Manager: Starting to handle responses")
-    #     while True:
-    #         response = await self.response_queue.get()
-    #         if response.request_timestamp < self.last_preemption_timestamp:
-    #             print(f"Manager: Dropping outdated response {response.id}")
-    #             self.response_queue.task_done()
-    #             continue
-    #         print(f"Manager: Received {response=}")
-    #         # Process the response...
-    #         self.response_queue.task_done()
 
     async def run(self) -> None:
         print("Manager: Starting run")
@@ -328,7 +270,9 @@ class Manager:
                     )
                     self.draft_scores[0, mask] = response.scores
                     print(f"Manager: Updated draft scores with response {response.id}")
-                    self.draft_tok_ids[0, mask] = response.tok_ids[0, -response.scores.shape[1]:]
+                    self.draft_tok_ids[0, mask] = response.tok_ids[
+                        0, -response.scores.shape[1] :
+                    ]
                     print(f"Manager: Updated draft tok_ids with response {response.id}")
                 else:
                     tok_ids: torch.Tensor
@@ -368,9 +312,9 @@ class Manager:
         return ret
 
 
-class Worker(ABC):
+class Worker:
     """
-    Abstract base class for workers (Drafters and Verifiers).
+    Worker (Drafters and Verifiers).
 
     Assumptions:
     - Each worker runs on a separate GPU if available, otherwise on CPU.
@@ -423,7 +367,7 @@ class Worker(ABC):
             print(f"GPU {self.gpu_id} not available. Using CPU.")
         print(f"{self.__class__.__name__}: Loading model {name} on {device}")
         if cache_dir is None:
-            cache_dir = os.environ['TRANSFORMERS_CACHE']
+            cache_dir = os.environ["TRANSFORMERS_CACHE"]
         self.model = AutoModelForCausalLM.from_pretrained(name, cache_dir=cache_dir)
         self.model.eval()
         if device != cpu:
@@ -601,7 +545,6 @@ class Worker(ABC):
         # only the prefix of tok_ids that is not -1 is the prompt
         tok_ids = tok_ids[:, : (tok_ids[0] != -1).sum()]
         n = max(n, 1)  # Ensure n is at least 1
-        # scores, sequences = self._forward(tok_ids, n)
         outputs = self.model.generate(
             input_ids=tok_ids,
             attention_mask=torch.ones_like(tok_ids),
@@ -616,74 +559,17 @@ class Worker(ABC):
         )
         scores = torch.stack(outputs.scores, dim=1)
         sequences = outputs.sequences
-        print(f"{self.__class__.__name__}: Generated sequences of shape {sequences.shape}")
+        print(
+            f"{self.__class__.__name__}: Generated sequences of shape {sequences.shape}"
+        )
         pad_amount = (tok_ids == -1).sum()
         print(f"{self.__class__.__name__}: Padding scores with {pad_amount} nan values")
         scores = torch.nn.functional.pad(scores, (pad_amount, 0), value=torch.nan)
-        print(f"{self.__class__.__name__}: Padding sequences with {pad_amount} -1 values")
+        print(
+            f"{self.__class__.__name__}: Padding sequences with {pad_amount} -1 values"
+        )
         sequences = torch.nn.functional.pad(sequences, (pad_amount, 0), value=-1)
         return scores, sequences
-
-    # @abstractmethod
-    # def _forward(
-    #     self, tok_ids: torch.Tensor, n: int
-    # ) -> Tuple[torch.Tensor, torch.Tensor]:
-    #     pass
-
-
-# # TODO: Remove (merge under Server)
-# class Drafter(Worker):
-#     def _forward(
-#         self, tok_ids: torch.Tensor, n: int
-#     ) -> Tuple[torch.Tensor, torch.Tensor]:
-#         """
-#         Generates up to `n` new tokens given the prompt `tok_ids`.
-#         Returns a tuple of two tensors:
-#         - The scores (logits) of the generated tokens. Shape: (1, n, vocab_size)
-#         - The generated sequences. Shape: (1, n+current_seq_len, 1)
-#         """
-#         print(
-#             f"{self.__class__.__name__}: Using thread ID"
-#             f" {threading.get_native_id()} (PID: {os.getpid()})"
-#         )
-#         # Add the batch dimension
-#         outputs = self.model.generate(
-#             input_ids=tok_ids,
-#             attention_mask=torch.ones_like(tok_ids),
-#             max_new_tokens=n,
-#             do_sample=False,
-#             use_cache=False,
-#             return_dict_in_generate=True,
-#             output_scores=True,
-#             output_logits=False,
-#             output_hidden_states=False,
-#             output_attentions=False,
-#         )
-#         return torch.stack(outputs.scores, dim=1), outputs.sequences
-
-
-# # TODO: Remove (merge under Server)
-# class Verifier(Worker):
-#     def _forward(
-#         self, tok_ids: torch.Tensor, n: int
-#     ) -> Tuple[torch.Tensor, torch.Tensor]:
-#         print(
-#             f"{self.__class__.__name__}: Using thread ID"
-#             f" {threading.get_native_id()} (PID: {os.getpid()})"
-#         )
-#         outputs = self.model.generate(
-#             input_ids=tok_ids,
-#             attention_mask=torch.ones_like(tok_ids),
-#             max_new_tokens=n,
-#             do_sample=False,
-#             use_cache=False,
-#             return_dict_in_generate=True,
-#             output_scores=True,
-#             output_logits=False,
-#             output_hidden_states=False,
-#             output_attentions=False,
-#         )
-#         return torch.stack(outputs.scores, dim=1), outputs.sequences
 
 
 class PubSub:
@@ -731,9 +617,11 @@ class PubSub:
 async def main() -> None:
     # Set the cache directory to `/workspace` only if GPUs are available
     if torch.cuda.device_count() > 0:
-        os.environ['TRANSFORMERS_CACHE'] = '/workspace/hf_cache'
-        os.environ['HF_HOME'] = '/workspace/hf_cache'
-    print(f"Main: Set Hugging Face cache directory to {os.environ['TRANSFORMERS_CACHE']}")
+        os.environ["TRANSFORMERS_CACHE"] = "/workspace/hf_cache"
+        os.environ["HF_HOME"] = "/workspace/hf_cache"
+    print(
+        f"Main: Set Hugging Face cache directory to {os.environ['TRANSFORMERS_CACHE']}"
+    )
     print(f"Main: Set Hugging Face home directory to {os.environ['HF_HOME']}")
 
     print("Main: Initializing queues")
@@ -760,7 +648,6 @@ async def main() -> None:
         scores_dim,
         lookahead,
     )
-    # drafter = Drafter(draft_queue, response_queue, manager, 0)
     drafter = Worker(draft_queue, response_queue, manager, 0, is_drafter=True)
     available_gpus = torch.cuda.device_count()
     print(f"Main: Available GPUs: {available_gpus}")
@@ -773,8 +660,13 @@ async def main() -> None:
 
     print("Main: Loading all models")
     await asyncio.gather(
-        drafter.load_model(drafter_name, cache_dir=os.environ['TRANSFORMERS_CACHE']),
-        *[verifier.load_model(verifier_name, cache_dir=os.environ['TRANSFORMERS_CACHE']) for verifier in verifiers],
+        drafter.load_model(drafter_name, cache_dir=os.environ["TRANSFORMERS_CACHE"]),
+        *[
+            verifier.load_model(
+                verifier_name, cache_dir=os.environ["TRANSFORMERS_CACHE"]
+            )
+            for verifier in verifiers
+        ],
     )
     print("Main: All models loaded")
 
