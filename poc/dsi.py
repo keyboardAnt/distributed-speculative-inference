@@ -9,7 +9,7 @@ from typing import Dict, Tuple
 from uuid import UUID, uuid4
 
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, TRANSFORMERS_CACHE
 
 
 @dataclass
@@ -411,7 +411,7 @@ class Worker(ABC):
         print(f"{self.__class__.__name__}: Using thread ID {threading.get_native_id()}")
         self.last_preemption_timestamp = 0  # Initialize with 0
 
-    async def load_model(self, name: str) -> None:
+    async def load_model(self, name: str, cache_dir: None | str = None) -> None:
         """Loads the model from the given name and moves it to the device."""
         device = cpu = "cpu"
         if torch.cuda.device_count() > self.gpu_id:
@@ -420,7 +420,9 @@ class Worker(ABC):
         else:
             print(f"GPU {self.gpu_id} not available. Using CPU.")
         print(f"{self.__class__.__name__}: Loading model {name} on {device}")
-        self.model = AutoModelForCausalLM.from_pretrained(name)
+        if cache_dir is None:
+            cache_dir = os.environ['TRANSFORMERS_CACHE']
+        self.model = AutoModelForCausalLM.from_pretrained(name, cache_dir=cache_dir)
         self.model.eval()
         if device != cpu:
             print(f"{self.__class__.__name__}: Moving model to {device}")
@@ -697,6 +699,19 @@ class PubSub:
 
 
 async def main() -> None:
+    # Set the cache directory to `/workspace` only if GPUs are available
+    if torch.cuda.device_count() > 0:
+        os.environ['TRANSFORMERS_CACHE'] = '/workspace/hf_cache'
+        os.environ['HF_HOME'] = '/workspace/hf_cache'
+    print(f"Main: Set Hugging Face cache directory to {os.environ['TRANSFORMERS_CACHE']}")
+    print(f"Main: Set Hugging Face home directory to {os.environ['HF_HOME']}")
+
+    # Clear existing cache if any
+    import shutil
+    if os.path.exists(os.environ['TRANSFORMERS_CACHE']):
+        shutil.rmtree(os.environ['TRANSFORMERS_CACHE'])
+        print(f"Main: Cleared existing cache at {os.environ['TRANSFORMERS_CACHE']}")
+
     print("Main: Initializing queues")
     draft_queue = asyncio.Queue()
     verify_queue = asyncio.Queue()
@@ -704,8 +719,9 @@ async def main() -> None:
 
     print("Main: Creating server instances")
     # Define the missing arguments
-    model_name = "gpt2"
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    verifier_name = "lmsys/vicuna-7b-v1.3"
+    drafter_name = "double7/vicuna-68m"
+    tokenizer = AutoTokenizer.from_pretrained(verifier_name)
     tok_ids = tokenizer.encode("Hello, world! My name is ", return_tensors="pt")
     max_new_tokens = 20  # Example value
     draft_scores_dim = 50257  # GPT-2 vocabulary size
@@ -732,8 +748,8 @@ async def main() -> None:
 
     print("Main: Loading all models")
     await asyncio.gather(
-        drafter.load_model(model_name),
-        *[verifier.load_model(model_name) for verifier in verifiers],
+        drafter.load_model(drafter_name, cache_dir=os.environ['TRANSFORMERS_CACHE']),
+        *[verifier.load_model(verifier_name, cache_dir=os.environ['TRANSFORMERS_CACHE']) for verifier in verifiers],
     )
     print("Main: All models loaded")
 
