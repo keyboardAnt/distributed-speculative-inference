@@ -128,7 +128,7 @@ class Manager:
         pubsub (PubSub): PubSub system for broadcasting preemptions.
         tok_ids (torch.Tensor): Token IDs of the prompt.
         max_new_tokens (int): Maximum number of tokens to generate.
-        draft_scores_dim (int): Dimension of the draft scores.
+        vocab_size (int): Dimension of the output scores.
         last_preemption_timestamp (float): Timestamp of the last preemption.
     """
 
@@ -139,7 +139,7 @@ class Manager:
         response_queue: asyncio.Queue[Response],
         tok_ids: torch.Tensor,
         max_new_tokens: int,
-        draft_scores_dim: int,
+        vocab_size: int,
         lookahead: int,
     ):
         print("Manager: Initializing with queues")
@@ -150,13 +150,13 @@ class Manager:
         self.tok_ids = torch.full(
             (1, self.seq_len),
             -1,
-            dtype=torch.int,
+            dtype=torch.int64,
         )
         self.tok_ids[:, : tok_ids.shape[1]] = tok_ids
         self.lookahead = lookahead
         # Initialize with -1s
         self.draft_scores = torch.full(
-            (1, self.seq_len, draft_scores_dim),
+            (1, self.seq_len, vocab_size),
             -1,
             dtype=torch.float,
         )
@@ -166,7 +166,7 @@ class Manager:
                 self.seq_len,
             ),
             -1,
-            dtype=torch.int,
+            dtype=torch.int64,
         )
         self.id_to_mask: Dict[UUID, torch.Tensor] = {}
         self.pubsub = PubSub()
@@ -328,7 +328,7 @@ class Manager:
                     )
                     self.draft_scores[0, mask] = response.scores
                     print(f"Manager: Updated draft scores with response {response.id}")
-                    self.draft_tok_ids[0, mask] = response.tok_ids
+                    self.draft_tok_ids[0, mask] = response.tok_ids[0, -response.scores.shape[1]:]
                     print(f"Manager: Updated draft tok_ids with response {response.id}")
                 else:
                     tok_ids: torch.Tensor
@@ -400,12 +400,14 @@ class Worker(ABC):
         response_queue: asyncio.Queue[Response],
         manager: Manager,
         gpu_id: int,
+        is_drafter: bool,
     ):
         self.manager = manager
         self.queue = queue
         self.response_queue = response_queue
         self.gpu_id = gpu_id
         self.model = None
+        self.is_drafter = is_drafter
         self.ready = asyncio.Event()
         print(f"{self.__class__.__name__}: Initialized with queues")
         print(f"{self.__class__.__name__}: Using thread ID {threading.get_native_id()}")
@@ -573,7 +575,7 @@ class Worker(ABC):
             id=request.id,
             timestamp=time.time(),
             request_timestamp=request.timestamp,
-            is_draft=isinstance(self, Drafter),
+            is_draft=self.is_drafter,
             scores=scores,
             tok_ids=tok_ids,
         )
@@ -582,78 +584,106 @@ class Worker(ABC):
         self, tok_ids: torch.Tensor, n: int
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
+        Generates up to `n` new tokens given the prompt `tok_ids`.
+        Returns a tuple of two tensors:
+        - The scores (logits) of the generated tokens. Shape: (1, n, vocab_size)
+        - The generated sequences. Shape: (1, n+current_seq_len, 1)
+
         Args:
             tok_ids: An int tensor of shape (1, current_seq_len) representing the
             current prompt. All entries in tok_ids should be non-negative.
             n: The number of positions for which the return value should contain scores.
         """
+        print(
+            f"{self.__class__.__name__}: Using thread ID"
+            f" {threading.get_native_id()} (PID: {os.getpid()})"
+        )
         # only the prefix of tok_ids that is not -1 is the prompt
         tok_ids = tok_ids[:, : (tok_ids[0] != -1).sum()]
         n = max(n, 1)  # Ensure n is at least 1
-        scores, sequences = self._forward(tok_ids, n)
+        # scores, sequences = self._forward(tok_ids, n)
+        outputs = self.model.generate(
+            input_ids=tok_ids,
+            attention_mask=torch.ones_like(tok_ids),
+            max_new_tokens=n,
+            do_sample=False,
+            use_cache=False,
+            return_dict_in_generate=True,
+            output_scores=True,
+            output_logits=False,
+            output_hidden_states=False,
+            output_attentions=False,
+        )
+        scores = torch.stack(outputs.scores, dim=1)
+        sequences = outputs.sequences
+        print(f"{self.__class__.__name__}: Generated sequences of shape {sequences.shape}")
         pad_amount = (tok_ids == -1).sum()
+        print(f"{self.__class__.__name__}: Padding scores with {pad_amount} nan values")
         scores = torch.nn.functional.pad(scores, (pad_amount, 0), value=torch.nan)
+        print(f"{self.__class__.__name__}: Padding sequences with {pad_amount} -1 values")
         sequences = torch.nn.functional.pad(sequences, (pad_amount, 0), value=-1)
         return scores, sequences
 
-    @abstractmethod
-    def _forward(
-        self, tok_ids: torch.Tensor, n: int
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
-        pass
+    # @abstractmethod
+    # def _forward(
+    #     self, tok_ids: torch.Tensor, n: int
+    # ) -> Tuple[torch.Tensor, torch.Tensor]:
+    #     pass
 
 
-class Drafter(Worker):
-    def _forward(
-        self, tok_ids: torch.Tensor, n: int
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """
-        Generates up to `n` new tokens given the prompt `tok_ids`.
-        Returns a tuple of two tensors:
-        - The scores (logits) of the generated tokens. Shape: (1, n, vocab_size)
-        - The generated sequences. Shape: (1, n+current_seq_len, 1)
-        """
-        print(
-            f"{self.__class__.__name__}: Using thread ID"
-            f" {threading.get_native_id()} (PID: {os.getpid()})"
-        )
-        # Add the batch dimension
-        outputs = self.model.generate(
-            input_ids=tok_ids,
-            attention_mask=torch.ones_like(tok_ids),
-            max_new_tokens=n,
-            do_sample=False,
-            use_cache=False,
-            return_dict_in_generate=True,
-            output_scores=True,
-            output_logits=False,
-            output_hidden_states=False,
-            output_attentions=False,
-        )
-        return torch.stack(outputs.scores, dim=0), outputs.sequences
+# # TODO: Remove (merge under Server)
+# class Drafter(Worker):
+#     def _forward(
+#         self, tok_ids: torch.Tensor, n: int
+#     ) -> Tuple[torch.Tensor, torch.Tensor]:
+#         """
+#         Generates up to `n` new tokens given the prompt `tok_ids`.
+#         Returns a tuple of two tensors:
+#         - The scores (logits) of the generated tokens. Shape: (1, n, vocab_size)
+#         - The generated sequences. Shape: (1, n+current_seq_len, 1)
+#         """
+#         print(
+#             f"{self.__class__.__name__}: Using thread ID"
+#             f" {threading.get_native_id()} (PID: {os.getpid()})"
+#         )
+#         # Add the batch dimension
+#         outputs = self.model.generate(
+#             input_ids=tok_ids,
+#             attention_mask=torch.ones_like(tok_ids),
+#             max_new_tokens=n,
+#             do_sample=False,
+#             use_cache=False,
+#             return_dict_in_generate=True,
+#             output_scores=True,
+#             output_logits=False,
+#             output_hidden_states=False,
+#             output_attentions=False,
+#         )
+#         return torch.stack(outputs.scores, dim=1), outputs.sequences
 
 
-class Verifier(Worker):
-    def _forward(
-        self, tok_ids: torch.Tensor, n: int
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
-        print(
-            f"{self.__class__.__name__}: Using thread ID"
-            f" {threading.get_native_id()} (PID: {os.getpid()})"
-        )
-        outputs = self.model.generate(
-            input_ids=tok_ids,
-            attention_mask=torch.ones_like(tok_ids),
-            max_new_tokens=n,
-            do_sample=False,
-            use_cache=False,
-            return_dict_in_generate=True,
-            output_scores=True,
-            output_logits=False,
-            output_hidden_states=False,
-            output_attentions=False,
-        )
-        return torch.stack(outputs.scores, dim=0), outputs.sequences
+# # TODO: Remove (merge under Server)
+# class Verifier(Worker):
+#     def _forward(
+#         self, tok_ids: torch.Tensor, n: int
+#     ) -> Tuple[torch.Tensor, torch.Tensor]:
+#         print(
+#             f"{self.__class__.__name__}: Using thread ID"
+#             f" {threading.get_native_id()} (PID: {os.getpid()})"
+#         )
+#         outputs = self.model.generate(
+#             input_ids=tok_ids,
+#             attention_mask=torch.ones_like(tok_ids),
+#             max_new_tokens=n,
+#             do_sample=False,
+#             use_cache=False,
+#             return_dict_in_generate=True,
+#             output_scores=True,
+#             output_logits=False,
+#             output_hidden_states=False,
+#             output_attentions=False,
+#         )
+#         return torch.stack(outputs.scores, dim=1), outputs.sequences
 
 
 class PubSub:
@@ -718,7 +748,7 @@ async def main() -> None:
     tokenizer = AutoTokenizer.from_pretrained(verifier_name)
     tok_ids = tokenizer.encode("Hello, world! My name is ", return_tensors="pt")
     max_new_tokens = 20  # Example value
-    draft_scores_dim = 50257  # GPT-2 vocabulary size
+    scores_dim = 32000
     lookahead = 5  # Example value
 
     manager = Manager(
@@ -727,16 +757,17 @@ async def main() -> None:
         response_queue,
         tok_ids,
         max_new_tokens,
-        draft_scores_dim,
+        scores_dim,
         lookahead,
     )
-    drafter = Drafter(draft_queue, response_queue, manager, 0)
+    # drafter = Drafter(draft_queue, response_queue, manager, 0)
+    drafter = Worker(draft_queue, response_queue, manager, 0, is_drafter=True)
     available_gpus = torch.cuda.device_count()
     print(f"Main: Available GPUs: {available_gpus}")
     num_verifiers = max(available_gpus - 1, 1)
     print(f"Main: Number of verifiers: {num_verifiers}")
     verifiers = [
-        Verifier(verify_queue, response_queue, manager, i)
+        Worker(verify_queue, response_queue, manager, i, is_drafter=False)
         for i in range(1, num_verifiers + 1)
     ]
 
