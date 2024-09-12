@@ -352,9 +352,10 @@ class Worker:
         self.gpu_id = gpu_id
         self.model = None
         self.is_drafter = is_drafter
+        self.name = "Drafter" if self.is_drafter else "Verifier"
         self.ready = asyncio.Event()
-        print(f"{self.__class__.__name__}: Initialized with queues")
-        print(f"{self.__class__.__name__}: Using thread ID {threading.get_native_id()}")
+        print(f"{self.name}: Initialized with queues")
+        print(f"{self.name}: Using thread ID {threading.get_native_id()}")
         self.last_preemption_timestamp = 0  # Initialize with 0
 
     async def load_model(self, name: str, cache_dir: None | str = None) -> None:
@@ -365,15 +366,15 @@ class Worker:
             device = f"cuda:{self.gpu_id}"
         else:
             print(f"GPU {self.gpu_id} not available. Using CPU.")
-        print(f"{self.__class__.__name__}: Loading model {name} on {device}")
+        print(f"{self.name}: Loading model {name} on {device}")
         if cache_dir is None:
             cache_dir = os.environ["TRANSFORMERS_CACHE"]
         self.model = AutoModelForCausalLM.from_pretrained(name, cache_dir=cache_dir)
         self.model.eval()
         if device != cpu:
-            print(f"{self.__class__.__name__}: Moving model to {device}")
+            print(f"{self.name}: Moving model to {device}")
             self.model.to(device)
-        print(f"{self.__class__.__name__}: Model loaded on {device}")
+        print(f"{self.name}: Model loaded on {device}")
 
     async def run(self) -> None:
         """
@@ -393,19 +394,19 @@ class Worker:
         - If a preemption is received, we cancel the current task and update the last preemption timestamp. This will raise a CancelledError.
         - Otherwise (a request is received), we verify that it is valid (newer than the last preemption) and process it. The processing of the request is done in a separate thread to ensure the worker keeps listening for preemptions.
         """
-        print(f"{self.__class__.__name__}: Starting to process tasks")
+        print(f"{self.name}: Starting to process tasks")
         self.ready.set()  # Ensure the ready event is set when run starts
         while True:
             preempt_queue = await self.manager.pubsub.subscribe(self.gpu_id)
             print(
-                f"{self.__class__.__name__}: Subscribed to PubSub for GPU {self.gpu_id}"
+                f"{self.name}: Subscribed to PubSub for GPU {self.gpu_id}"
             )
             get_request = asyncio.create_task(self.queue.get())
             get_preempt = asyncio.create_task(preempt_queue.get())
             current_task = None
             try:
                 print(
-                    f"{self.__class__.__name__}: Waiting for either request or preemption..."
+                    f"{self.name}: Waiting for either request or preemption..."
                 )
                 done, pending = await asyncio.wait(
                     {get_request, get_preempt}, return_when=asyncio.FIRST_COMPLETED
@@ -414,37 +415,37 @@ class Worker:
                 if get_preempt in done:
                     preempt_message = get_preempt.result()
                     print(
-                        f"{self.__class__.__name__}: Received preemption message at {preempt_message.timestamp}"
+                        f"{self.name}: Received preemption message at {preempt_message.timestamp}"
                     )
                     self.last_preemption_timestamp = max(
                         self.last_preemption_timestamp, preempt_message.timestamp
                     )
                     print(
-                        f"{self.__class__.__name__}: Updated last_preemption_timestamp to {self.last_preemption_timestamp}"
+                        f"{self.name}: Updated last_preemption_timestamp to {self.last_preemption_timestamp}"
                     )
 
                     get_request.cancel()
                     if current_task is not None:
-                        print(f"{self.__class__.__name__}: Preempting current task")
+                        print(f"{self.name}: Preempting current task")
                         current_task.cancel()
-                        print(f"{self.__class__.__name__}: Current task was preempted")
+                        print(f"{self.name}: Current task was preempted")
                     else:
-                        print(f"{self.__class__.__name__}: No current task to preempt")
+                        print(f"{self.name}: No current task to preempt")
 
                 else:  # get_request in done
                     request = get_request.result()
                     print(
-                        f"{self.__class__.__name__}: Received request with ID {request.id} at timestamp {request.timestamp}. Last preemption timestamp: {self.last_preemption_timestamp}"
+                        f"{self.name}: Received request with ID {request.id} at timestamp {request.timestamp}. Last preemption timestamp: {self.last_preemption_timestamp}"
                     )
                     if request.timestamp < self.last_preemption_timestamp:
                         print(
-                            f"{self.__class__.__name__}: Dropping outdated request {request.id}"
+                            f"{self.name}: Dropping outdated request {request.id}"
                         )
                         self.queue.task_done()
                         continue
 
                     print(
-                        f"{self.__class__.__name__}: Processing request with ID {request.id}"
+                        f"{self.name}: Processing request with ID {request.id}"
                     )
                     current_task = asyncio.create_task(self.perform_task(request))
                     done, pending = await asyncio.wait(
@@ -454,28 +455,28 @@ class Worker:
                     if get_preempt in done:
                         preempt_message = get_preempt.result()
                         print(
-                            f"{self.__class__.__name__}: Received preemption message at {preempt_message.timestamp}"
+                            f"{self.name}: Received preemption message at {preempt_message.timestamp}"
                         )
                         self.last_preemption_timestamp = max(
                             self.last_preemption_timestamp, preempt_message.timestamp
                         )
                         print(
-                            f"{self.__class__.__name__}: Updated last_preemption_timestamp to {self.last_preemption_timestamp}"
+                            f"{self.name}: Updated last_preemption_timestamp to {self.last_preemption_timestamp}"
                         )
 
                         current_task.cancel()
-                        print(f"{self.__class__.__name__}: Current task was preempted")
+                        print(f"{self.name}: Current task was preempted")
                     else:
                         response = current_task.result()
-                        print(f"{self.__class__.__name__}: Task {request.id} completed")
+                        print(f"{self.name}: Task {request.id} completed")
                         await self.response_queue.put(response)
                         print(
-                            f"{self.__class__.__name__}: Response for task {request.id} enqueued"
+                            f"{self.name}: Response for task {request.id} enqueued"
                         )
 
             except asyncio.CancelledError as e:
-                print(f"{self.__class__.__name__}: Task {request.id} was cancelled")
-                print(f"{self.__class__.__name__}: CancelledError: {e}")
+                print(f"{self.name}: Task {request.id} was cancelled")
+                print(f"{self.name}: CancelledError: {e}")
                 self.queue.task_done()
                 raise e
 
@@ -498,7 +499,7 @@ class Worker:
         Returns:
             Response: The processed response.
         """
-        print(f"{self.__class__.__name__}: Getting scores for task {request.id}")
+        print(f"{self.name}: Getting scores for task {request.id}")
         device = next(self.model.parameters()).device
         tok_ids = request.tok_ids.to(device)
         loop = asyncio.get_running_loop()
@@ -514,7 +515,7 @@ class Worker:
         # Move scores and tok_ids to the CPU
         scores = scores.to("cpu")
         tok_ids = tok_ids.to("cpu")
-        print(f"{self.__class__.__name__}: Computed scores of shape {scores.shape}")
+        print(f"{self.name}: Computed scores of shape {scores.shape}")
         return Response(
             id=request.id,
             timestamp=time.time(),
@@ -539,7 +540,7 @@ class Worker:
             n: The number of positions for which the return value should contain scores.
         """
         print(
-            f"{self.__class__.__name__}: Using thread ID"
+            f"{self.name}: Using thread ID"
             f" {threading.get_native_id()} (PID: {os.getpid()})"
         )
         # only the prefix of tok_ids that is not -1 is the prompt
@@ -560,15 +561,15 @@ class Worker:
         scores = torch.stack(outputs.scores, dim=1)
         sequences = outputs.sequences
         print(
-            f"{self.__class__.__name__}: Generated sequences of shape {sequences.shape}"
+            f"{self.name}: Generated sequences of shape {sequences.shape}"
         )
-        pad_amount = (tok_ids == -1).sum()
-        print(f"{self.__class__.__name__}: Padding scores with {pad_amount} nan values")
-        scores = torch.nn.functional.pad(scores, (pad_amount, 0), value=torch.nan)
-        print(
-            f"{self.__class__.__name__}: Padding sequences with {pad_amount} -1 values"
-        )
-        sequences = torch.nn.functional.pad(sequences, (pad_amount, 0), value=-1)
+        # pad_amount = (tok_ids == -1).sum()
+        # print(f"{self.name}: Padding scores with {pad_amount} nan values")
+        # scores = torch.nn.functional.pad(scores, (pad_amount, 0), value=torch.nan)
+        # print(
+        #     f"{self.name}: Padding sequences with {pad_amount} -1 values"
+        # )
+        # sequences = torch.nn.functional.pad(sequences, (pad_amount, 0), value=-1)
         return scores, sequences
 
 
