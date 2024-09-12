@@ -704,7 +704,34 @@ async def run(
     print("Main: All servers are closed")
 
 
+def generate(model_name: str, prompt: str, max_new_tokens: int) -> str:
+    setup_hf_cache()
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    tok_ids = tokenizer.encode(prompt, return_tensors="pt")
+    model = AutoModelForCausalLM.from_pretrained(model_name, cache_dir=os.environ["TRANSFORMERS_CACHE"])
+    model.eval()
+    model.to("cuda" if torch.cuda.is_available() else "cpu")
+    time_start = time.time()
+    device = next(model.parameters()).device
+    tok_ids = tok_ids.to(device)
+    outputs = model.generate(
+        input_ids=tok_ids,
+        attention_mask=torch.ones_like(tok_ids),
+        max_new_tokens=max_new_tokens,
+        do_sample=False,
+        use_cache=False,
+        return_dict_in_generate=True,
+        output_scores=False,
+        output_logits=False,
+        output_hidden_states=False,
+        output_attentions=False,
+    )
+    time_end = time.time()
+    print(f"Generating with model {model_name} took {time_end - time_start:.2f} seconds")
+    return tokenizer.decode(outputs.sequences[0], skip_special_tokens=True)
+
 if __name__ == "__main__":
     print("Script started")
-    asyncio.run(run())
+    # asyncio.run(run())
+    print(generate("lmsys/vicuna-7b-v1.3", "Hello, world! My name is ", 20))
     print("Script completed")
