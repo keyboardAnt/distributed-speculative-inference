@@ -479,7 +479,7 @@ class Worker:
                 print(f"{self.name}: Task {request.id} was cancelled")
                 print(f"{self.name}: CancelledError: {e}")
                 self.queue.task_done()
-                raise e
+                t
 
     @torch.no_grad()
     async def perform_task(self, request: Request) -> Response:
@@ -609,15 +609,24 @@ class PubSub:
             print(f"PubSub: Broadcast complete. Queue size: {self.queue.qsize()}")
 
 
-async def main() -> None:
-    # Set the cache directory to `/workspace` only if GPUs are available
+def setup_hf_cache():
     if torch.cuda.device_count() > 0:
         os.environ["TRANSFORMERS_CACHE"] = "/workspace/hf_cache"
         os.environ["HF_HOME"] = "/workspace/hf_cache"
     print(
-        f"Main: Set Hugging Face cache directory to {os.environ['TRANSFORMERS_CACHE']}"
+        f"Main: Set Hugging Face cache directory to {os.environ.get('TRANSFORMERS_CACHE', 'Not set')}"
     )
-    print(f"Main: Set Hugging Face home directory to {os.environ['HF_HOME']}")
+    print(f"Main: Set Hugging Face home directory to {os.environ.get('HF_HOME', 'Not set')}")
+
+async def main(
+    verifier_name: str = "lmsys/vicuna-7b-v1.3",
+    drafter_name: str = "double7/vicuna-68m",
+    vocab_size: int = 32000,
+    lookahead: int = 5,
+    prompt: str = "Hello, world! My name is ",
+    max_new_tokens: int = 20,
+) -> None:
+    setup_hf_cache()
 
     print("Main: Initializing queues")
     draft_queue = asyncio.Queue()
@@ -626,21 +635,17 @@ async def main() -> None:
 
     print("Main: Creating server instances")
     # Define the missing arguments
-    verifier_name = "lmsys/vicuna-7b-v1.3"
-    drafter_name = "double7/vicuna-68m"
     tokenizer = AutoTokenizer.from_pretrained(verifier_name)
-    tok_ids = tokenizer.encode("Hello, world! My name is ", return_tensors="pt")
-    max_new_tokens = 20  # Example value
-    scores_dim = 32000
-    lookahead = 5  # Example value
+    tok_ids = tokenizer.encode(prompt, return_tensors="pt")
 
+    print(f"Main: Creating manager with prompt: {prompt}")
     manager = Manager(
         draft_queue,
         verify_queue,
         response_queue,
         tok_ids,
         max_new_tokens,
-        scores_dim,
+        vocab_size,
         lookahead,
     )
     drafter = Worker(draft_queue, response_queue, manager, 0, is_drafter=True)
