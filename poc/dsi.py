@@ -543,20 +543,6 @@ class Worker(ABC):
         # only the prefix of tok_ids that is not -1 is the prompt
         tok_ids = tok_ids[:, : (tok_ids[0] != -1).sum()]
         n = max(n, 1)  # Ensure n is at least 1
-        # outputs = self.model.generate(
-        #     input_ids=tok_ids,
-        #     attention_mask=torch.ones_like(tok_ids),
-        #     max_new_tokens=n,
-        #     do_sample=False,
-        #     use_cache=False,
-        #     return_dict_in_generate=True,
-        #     output_scores=True,
-        #     output_logits=False,
-        #     output_hidden_states=False,
-        #     output_attentions=False,
-        # )
-        # scores = torch.stack(outputs.scores, dim=1)
-        # sequences = outputs.sequences
         scores, sequences = self._forward(tok_ids, n)
         print(
             f"{self.__class__.__name__}: Generated sequences of shape {sequences.shape}"
