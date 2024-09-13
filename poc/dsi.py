@@ -234,9 +234,9 @@ class Manager:
         print(f"Manager: tok_ids: {self.tok_ids}")
         while (self.tok_ids == -1).any():  # On init or rejection
             print(f"Manager: number of empty tok_ids: {(self.tok_ids == -1).sum()}")
-            print(f"Manager: number of empty draft tok_ids: {(self.draft_tok_ids == -1).sum()}")
             print("Manager: Resetting (on init or rejection)")
             self._reset()
+            print(f"Manager: number of available draft tok_ids: {(self.draft_tok_ids != -1).sum()}")
             curr_lookahead: int = min(self.lookahead, (self.tok_ids == -1).sum() - 1)
             print(f"Manager: The current lookahead is {curr_lookahead}")
             await self._send(
@@ -813,7 +813,7 @@ if __name__ == "__main__":
     drafter_name: str = "double7/vicuna-68m"
     vocab_size: int = 32000
     lookahead: int = 5
-    max_new_tokens: int = 1000
+    max_new_tokens: int = 100
     prompt: str = """Below is an instruction that describes a
 task, paired with an input that provides
 further context. Write a response that
