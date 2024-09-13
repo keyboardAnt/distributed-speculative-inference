@@ -822,7 +822,7 @@ if __name__ == "__main__":
     verifier_name: str = "lmsys/vicuna-7b-v1.3"
     drafter_name: str = "double7/vicuna-68m"
     vocab_size: int = 32000
-    lookahead: int = 2
+    lookahead: int = 1
     max_new_tokens: int = 100
     prompt: str = """Below is an instruction that describes a
 task, paired with an input that provides
