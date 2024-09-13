@@ -393,7 +393,7 @@ class Worker(ABC):
         print(f"{self.__class__.__name__}: Loading model {name} on {device}")
         if cache_dir is None:
             cache_dir = os.environ["TRANSFORMERS_CACHE"]
-        self.model = AutoModelForCausalLM.from_pretrained(name, cache_dir=cache_dir)
+        self.model = AutoModelForCausalLM.from_pretrained(name, torch_dtype=torch.float16, cache_dir=cache_dir)
         self.model.eval()
         if device != cpu:
             print(f"{self.__class__.__name__}: Moving model to {device}")
@@ -789,7 +789,9 @@ def generate(model_name: str, prompt: str, max_new_tokens: int) -> str:
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     tok_ids = tokenizer.encode(prompt, return_tensors="pt")
     model = AutoModelForCausalLM.from_pretrained(
-        model_name, cache_dir=os.environ["TRANSFORMERS_CACHE"]
+        model_name, 
+        torch_dtype=torch.float16,
+        cache_dir=os.environ["TRANSFORMERS_CACHE"]
     )
     model.eval()
     model.to("cuda" if torch.cuda.is_available() else "cpu")
