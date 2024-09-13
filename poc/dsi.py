@@ -236,7 +236,6 @@ class Manager:
             print(f"Manager: number of empty tok_ids: {(self.tok_ids == -1).sum()}")
             print("Manager: Resetting (on init or rejection)")
             self._reset()
-            print(f"Manager: number of available draft tok_ids: {(self.draft_tok_ids != -1).sum()}")
             curr_lookahead: int = min(self.lookahead, (self.tok_ids == -1).sum() - 1)
             print(f"Manager: The current lookahead is {curr_lookahead}")
             await self._send(
@@ -253,6 +252,7 @@ class Manager:
                 mask_draft_tok_ids_waiting = (self.tok_ids == -1) & (
                     self.draft_tok_ids != -1
                 )
+                print(f"Manager: number of draft tok_ids waiting for verification: {mask_draft_tok_ids_waiting.sum()}")
                 n = 1 + max(0, mask_draft_tok_ids_waiting.sum())
                 await self._send(Request.create(self.tok_ids, n=n), self.verify_queue)
                 print(
