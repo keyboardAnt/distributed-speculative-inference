@@ -818,10 +818,10 @@ def generate(model_name: str, prompt: str, max_new_tokens: int) -> str:
 if __name__ == "__main__":
     print("Script started")
 
-    verifier_name: str = "lmsys/vicuna-7b-v1.3"
+    verifier_name: str = "lmsys/vicuna-13b-v1.3"
     drafter_name: str = "double7/vicuna-68m"
     vocab_size: int = 32000
-    lookahead: int = 10
+    lookahead: int = 1
     max_new_tokens: int = 100
     prompt: str = """Below is an instruction that describes a
 task, paired with an input that provides
