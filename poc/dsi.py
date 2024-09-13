@@ -77,14 +77,14 @@ class Request(Message):
                 )
             mask = torch.zeros(seq_len, dtype=bool)
             mask[start_idx : start_idx + self.n] = True
-        else:
-            end_idx = seq_len if not empty_positions.any() else empty_positions[0]
-            if end_idx - self.n < 0:
-                raise Exception("Not enough tokens in sequence to generate response.")
-            mask = torch.zeros(seq_len, dtype=bool)
-            mask[max(0, end_idx + 1 - self.n) : end_idx + 1] = (
-                True  # Ensure non-negative index
-            )
+            return mask
+        end_idx = seq_len if not empty_positions.any() else empty_positions[0]
+        if end_idx - self.n < 0:
+            raise Exception("Not enough tokens in sequence to generate response.")
+        mask = torch.zeros(seq_len, dtype=bool)
+        mask[end_idx + 1 - self.n : end_idx + 1] = (
+            True  # Ensure non-negative index
+        )
         return mask
 
 
@@ -255,7 +255,7 @@ class Manager:
                 mask_draft_tok_ids_waiting = (self.tok_ids == -1) & (
                     self.draft_tok_ids != -1
                 )
-                
+                print(f"Manager: number of draft tokens waiting for verification: {mask_draft_tok_ids_waiting.sum()}")
                 n = 1 + max(0, mask_draft_tok_ids_waiting.sum())
                 await self._send(Request.create(self.get_tok_ids_with_drafts(), n=n), self.verify_queue)
                 print(
@@ -822,7 +822,7 @@ if __name__ == "__main__":
     verifier_name: str = "lmsys/vicuna-7b-v1.3"
     drafter_name: str = "double7/vicuna-68m"
     vocab_size: int = 32000
-    lookahead: int = 5
+    lookahead: int = 2
     max_new_tokens: int = 100
     prompt: str = """Below is an instruction that describes a
 task, paired with an input that provides
