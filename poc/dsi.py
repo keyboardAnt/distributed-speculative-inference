@@ -296,6 +296,8 @@ class Manager:
                     any_rejected: bool
                     tok_ids, any_rejected = self.rejection_sampler(response, mask)
                     print(f"Manager: Restrict the mask to match the length of the accepted tok_ids of response {response.id}. The original mask is {mask} and the accepted tok_ids have length {len(tok_ids)}.")
+                    mask[len(tok_ids):] = False
+                    print(f"Manager: The new mask is {mask}")
                     print(f"Manager: Updated tok_ids with response {response.id}. The new tok_ids are {self.tok_ids}")
                     self.tok_ids[0, mask] = tok_ids
                     print(f"Manager: Token ids after assignment: {self.tok_ids[0, mask]}")
