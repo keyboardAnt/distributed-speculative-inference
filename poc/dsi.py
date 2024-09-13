@@ -828,16 +828,16 @@ Below is an instruction that describes a task, paired with an input that provide
 ### Response:
 """
 
-    # asyncio.run(
-    #     run(
-    #         verifier_name=verifier_name,
-    #         drafter_name=drafter_name,
-    #         vocab_size=vocab_size,
-    #         lookahead=lookahead,
-    #         prompt=prompt,
-    #         max_new_tokens=max_new_tokens,
-    #     )
-    # )
-    print(generate(model_name=verifier_name, prompt=prompt, max_new_tokens=max_new_tokens))
+    asyncio.run(
+        run(
+            verifier_name=verifier_name,
+            drafter_name=drafter_name,
+            vocab_size=vocab_size,
+            lookahead=lookahead,
+            prompt=prompt,
+            max_new_tokens=max_new_tokens,
+        )
+    )
+    # print(generate(model_name=verifier_name, prompt=prompt, max_new_tokens=max_new_tokens))
 
     print("Script completed")
