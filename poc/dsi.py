@@ -129,7 +129,7 @@ class Manager:
         tok_ids (torch.Tensor): Token IDs of the prompt.
         max_new_tokens (int): Maximum number of tokens to generate.
         vocab_size (int): Dimension of the output scores.
-        last_preemption_timestamp (float): Timestamp of the last preemption.
+        timestamp_preemption (float): Timestamp of the last preemption.
     """
 
     def __init__(
@@ -171,7 +171,7 @@ class Manager:
         self.id_to_mask: Dict[UUID, torch.Tensor] = {}
         self.pubsub = PubSub()
         print("Manager: Initialized with PubSub")
-        self.last_preemption_timestamp = 0  # Initialize with 0
+        self.timestamp_preemption = 0  # Initialize with 0
 
     async def _send(self, request: Request, queue: asyncio.Queue[Request]) -> None:
         self.id_to_mask[request.id] = request.get_mask(
@@ -192,14 +192,14 @@ class Manager:
     def _empty(t: torch.Tensor) -> None:
         t.fill_(-1)
 
-    @staticmethod
-    async def _empty_queue(queue: asyncio.Queue) -> None:
-        while not queue.empty():
-            try:
-                queue.get_nowait()
-                queue.task_done()
-            except asyncio.QueueEmpty:
-                pass
+    # @staticmethod
+    # async def _empty_queue(queue: asyncio.Queue) -> None:
+    #     while not queue.empty():
+    #         try:
+    #             queue.get_nowait()
+    #             queue.task_done()
+    #         except asyncio.QueueEmpty:
+    #             pass
 
     async def preempt_all(self) -> None:
         """
@@ -207,32 +207,34 @@ class Manager:
         Updates the last preemption timestamp to the current time.
 
         Assumptions:
-        - This method has exclusive access to modify the last_preemption_timestamp.
+        - This method has exclusive access to modify the timestamp_preemption.
 
         Guarantees:
         - All workers will be notified of the preemption.
         - All request queues will be emptied.
-        - The last_preemption_timestamp will be updated.
+        - The timestamp_preemption will be updated.
         """
         print("Manager: Preempting all workers")
         # Update the last preemption timestamp
-        self.last_preemption_timestamp = time.time()
+        self.timestamp_preemption = time.time()
         # Send preempt message to workers
         print("Manager: Sending preempt message to workers")
         await self.pubsub.publish(Preemption.create())
         print(
-            f"Manager: Preempt message sent to workers at {self.last_preemption_timestamp}"
+            f"Manager: Preempt message sent to workers at {self.timestamp_preemption}"
         )
-        # Clear the queues
-        print("Manager: Clearing queues")
-        await self._empty_queue(self.draft_queue)
-        await self._empty_queue(self.verify_queue)
-        print("Manager: Queues cleared")
+        # # Clear the queues
+        # print("Manager: Clearing queues")
+        # await self._empty_queue(self.draft_queue)
+        # await self._empty_queue(self.verify_queue)
+        # print("Manager: Queues cleared")
 
     async def run(self) -> None:
         print("Manager: Starting run")
         print(f"Manager: tok_ids: {self.tok_ids}")
         while (self.tok_ids == -1).any():  # On init or rejection
+            print(f"Manager: number of empty tok_ids: {(self.tok_ids == -1).sum()}")
+            print(f"Manager: number of empty draft tok_ids: {(self.draft_tok_ids == -1).sum()}")
             print("Manager: Resetting (on init or rejection)")
             self._reset()
             curr_lookahead: int = min(self.lookahead, (self.tok_ids == -1).sum() - 1)
@@ -251,7 +253,7 @@ class Manager:
                 mask_draft_tok_ids_waiting = (self.tok_ids == -1) & (
                     self.draft_tok_ids != -1
                 )
-                n = mask_draft_tok_ids_waiting.sum()
+                n = 1 + max(0, mask_draft_tok_ids_waiting.sum())
                 await self._send(Request.create(self.tok_ids, n=n), self.verify_queue)
                 print(
                     f"Manager: Sent verify request with tok_ids={self.tok_ids} and n={n}"
@@ -261,7 +263,7 @@ class Manager:
                 print(
                     f"Manager: Received response {response}. Will process if not outdated."
                 )
-                if response.request_timestamp <= self.last_preemption_timestamp:
+                if response.request_timestamp <= self.timestamp_preemption:
                     print(f"Manager: Dropping outdated response {response.id}")
                     self.response_queue.task_done()
                     continue
@@ -297,7 +299,10 @@ class Manager:
                     if any_rejected:
                         print(f"Manager: Rejected response {response.id}")
                         self.response_queue.task_done()
+                        await self.preempt_all()
                         break
+                    print("Manager: All draft tokens are accepted!")
+                print(f"Manager: Task done for response {response.id}")
                 self.response_queue.task_done()
 
     @torch.no_grad()
@@ -347,7 +352,7 @@ class Worker(ABC):
         manager (Manager): Reference to the manager for system-wide operations.
         gpu_id (int): ID of the GPU this worker is using.
         model: The loaded model for processing tasks.
-        last_preemption_timestamp (float): Timestamp of the last processed preemption.
+        timestamp_preemption (float): Timestamp of the last processed preemption.
         ready (asyncio.Event): Event to signal when the worker is ready.
     """
 
@@ -366,7 +371,8 @@ class Worker(ABC):
         self.ready = asyncio.Event()
         print(f"{self.__class__.__name__}: Initialized with queues")
         print(f"{self.__class__.__name__}: Using thread ID {threading.get_native_id()}")
-        self.last_preemption_timestamp = 0  # Initialize with 0
+        self.timestamp_preemption = 0  # Initialize with 0
+        self.timestamp_request = 0  # Initialize with 0
 
     async def load_model(self, name: str, cache_dir: None | str = None) -> None:
         """Loads the model from the given name and moves it to the device."""
@@ -427,27 +433,44 @@ class Worker(ABC):
                     print(
                         f"{self.__class__.__name__}: Received preemption message at {preempt_message.timestamp}"
                     )
-                    self.last_preemption_timestamp = max(
-                        self.last_preemption_timestamp, preempt_message.timestamp
-                    )
+                    self.timestamp_preemption = max(self.timestamp_preemption, preempt_message.timestamp)
                     print(
-                        f"{self.__class__.__name__}: Updated last_preemption_timestamp to {self.last_preemption_timestamp}"
+                        f"{self.__class__.__name__}: Updated timestamp_preemption to {self.timestamp_preemption} (it is the max of the previous timestamp and the received preemption timestamp)"
                     )
-
-                    get_request.cancel()
-                    if current_task is not None:
-                        print(f"{self.__class__.__name__}: Preempting current task")
-                        current_task.cancel()
-                        print(f"{self.__class__.__name__}: Current task was preempted")
+                    if self.timestamp_request > self.timestamp_preemption:
+                        print(
+                            f"{self.__class__.__name__}: Dropping outdated preemption message. "
+                            f"Last preemption timestamp: {self.timestamp_preemption}, "
+                            f"last or current request timestamp: {self.timestamp_request}, "
+                            f"received preemption timestamp: {preempt_message.timestamp}"
+                        )
+                        continue
+                    print(f"{self.__class__.__name__}: Processing preemption message because it was created before the last or current request. Therefore we need to terminate the current task.")
+                    if get_request.done():
+                        print(f"{self.__class__.__name__}: While receiving a preemption message, a request was received.")
+                        request = get_request.result()
+                        print(f"{self.__class__.__name__}: Received request {request.id} at timestamp {request.timestamp}")
+                        if request.timestamp > self.timestamp_preemption:
+                            print(f"{self.__class__.__name__}: The received request {request.id} is valid (was created after the preemption). Returning it to the queue.")
+                            self.queue.put_nowait(request)
+                            print(f"{self.__class__.__name__}: Request {request.id} was returned to the queue")
                     else:
-                        print(f"{self.__class__.__name__}: No current task to preempt")
-
+                        print(f"{self.__class__.__name__}: Cancelling `get_request` to stop waiting for a queued request")
+                        get_request.cancel()
+                        print(f"{self.__class__.__name__}: `get_request` was cancelled")
+                    if current_task is not None:
+                        print(f"{self.__class__.__name__}: Cancelling current task")
+                        current_task.cancel()
+                        print(f"{self.__class__.__name__}: Current task was cancelled")
+                    else:
+                        print(f"{self.__class__.__name__}: No current task to cancel")
+                    print(f"{self.__class__.__name__}: Done processing preemption message")
                 else:  # get_request in done
                     request = get_request.result()
                     print(
-                        f"{self.__class__.__name__}: Received request with ID {request.id} at timestamp {request.timestamp}. Last preemption timestamp: {self.last_preemption_timestamp}"
+                        f"{self.__class__.__name__}: Received request with ID {request.id} at timestamp {request.timestamp}. Last preemption timestamp: {self.timestamp_preemption}"
                     )
-                    if request.timestamp < self.last_preemption_timestamp:
+                    if request.timestamp < self.timestamp_preemption:
                         print(
                             f"{self.__class__.__name__}: Dropping outdated request {request.id}"
                         )
@@ -467,11 +490,11 @@ class Worker(ABC):
                         print(
                             f"{self.__class__.__name__}: Received preemption message at {preempt_message.timestamp}"
                         )
-                        self.last_preemption_timestamp = max(
-                            self.last_preemption_timestamp, preempt_message.timestamp
+                        self.timestamp_preemption = max(
+                            self.timestamp_preemption, preempt_message.timestamp
                         )
                         print(
-                            f"{self.__class__.__name__}: Updated last_preemption_timestamp to {self.last_preemption_timestamp}"
+                            f"{self.__class__.__name__}: Updated timestamp_preemption to {self.timestamp_preemption}"
                         )
 
                         current_task.cancel()
@@ -509,6 +532,8 @@ class Worker(ABC):
         Returns:
             Response: The processed response.
         """
+        self.timestamp_request = request.timestamp
+        print(f"{self.__class__.__name__}: Last or current request timestamp: {self.timestamp_request}")
         print(f"{self.__class__.__name__}: Getting scores for task {request.id}")
         device = next(self.model.parameters()).device
         tok_ids = request.tok_ids.to(device)
@@ -550,7 +575,8 @@ class Worker(ABC):
         )
         # only the prefix of tok_ids that is not -1 is the prompt
         tok_ids = tok_ids[:, : (tok_ids[0] != -1).sum()]
-        n = max(n, 1)  # Ensure n is at least 1
+        # n = max(n, 1)  # Ensure n is at least 1
+        assert n > 0, "n must be greater than 0"
         scores, sequences = self._forward(tok_ids, n)
         print(
             f"{self.__class__.__name__}: Generated sequences of shape {sequences.shape}"
@@ -562,7 +588,6 @@ class Worker(ABC):
         self, tok_ids: torch.Tensor, n: int
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        Generates up to `n` new tokens given the prompt `tok_ids`.
         Returns a tuple of two tensors:
         - The scores (logits) of the generated tokens. Shape: (1, n, vocab_size)
         - The generated sequences. Shape: (1, n+current_seq_len)
@@ -574,21 +599,17 @@ class Verifier(Worker):
     def _forward(
         self, tok_ids: torch.Tensor, n: int
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        outputs = self.model.generate(
+        outputs = self.model.forward(
             input_ids=tok_ids,
             attention_mask=torch.ones_like(tok_ids),
-            max_new_tokens=n,
-            do_sample=False,
             use_cache=False,
-            return_dict_in_generate=True,
-            output_scores=True,
-            output_logits=False,
+            return_dict=True,
             output_hidden_states=False,
             output_attentions=False,
         )
-        scores = torch.stack(outputs.scores, dim=1)
-        sequences = outputs.sequences
-        return scores, sequences
+        logits_argmax = outputs.logits.argmax(dim=-1)
+        sequences = torch.cat((tok_ids[0, :1], logits_argmax[0, :])).unsqueeze(0)
+        return outputs.logits, sequences
 
 
 class Drafter(Worker):
