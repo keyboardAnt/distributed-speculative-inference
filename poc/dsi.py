@@ -295,7 +295,7 @@ class Manager:
                     tok_ids: torch.Tensor
                     any_rejected: bool
                     tok_ids, any_rejected = self.rejection_sampler(response, mask)
-                    self.tok_ids[0, mask] = tok_ids
+                    self.tok_ids[0, mask][:len(tok_ids)] = tok_ids
                     print(
                         f"Manager: Updated tok_ids with response {response.id}. Accepted token ids: {tok_ids})"
                     )
@@ -822,7 +822,7 @@ if __name__ == "__main__":
     verifier_name: str = "lmsys/vicuna-7b-v1.3"
     drafter_name: str = "double7/vicuna-68m"
     vocab_size: int = 32000
-    lookahead: int = 1
+    lookahead: int = 10
     max_new_tokens: int = 100
     prompt: str = """Below is an instruction that describes a
 task, paired with an input that provides
