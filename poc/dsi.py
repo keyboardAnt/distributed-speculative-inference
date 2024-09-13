@@ -320,7 +320,8 @@ class Manager:
             f"Manager: Accepting new tok_ids of the verified response: {tok_ids_accepted}"
         )
         draft_tok_ids = self.draft_tok_ids[0, mask]
-        any_rejected = (draft_tok_ids != tok_ids_accepted).any()
+        mask_drafts_available = draft_tok_ids != -1
+        any_rejected = (draft_tok_ids[mask_drafts_available] != tok_ids_accepted[mask_drafts_available]).any()
         print(
             f"Manager: Comparing draft tok_ids {draft_tok_ids} with accepted tok_ids {tok_ids_accepted}:\n{draft_tok_ids == tok_ids_accepted}"
         )
