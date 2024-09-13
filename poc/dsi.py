@@ -240,13 +240,14 @@ class Manager:
             self._reset()
             curr_lookahead: int = min(self.lookahead, (self.tok_ids == -1).sum() - 1)
             print(f"Manager: The current lookahead is {curr_lookahead}")
-            await self._send(
-                Request.create(self.get_tok_ids_with_drafts(), curr_lookahead),
-                self.draft_queue,
-            )
-            print(
-                f"Manager: Sent draft request with tok_ids={self.get_tok_ids_with_drafts()} and n={curr_lookahead}"
-            )
+            if curr_lookahead > 0:
+                await self._send(
+                    Request.create(self.get_tok_ids_with_drafts(), curr_lookahead),
+                    self.draft_queue,
+                )
+                print(
+                    f"Manager: Sent draft request with n={curr_lookahead}, tok_ids.shape={self.get_tok_ids_with_drafts().shape}, and tok_ids={self.get_tok_ids_with_drafts()}"
+                )
             while (
                 self.tok_ids == -1
             ).any():  # continue on acceptance; stop on rejection
@@ -256,9 +257,9 @@ class Manager:
                 )
                 
                 n = 1 + max(0, mask_draft_tok_ids_waiting.sum())
-                await self._send(Request.create(self.tok_ids, n=n), self.verify_queue)
+                await self._send(Request.create(self.get_tok_ids_with_drafts(), n=n), self.verify_queue)
                 print(
-                    f"Manager: Sent verify request with n={n}, tok_ids.shape={self.tok_ids.shape}, and tok_ids={self.tok_ids}"
+                    f"Manager: Sent verify request with n={n}, tok_ids.shape={self.get_tok_ids_with_drafts().shape}, and tok_ids={self.get_tok_ids_with_drafts()}"
                 )
                 print("Manager: Waiting for response")
                 response: Response = await self.response_queue.get()
@@ -296,7 +297,7 @@ class Manager:
                     tok_ids, any_rejected = self.rejection_sampler(response, mask)
                     self.tok_ids[0, mask] = tok_ids
                     print(
-                        f"Manager: Updated tok_ids with response {response.id} to {tok_ids}"
+                        f"Manager: Updated tok_ids with response {response.id} (accepted {tok_ids.shape[1]} tokens)"
                     )
                     if any_rejected:
                         print(f"Manager: Rejected response {response.id}")
@@ -323,6 +324,11 @@ class Manager:
         print(
             f"Manager: Comparing draft tok_ids {draft_tok_ids} with accepted tok_ids {tok_ids_accepted}:\n{draft_tok_ids == tok_ids_accepted}"
         )
+        if any_rejected:
+            idx_first_rejected = (draft_tok_ids != tok_ids_accepted).nonzero()[0].item()
+            print(f"Manager: First rejected token is at index {idx_first_rejected}. Accepting the first {idx_first_rejected} tokens.")
+            tok_ids_accepted = tok_ids_accepted[:idx_first_rejected+1]
+        print(f"Manager: New accepted tok_ids: {tok_ids_accepted}")
         return tok_ids_accepted, any_rejected
 
     def get_tok_ids_with_drafts(self) -> torch.Tensor:
