@@ -318,9 +318,6 @@ class Manager:
         response_len = response.tok_ids.shape[1]
         print(f"Manager: The response has length {response_len}.")
         tok_ids_accepted = response.tok_ids.clone()[0, mask[:response_len]]
-        print(
-            f"Manager: Accepting new tok_ids of the verified response: {tok_ids_accepted}"
-        )
         draft_tok_ids = self.draft_tok_ids[0, mask]
         mask_drafts_available = draft_tok_ids != -1
         any_rejected = (draft_tok_ids[mask_drafts_available] != tok_ids_accepted[mask_drafts_available]).any()
@@ -331,7 +328,7 @@ class Manager:
             idx_first_rejected = (draft_tok_ids != tok_ids_accepted).nonzero()[0].item()
             print(f"Manager: First rejected token is at index {idx_first_rejected}. Accepting the first {idx_first_rejected} tokens.")
             tok_ids_accepted = tok_ids_accepted[:idx_first_rejected+1]
-        print(f"Manager: New accepted tok_ids: {tok_ids_accepted}")
+        print(f"Manager: Accepting new tokens. The number of accepted tokens is {len(tok_ids_accepted)}, and the tok_ids are {tok_ids_accepted}")
         return tok_ids_accepted, any_rejected
 
     def get_tok_ids_with_drafts(self) -> torch.Tensor:
