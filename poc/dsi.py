@@ -297,7 +297,7 @@ class Manager:
                     tok_ids, any_rejected = self.rejection_sampler(response, mask)
                     self.tok_ids[0, mask] = tok_ids
                     print(
-                        f"Manager: Updated tok_ids with response {response.id} (accepted {tok_ids.shape[1]} tokens)"
+                        f"Manager: Updated tok_ids with response {response.id}. Accepted token ids: {tok_ids})"
                     )
                     if any_rejected:
                         print(f"Manager: Rejected response {response.id}")
