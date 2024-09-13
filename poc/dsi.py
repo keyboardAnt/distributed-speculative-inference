@@ -295,11 +295,11 @@ class Manager:
                     tok_ids: torch.Tensor
                     any_rejected: bool
                     tok_ids, any_rejected = self.rejection_sampler(response, mask)
-                    print(f"Manager: Restrict the mask to match the length of the accepted tok_ids of response {response.id}. The original mask is {mask} and the accepted tok_ids have length {len(tok_ids)}.")
-                    mask[len(tok_ids):] = False
-                    print(f"Manager: The new mask is {mask}")
                     print(f"Manager: Updated tok_ids with response {response.id}. The new tok_ids are {self.tok_ids}")
-                    self.tok_ids[0, mask] = tok_ids
+                    tok_ids_padded = torch.full_like(self.tok_ids[0, mask], -1)
+                    tok_ids_padded[:len(tok_ids)] = tok_ids
+                    print(f"Manager: padded the tok_ids with -1s to the right to match the masked tok_ids: {tok_ids_padded=}")
+                    self.tok_ids[0, mask] = tok_ids_padded
                     print(f"Manager: Token ids after assignment: {self.tok_ids[0, mask]}")
                     if any_rejected:
                         print(f"Manager: Rejected response {response.id}")
