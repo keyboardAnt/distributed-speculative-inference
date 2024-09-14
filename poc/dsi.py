@@ -382,7 +382,7 @@ class Worker(ABC):
         self.timestamp_preemption = 0  # Initialize with 0
         self.timestamp_request = 0  # Initialize with 0
 
-    async def load_model(self, name: str, cache_dir: None | str = None) -> None:
+    async def load_model(self, name: str, dtype: torch.dtype, cache_dir: None | str = None) -> None:
         """Loads the model from the given name and moves it to the device."""
         device = cpu = "cpu"
         if torch.cuda.device_count() > self.gpu_id:
@@ -393,7 +393,7 @@ class Worker(ABC):
         print(f"{self.__class__.__name__}: Loading model {name} on {device}")
         if cache_dir is None:
             cache_dir = os.environ["TRANSFORMERS_CACHE"]
-        self.model = AutoModelForCausalLM.from_pretrained(name, torch_dtype=torch.float16, cache_dir=cache_dir)
+        self.model = AutoModelForCausalLM.from_pretrained(name, torch_dtype=dtype, cache_dir=cache_dir)
         self.model.eval()
         if device != cpu:
             print(f"{self.__class__.__name__}: Moving model to {device}")
@@ -700,6 +700,8 @@ async def run(
     verifier_name: str,
     drafter_name: str,
     vocab_size: int,
+    verifier_dtype: torch.dtype,
+    drafter_dtype: torch.dtype,
     lookahead: int,
     prompt: str,
     max_new_tokens: int,
@@ -738,10 +740,10 @@ async def run(
 
     print("Main: Loading all models")
     await asyncio.gather(
-        drafter.load_model(drafter_name, cache_dir=os.environ["TRANSFORMERS_CACHE"]),
+        drafter.load_model(drafter_name, dtype=drafter_dtype, cache_dir=os.environ["TRANSFORMERS_CACHE"]),
         *[
             verifier.load_model(
-                verifier_name, cache_dir=os.environ["TRANSFORMERS_CACHE"]
+                verifier_name, dtype=verifier_dtype, cache_dir=os.environ["TRANSFORMERS_CACHE"]
             )
             for verifier in verifiers
         ],
@@ -822,6 +824,8 @@ if __name__ == "__main__":
 
     verifier_name: str = "lmsys/vicuna-13b-v1.3"
     drafter_name: str = "double7/vicuna-68m"
+    verifier_dtype: torch.dtype = torch.float32
+    drafter_dtype: torch.dtype = torch.float16
     vocab_size: int = 32000
     lookahead: int = 1
     max_new_tokens: int = 100
@@ -841,6 +845,8 @@ Below is an instruction that describes a task, paired with an input that provide
             verifier_name=verifier_name,
             drafter_name=drafter_name,
             vocab_size=vocab_size,
+            verifier_dtype=verifier_dtype,
+            drafter_dtype=drafter_dtype,
             lookahead=lookahead,
             prompt=prompt,
             max_new_tokens=max_new_tokens,
