@@ -815,7 +815,7 @@ async def run(
     await drafter.load_model(
         drafter_name,
         dtype=drafter_dtype,
-        device_map=get_device_map_with_only_gpu_0(),
+        device_map=get_device_map_with_only_gpu_0(drafter_name),
         cache_dir=os.environ["TRANSFORMERS_CACHE"],
     )
     print_gpu_memory()
