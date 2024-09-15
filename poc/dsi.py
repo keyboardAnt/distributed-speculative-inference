@@ -238,16 +238,6 @@ class Manager:
             print(f"Manager: number of empty tok_ids: {(self.tok_ids == -1).sum()}")
             print("Manager: Resetting (on init or rejection)")
             self._reset()
-            curr_lookahead: int = min(self.lookahead, (self.tok_ids == -1).sum() - 1)
-            print(f"Manager: The current lookahead is {curr_lookahead}")
-            if curr_lookahead > 0:
-                await self._send(
-                    Request.create(self.get_tok_ids_with_drafts(), curr_lookahead),
-                    self.draft_queue,
-                )
-                print(
-                    f"Manager: Sent draft request with n={curr_lookahead}, tok_ids.shape={self.get_tok_ids_with_drafts().shape}, and tok_ids={self.get_tok_ids_with_drafts()}"
-                )
             while (
                 self.tok_ids == -1
             ).any():  # continue on acceptance; stop on rejection
@@ -266,6 +256,16 @@ class Manager:
                 print(
                     f"Manager: Sent verify request with n={n}, tok_ids.shape={self.get_tok_ids_with_drafts().shape}, and tok_ids={self.get_tok_ids_with_drafts()}"
                 )
+                curr_lookahead: int = min(self.lookahead, (self.tok_ids == -1).sum() - 1)
+                print(f"Manager: The current lookahead is {curr_lookahead}")
+                if curr_lookahead > 0:
+                    await self._send(
+                        Request.create(self.get_tok_ids_with_drafts(), curr_lookahead),
+                        self.draft_queue,
+                    )
+                    print(
+                        f"Manager: Sent draft request with n={curr_lookahead}, tok_ids.shape={self.get_tok_ids_with_drafts().shape}, and tok_ids={self.get_tok_ids_with_drafts()}"
+                    )
                 print("Manager: Waiting for response")
                 response: Response = await self.response_queue.get()
                 print(
