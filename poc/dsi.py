@@ -939,25 +939,23 @@ Below is an instruction that describes a task, paired with an input that provide
 ### Response:
 """
     tok_ids = encode(prompt, verifier_name)
-    tok_ids = generate(
-        model_name=verifier_name,
-        dtype=verifier_dtype,
+    # tok_ids = generate(
+    #     model_name=verifier_name,
+    #     dtype=verifier_dtype,
+    #     tok_ids=tok_ids,
+    #     max_new_tokens=max_new_tokens,
+    # )
+    tok_ids = await run(
+        verifier_name=verifier_name,
+        drafter_name=drafter_name,
+        vocab_size=vocab_size,
+        verifier_dtype=verifier_dtype,
+        drafter_dtype=drafter_dtype,
+        lookahead=lookahead,
         tok_ids=tok_ids,
         max_new_tokens=max_new_tokens,
     )
     print(f"Main: Final output: {decode(tok_ids, verifier_name)}")
-    # garbage_collect()
-    # tok_ids = await run(
-    #     verifier_name=verifier_name,
-    #     drafter_name=drafter_name,
-    #     vocab_size=vocab_size,
-    #     verifier_dtype=verifier_dtype,
-    #     drafter_dtype=drafter_dtype,
-    #     lookahead=lookahead,
-    #     tok_ids=tok_ids,
-    #     max_new_tokens=max_new_tokens,
-    # )
-    # print(f"Main: Final output: {decode(tok_ids, verifier_name)}")
     # Close all asyncio tasks or resources without waiting for them to complete
     for task in asyncio.all_tasks():
         if task is not asyncio.current_task():
