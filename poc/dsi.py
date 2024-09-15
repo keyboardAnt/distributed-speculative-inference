@@ -259,7 +259,7 @@ class Manager:
                 curr_lookahead: int = min(self.lookahead, (self.tok_ids == -1).sum() - 1)
                 print(f"Manager: The current lookahead is {curr_lookahead}")
                 if curr_lookahead > 0:
-                    await self._send(
+                    self._send(
                         Request.create(self.get_tok_ids_with_drafts(), curr_lookahead),
                         self.draft_queue,
                     )
