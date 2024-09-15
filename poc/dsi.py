@@ -301,7 +301,7 @@ class Manager:
                     any_rejected: bool
                     tok_ids, any_rejected = self.rejection_sampler(response, mask)
                     print(
-                        f"Manager: Updated tok_ids with response {response.id}. The new tok_ids are {self.tok_ids}"
+                        f"Manager: Updated tok_ids with response {response.id}"
                     )
                     tok_ids_padded = torch.full_like(self.tok_ids[0, mask], -1)
                     tok_ids_padded[: len(tok_ids)] = tok_ids
@@ -310,7 +310,7 @@ class Manager:
                     )
                     self.tok_ids[0, mask] = tok_ids_padded
                     print(
-                        f"Manager: Token ids after assignment: {self.tok_ids[0, mask]}"
+                        f"Manager: Token ids after assignment: {self.tok_ids}"
                     )
                     if any_rejected:
                         print(f"Manager: Rejected response {response.id}")
