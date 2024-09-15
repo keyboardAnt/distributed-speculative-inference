@@ -284,6 +284,15 @@ class Manager:
                     )
                     self.response_queue.task_done()
                     continue
+                # For debugging:
+                if response.tok_ids.shape[1] > 1 and not response.is_draft:
+                    print(f"Manager: Response {response.id} (verification) has {response.tok_ids.shape[1]} tokens")
+                    print(f"Manager: Check if the GPU memory has been released before garbage collection:")
+                    print_gpu_memory()
+                    print(f"Manager: Run garbage collection...")
+                    garbage_collect()
+                    print(f"Manager: Check if the GPU memory has been released after garbage collection:")
+                    print_gpu_memory()
                 mask: torch.Tensor = self.id_to_mask.pop(response.id)
                 print(f"Manager: Popped mask {mask} for response {response.id}")
                 if response.is_draft:
@@ -428,6 +437,15 @@ class Worker(ABC):
         #     print(f"{self.__class__.__name__}: Moving model to {device}")
         #     self.model.to(device)
         print(f"{self.__class__.__name__}: Model loaded")
+        try:
+            print(f"{self.__class__.__name__}: {self.model.device_map=}")
+        except Exception as e:
+            print(f"{self.__class__.__name__}: Error checking device_map: {e}")
+        try:
+            print(f"{self.__class__.__name__}: {self.model.hf_device_map=}")
+        except Exception as e:
+            print(f"{self.__class__.__name__}: Error checking hf_device_map: {e}")
+        print_gpu_memory()
 
     async def run(self) -> None:
         """
@@ -761,6 +779,7 @@ async def run(
     vocab_size: int,
     verifier_dtype: torch.dtype,
     drafter_dtype: torch.dtype,
+    verifier_load_in_8bit: bool,
     lookahead: int,
     tok_ids: torch.Tensor,
     max_new_tokens: int,
@@ -925,8 +944,9 @@ async def main():
     drafter_name: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
     verifier_dtype: torch.dtype = torch.float16
     drafter_dtype: torch.dtype = torch.float16
+    verifier_load_in_8bit: bool = True
     vocab_size: int = 128256
-    lookahead: int = 3
+    lookahead: int = 1
     max_new_tokens: int = 100
     prompt: str = """Below is an instruction that describes a
 task, paired with an input that provides
@@ -951,6 +971,7 @@ Below is an instruction that describes a task, paired with an input that provide
         vocab_size=vocab_size,
         verifier_dtype=verifier_dtype,
         drafter_dtype=drafter_dtype,
+        verifier_load_in_8bit=verifier_load_in_8bit,
         lookahead=lookahead,
         tok_ids=tok_ids,
         max_new_tokens=max_new_tokens,
