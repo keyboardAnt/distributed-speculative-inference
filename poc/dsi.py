@@ -413,16 +413,16 @@ class Worker(ABC):
             device = f"cuda:{self.gpu_id}"
         else:
             print(f"GPU {self.gpu_id} not available. Using CPU.")
-        print(f"{self.__class__.__name__}: Loading model {name} on {device}")
+        print(f"{self.__class__.__name__}: Loading model {name} on {device} (using device map {device_map})")
         if cache_dir is None:
             cache_dir = os.environ["TRANSFORMERS_CACHE"]
         self.model = AutoModelForCausalLM.from_pretrained(
             name, torch_dtype=dtype, device_map=device_map, cache_dir=cache_dir
         )
         self.model.eval()
-        if device != cpu:
-            print(f"{self.__class__.__name__}: Moving model to {device}")
-            self.model.to(device)
+        # if device != cpu:
+        #     print(f"{self.__class__.__name__}: Moving model to {device}")
+        #     self.model.to(device)
         print(f"{self.__class__.__name__}: Model loaded on {device}")
 
     async def run(self) -> None:
@@ -783,14 +783,8 @@ async def run(
         for i in range(1, num_verifiers + 1)
     ]
 
-    print("Main: Loading all models")
+    print("Main: Loading all verifiers")
     await asyncio.gather(
-        drafter.load_model(
-            drafter_name,
-            dtype=drafter_dtype,
-            device_map="auto",
-            cache_dir=os.environ["TRANSFORMERS_CACHE"],
-        ),
         *[
             verifier.load_model(
                 verifier_name,
@@ -800,6 +794,13 @@ async def run(
             )
             for verifier in verifiers
         ],
+    )
+    print("Main: Loading drafter")
+    await drafter.load_model(
+        drafter_name,
+        dtype=drafter_dtype,
+        device_map="auto",
+        cache_dir=os.environ["TRANSFORMERS_CACHE"],
     )
     print("Main: All models loaded")
 
@@ -852,7 +853,7 @@ def generate(
         cache_dir=os.environ["TRANSFORMERS_CACHE"],
     )
     model.eval()
-    model.to("cuda" if torch.cuda.is_available() else "cpu")
+    # model.to("cuda" if torch.cuda.is_available() else "cpu")
     time_start = time.time()
     device = next(model.parameters()).device
     tok_ids = tok_ids.to(device)
@@ -903,25 +904,25 @@ Below is an instruction that describes a task, paired with an input that provide
 """
     with torch.no_grad():
         garbage_collect()
-        print(
-            generate(
-                model_name=verifier_name,
-                dtype=verifier_dtype,
-                prompt=prompt,
-                max_new_tokens=max_new_tokens,
-            )
-        )
-        # garbage_collect()
-        # asyncio.run(
-        #     run(
-        #         verifier_name=verifier_name,
-        #         drafter_name=drafter_name,
-        #         vocab_size=vocab_size,
-        #         verifier_dtype=verifier_dtype,
-        #         drafter_dtype=drafter_dtype,
-        #         lookahead=lookahead,
+        # print(
+        #     generate(
+        #         model_name=verifier_name,
+        #         dtype=verifier_dtype,
         #         prompt=prompt,
         #         max_new_tokens=max_new_tokens,
         #     )
         # )
+        # garbage_collect()
+        asyncio.run(
+            run(
+                verifier_name=verifier_name,
+                drafter_name=drafter_name,
+                vocab_size=vocab_size,
+                verifier_dtype=verifier_dtype,
+                drafter_dtype=drafter_dtype,
+                lookahead=lookahead,
+                prompt=prompt,
+                max_new_tokens=max_new_tokens,
+            )
+        )
     print("Script completed")
