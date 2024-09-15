@@ -752,7 +752,7 @@ async def run(
     max_new_tokens: int,
 ) -> None:
     setup_hf_cache()
-
+    print_gpu_memory()
     print("Main: Initializing queues")
     draft_queue = asyncio.Queue()
     verify_queue = asyncio.Queue()
@@ -760,9 +760,10 @@ async def run(
 
     print("Main: Creating server instances")
     # Define the missing arguments
+    print(f"Loading tokenizer for {verifier_name}")
     tokenizer = AutoTokenizer.from_pretrained(verifier_name)
     tok_ids = tokenizer.encode(prompt, return_tensors="pt")
-
+    print_gpu_memory()
     print(f"Main: Creating manager with prompt: {prompt}")
     manager = Manager(
         draft_queue,
@@ -774,15 +775,17 @@ async def run(
         lookahead,
     )
     drafter = Drafter(draft_queue, response_queue, manager, 0)
+    print(f"Main: Creating drafter with prompt: {prompt}")
+    print_gpu_memory()
     available_gpus = torch.cuda.device_count()
     print(f"Main: Available GPUs: {available_gpus}")
-    num_verifiers = max(available_gpus - 1, 1)
+    # num_verifiers = max(available_gpus - 1, 1)
+    num_verifiers = 1
     print(f"Main: Number of verifiers: {num_verifiers}")
     verifiers = [
         Verifier(verify_queue, response_queue, manager, i)
         for i in range(1, num_verifiers + 1)
     ]
-
     print("Main: Loading all verifiers")
     await asyncio.gather(
         *[
@@ -795,6 +798,7 @@ async def run(
             for verifier in verifiers
         ],
     )
+    print_gpu_memory()
     print("Main: Loading drafter")
     await drafter.load_model(
         drafter_name,
@@ -802,6 +806,7 @@ async def run(
         device_map="auto",
         cache_dir=os.environ["TRANSFORMERS_CACHE"],
     )
+    print_gpu_memory()
     print("Main: All models loaded")
 
     print("Main: Starting all tasks. Start measuring time NOW.")
@@ -844,8 +849,11 @@ def generate(
     model_name: str, dtype: torch.dtype, prompt: str, max_new_tokens: int
 ) -> str:
     setup_hf_cache()
+    print(f"Loading tokenizer for {model_name}")
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     tok_ids = tokenizer.encode(prompt, return_tensors="pt")
+    print_gpu_memory()
+    print(f"Loading model {model_name}")
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
         torch_dtype=dtype,
@@ -853,6 +861,7 @@ def generate(
         cache_dir=os.environ["TRANSFORMERS_CACHE"],
     )
     model.eval()
+    print_gpu_memory()
     # model.to("cuda" if torch.cuda.is_available() else "cpu")
     time_start = time.time()
     device = next(model.parameters()).device
@@ -882,14 +891,20 @@ def garbage_collect():
     torch.cuda.empty_cache()
 
 
+def print_gpu_memory():
+    print(f"The current device is {torch.cuda.current_device()}")
+    for i in range(torch.cuda.device_count()):
+        print(f"GPU {i}: {torch.cuda.mem_get_info(i)[0] / 1024 / 1024 / 1024:.2f} GB free, {torch.cuda.mem_get_info(i)[1] / 1024 / 1024 / 1024:.2f} GB total")
+
+
 if __name__ == "__main__":
     print("Script started")
-
+    print_gpu_memory()
     verifier_name: str = "meta-llama/Meta-Llama-3.1-70B-Instruct"
     drafter_name: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
     verifier_dtype: torch.dtype = torch.float16
     drafter_dtype: torch.dtype = torch.float16
-    vocab_size: int = 32000
+    vocab_size: int = 128256
     lookahead: int = 3
     max_new_tokens: int = 100
     prompt: str = """Below is an instruction that describes a
