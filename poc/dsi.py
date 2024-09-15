@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import gc
 import os
 import threading
 import time
@@ -82,9 +83,7 @@ class Request(Message):
         if end_idx - self.n < 0:
             raise Exception("Not enough tokens in sequence to generate response.")
         mask = torch.zeros(seq_len, dtype=bool)
-        mask[end_idx + 1 - self.n : end_idx + 1] = (
-            True  # Ensure non-negative index
-        )
+        mask[end_idx + 1 - self.n : end_idx + 1] = True  # Ensure non-negative index
         return mask
 
 
@@ -255,9 +254,14 @@ class Manager:
                 mask_draft_tok_ids_waiting = (self.tok_ids == -1) & (
                     self.draft_tok_ids != -1
                 )
-                print(f"Manager: number of draft tokens waiting for verification: {mask_draft_tok_ids_waiting.sum()}")
+                print(
+                    f"Manager: number of draft tokens waiting for verification: {mask_draft_tok_ids_waiting.sum()}"
+                )
                 n = 1 + max(0, mask_draft_tok_ids_waiting.sum())
-                await self._send(Request.create(self.get_tok_ids_with_drafts(), n=n), self.verify_queue)
+                await self._send(
+                    Request.create(self.get_tok_ids_with_drafts(), n=n),
+                    self.verify_queue,
+                )
                 print(
                     f"Manager: Sent verify request with n={n}, tok_ids.shape={self.get_tok_ids_with_drafts().shape}, and tok_ids={self.get_tok_ids_with_drafts()}"
                 )
@@ -295,12 +299,18 @@ class Manager:
                     tok_ids: torch.Tensor
                     any_rejected: bool
                     tok_ids, any_rejected = self.rejection_sampler(response, mask)
-                    print(f"Manager: Updated tok_ids with response {response.id}. The new tok_ids are {self.tok_ids}")
+                    print(
+                        f"Manager: Updated tok_ids with response {response.id}. The new tok_ids are {self.tok_ids}"
+                    )
                     tok_ids_padded = torch.full_like(self.tok_ids[0, mask], -1)
-                    tok_ids_padded[:len(tok_ids)] = tok_ids
-                    print(f"Manager: padded the tok_ids with -1s to the right to match the masked tok_ids: {tok_ids_padded=}")
+                    tok_ids_padded[: len(tok_ids)] = tok_ids
+                    print(
+                        f"Manager: padded the tok_ids with -1s to the right to match the masked tok_ids: {tok_ids_padded=}"
+                    )
                     self.tok_ids[0, mask] = tok_ids_padded
-                    print(f"Manager: Token ids after assignment: {self.tok_ids[0, mask]}")
+                    print(
+                        f"Manager: Token ids after assignment: {self.tok_ids[0, mask]}"
+                    )
                     if any_rejected:
                         print(f"Manager: Rejected response {response.id}")
                         self.response_queue.task_done()
@@ -320,15 +330,22 @@ class Manager:
         tok_ids_accepted = response.tok_ids.clone()[0, mask[:response_len]]
         draft_tok_ids = self.draft_tok_ids[0, mask]
         mask_drafts_available = draft_tok_ids != -1
-        any_rejected = (draft_tok_ids[mask_drafts_available] != tok_ids_accepted[mask_drafts_available]).any()
+        any_rejected = (
+            draft_tok_ids[mask_drafts_available]
+            != tok_ids_accepted[mask_drafts_available]
+        ).any()
         print(
             f"Manager: Comparing draft tok_ids {draft_tok_ids} with accepted tok_ids {tok_ids_accepted}:\n{draft_tok_ids == tok_ids_accepted}"
         )
         if any_rejected:
             idx_first_rejected = (draft_tok_ids != tok_ids_accepted).nonzero()[0].item()
-            print(f"Manager: First rejected token is at index {idx_first_rejected}. Accepting the first {idx_first_rejected} tokens.")
-            tok_ids_accepted = tok_ids_accepted[:idx_first_rejected+1]
-        print(f"Manager: Accepting new tokens. The number of accepted tokens is {len(tok_ids_accepted)}, and the tok_ids are {tok_ids_accepted}")
+            print(
+                f"Manager: First rejected token is at index {idx_first_rejected}. Accepting the first {idx_first_rejected} tokens."
+            )
+            tok_ids_accepted = tok_ids_accepted[: idx_first_rejected + 1]
+        print(
+            f"Manager: Accepting new tokens. The number of accepted tokens is {len(tok_ids_accepted)}, and the tok_ids are {tok_ids_accepted}"
+        )
         return tok_ids_accepted, any_rejected
 
     def get_tok_ids_with_drafts(self) -> torch.Tensor:
@@ -382,7 +399,13 @@ class Worker(ABC):
         self.timestamp_preemption = 0  # Initialize with 0
         self.timestamp_request = 0  # Initialize with 0
 
-    async def load_model(self, name: str, dtype: torch.dtype, cache_dir: None | str = None) -> None:
+    async def load_model(
+        self,
+        name: str,
+        dtype: torch.dtype,
+        device_map: str,
+        cache_dir: None | str = None,
+    ) -> None:
         """Loads the model from the given name and moves it to the device."""
         device = cpu = "cpu"
         if torch.cuda.device_count() > self.gpu_id:
@@ -393,7 +416,9 @@ class Worker(ABC):
         print(f"{self.__class__.__name__}: Loading model {name} on {device}")
         if cache_dir is None:
             cache_dir = os.environ["TRANSFORMERS_CACHE"]
-        self.model = AutoModelForCausalLM.from_pretrained(name, torch_dtype=dtype, cache_dir=cache_dir)
+        self.model = AutoModelForCausalLM.from_pretrained(
+            name, torch_dtype=dtype, device_map=device_map, cache_dir=cache_dir
+        )
         self.model.eval()
         if device != cpu:
             print(f"{self.__class__.__name__}: Moving model to {device}")
@@ -441,7 +466,9 @@ class Worker(ABC):
                     print(
                         f"{self.__class__.__name__}: Received preemption message at {preempt_message.timestamp}"
                     )
-                    self.timestamp_preemption = max(self.timestamp_preemption, preempt_message.timestamp)
+                    self.timestamp_preemption = max(
+                        self.timestamp_preemption, preempt_message.timestamp
+                    )
                     print(
                         f"{self.__class__.__name__}: Updated timestamp_preemption to {self.timestamp_preemption} (it is the max of the previous timestamp and the received preemption timestamp)"
                     )
@@ -453,17 +480,29 @@ class Worker(ABC):
                             f"received preemption timestamp: {preempt_message.timestamp}"
                         )
                         continue
-                    print(f"{self.__class__.__name__}: Processing preemption message because it was created before the last or current request. Therefore we need to terminate the current task.")
+                    print(
+                        f"{self.__class__.__name__}: Processing preemption message because it was created before the last or current request. Therefore we need to terminate the current task."
+                    )
                     if get_request.done():
-                        print(f"{self.__class__.__name__}: While receiving a preemption message, a request was received.")
+                        print(
+                            f"{self.__class__.__name__}: While receiving a preemption message, a request was received."
+                        )
                         request = get_request.result()
-                        print(f"{self.__class__.__name__}: Received request {request.id} at timestamp {request.timestamp}")
+                        print(
+                            f"{self.__class__.__name__}: Received request {request.id} at timestamp {request.timestamp}"
+                        )
                         if request.timestamp > self.timestamp_preemption:
-                            print(f"{self.__class__.__name__}: The received request {request.id} is valid (was created after the preemption). Returning it to the queue.")
+                            print(
+                                f"{self.__class__.__name__}: The received request {request.id} is valid (was created after the preemption). Returning it to the queue."
+                            )
                             self.queue.put_nowait(request)
-                            print(f"{self.__class__.__name__}: Request {request.id} was returned to the queue")
+                            print(
+                                f"{self.__class__.__name__}: Request {request.id} was returned to the queue"
+                            )
                     else:
-                        print(f"{self.__class__.__name__}: Cancelling `get_request` to stop waiting for a queued request")
+                        print(
+                            f"{self.__class__.__name__}: Cancelling `get_request` to stop waiting for a queued request"
+                        )
                         get_request.cancel()
                         print(f"{self.__class__.__name__}: `get_request` was cancelled")
                     if current_task is not None:
@@ -472,7 +511,9 @@ class Worker(ABC):
                         print(f"{self.__class__.__name__}: Current task was cancelled")
                     else:
                         print(f"{self.__class__.__name__}: No current task to cancel")
-                    print(f"{self.__class__.__name__}: Done processing preemption message")
+                    print(
+                        f"{self.__class__.__name__}: Done processing preemption message"
+                    )
                 else:  # get_request in done
                     request = get_request.result()
                     print(
@@ -488,7 +529,9 @@ class Worker(ABC):
                     print(
                         f"{self.__class__.__name__}: Processing request with ID {request.id}"
                     )
-                    print(f"{self.__class__.__name__}: Request {request.id} has {request.tok_ids.shape=}")
+                    print(
+                        f"{self.__class__.__name__}: Request {request.id} has {request.tok_ids.shape=}"
+                    )
                     current_task = asyncio.create_task(self.perform_task(request))
                     done, pending = await asyncio.wait(
                         {current_task, get_preempt}, return_when=asyncio.FIRST_COMPLETED
@@ -542,7 +585,9 @@ class Worker(ABC):
             Response: The processed response.
         """
         self.timestamp_request = request.timestamp
-        print(f"{self.__class__.__name__}: Last or current request timestamp: {self.timestamp_request}")
+        print(
+            f"{self.__class__.__name__}: Last or current request timestamp: {self.timestamp_request}"
+        )
         print(f"{self.__class__.__name__}: Getting scores for task {request.id}")
         device = next(self.model.parameters()).device
         tok_ids = request.tok_ids.to(device)
@@ -740,10 +785,18 @@ async def run(
 
     print("Main: Loading all models")
     await asyncio.gather(
-        drafter.load_model(drafter_name, dtype=drafter_dtype, cache_dir=os.environ["TRANSFORMERS_CACHE"]),
+        drafter.load_model(
+            drafter_name,
+            dtype=drafter_dtype,
+            device_map="auto",
+            cache_dir=os.environ["TRANSFORMERS_CACHE"],
+        ),
         *[
             verifier.load_model(
-                verifier_name, dtype=verifier_dtype, cache_dir=os.environ["TRANSFORMERS_CACHE"]
+                verifier_name,
+                dtype=verifier_dtype,
+                device_map="balanced_low_0",
+                cache_dir=os.environ["TRANSFORMERS_CACHE"],
             )
             for verifier in verifiers
         ],
@@ -786,14 +839,17 @@ async def run(
     print("Main: All servers are closed")
 
 
-def generate(model_name: str, dtype: torch.dtype, prompt: str, max_new_tokens: int) -> str:
+def generate(
+    model_name: str, dtype: torch.dtype, prompt: str, max_new_tokens: int
+) -> str:
     setup_hf_cache()
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     tok_ids = tokenizer.encode(prompt, return_tensors="pt")
     model = AutoModelForCausalLM.from_pretrained(
-        model_name, 
+        model_name,
         torch_dtype=dtype,
-        cache_dir=os.environ["TRANSFORMERS_CACHE"]
+        device_map="auto",
+        cache_dir=os.environ["TRANSFORMERS_CACHE"],
     )
     model.eval()
     model.to("cuda" if torch.cuda.is_available() else "cpu")
@@ -819,12 +875,18 @@ def generate(model_name: str, dtype: torch.dtype, prompt: str, max_new_tokens: i
     return tokenizer.decode(outputs.sequences[0], skip_special_tokens=True)
 
 
+def garbage_collect():
+    print("Collecting garbage...")
+    gc.collect()
+    torch.cuda.empty_cache()
+
+
 if __name__ == "__main__":
     print("Script started")
 
-    verifier_name: str = "lmsys/vicuna-7b-v1.3"
-    drafter_name: str = "double7/vicuna-68m"
-    verifier_dtype: torch.dtype = torch.float32
+    verifier_name: str = "meta-llama/Meta-Llama-3.1-70B-Instruct"
+    drafter_name: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
+    verifier_dtype: torch.dtype = torch.float16
     drafter_dtype: torch.dtype = torch.float16
     vocab_size: int = 32000
     lookahead: int = 3
@@ -840,18 +902,26 @@ Below is an instruction that describes a task, paired with an input that provide
 ### Response:
 """
     with torch.no_grad():
-        asyncio.run(
-            run(
-                verifier_name=verifier_name,
-                drafter_name=drafter_name,
-                vocab_size=vocab_size,
-                verifier_dtype=verifier_dtype,
-                drafter_dtype=drafter_dtype,
-                lookahead=lookahead,
+        garbage_collect()
+        print(
+            generate(
+                model_name=verifier_name,
+                dtype=verifier_dtype,
                 prompt=prompt,
                 max_new_tokens=max_new_tokens,
             )
         )
-        # print(generate(model_name=verifier_name, dtype=verifier_dtype, prompt=prompt, max_new_tokens=max_new_tokens))
-
+        # garbage_collect()
+        # asyncio.run(
+        #     run(
+        #         verifier_name=verifier_name,
+        #         drafter_name=drafter_name,
+        #         vocab_size=vocab_size,
+        #         verifier_dtype=verifier_dtype,
+        #         drafter_dtype=drafter_dtype,
+        #         lookahead=lookahead,
+        #         prompt=prompt,
+        #         max_new_tokens=max_new_tokens,
+        #     )
+        # )
     print("Script completed")
