@@ -191,7 +191,7 @@ class Manager:
         )
         await queue.put(request)
         print(
-            f"Manager: Sent {"verify" if queue == self.verify_queue else "draft"} request with n={request.n} and tok_ids={self.get_tok_ids_with_drafts()}"
+            f"Manager: Sent {('verify' if queue == self.verify_queue else 'draft')} request with n={request.n} and tok_ids={self.get_tok_ids_with_drafts()}"
         )
 
 
