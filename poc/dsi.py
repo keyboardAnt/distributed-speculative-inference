@@ -283,13 +283,13 @@ class Manager:
     @torch.no_grad()
     async def send_requests(self) -> None:
         # Select n based on the number of draft tokens waiting for verification
-        mask_draft_tok_ids_waiting = (self.tok_ids == -1) & (
+        mask_draft_tok_ids_to_verify = (self.tok_ids == -1) & (
             self.draft_tok_ids != -1
         )
         print(
-            f"Manager: number of draft tokens waiting for verification: {mask_draft_tok_ids_waiting.sum()}"
+            f"Manager: number of draft tokens waiting for verification: {mask_draft_tok_ids_to_verify.sum()}"
         )
-        n = 1 + max(0, mask_draft_tok_ids_waiting.sum())
+        n = 1 + max(0, mask_draft_tok_ids_to_verify.sum())
         await self._send(
             Request.create(self.get_tok_ids_with_drafts(), n=n),
             self.verify_queue,
@@ -297,8 +297,9 @@ class Manager:
         print(
             f"Manager: Sent verify request with n={n} and tok_ids={self.get_tok_ids_with_drafts()}"
         )
+        mask_draft_tok_ids_to_draft = (self.tok_ids == -1) & (self.draft_tok_ids == -1)
         curr_lookahead: int = min(
-            self.lookahead, (self.tok_ids == -1).sum() - 1
+            self.lookahead, mask_draft_tok_ids_to_draft.sum() - 1
         )
         if curr_lookahead > 0:
             await self._send(
