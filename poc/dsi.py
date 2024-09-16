@@ -275,9 +275,7 @@ class Manager:
                     tok_ids, any_rejected = self.rejection_sampler(response, mask)
                     tok_ids_padded = torch.full_like(self.tok_ids[0, mask], -1)
                     tok_ids_padded[: len(tok_ids)] = tok_ids
-                    print(f"Manager: {tok_ids_padded=}. Before assignment: {self.tok_ids[0, mask]=}")
                     self.tok_ids[0, mask] = tok_ids_padded
-                    print(f"Manager: Updated tok_ids with response {response.id}. After assignment: {self.tok_ids[0, mask]=}")
                 self.response_queue.task_done()
                 break
             if any_rejected:
