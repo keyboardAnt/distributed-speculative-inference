@@ -360,20 +360,20 @@ class ManagerSequential(Manager):
                     Request.create(self.get_tok_ids_with_drafts(), curr_lookahead),
                     self.draft_queue,
                 )
-            print("ManagerSequential: Waiting for response")
-            response_draft: Response = await self.response_queue.get()
-            print(
-                f"ManagerSequential: Received draft response {response_draft}."
-            )
-            mask: torch.Tensor = self.id_to_mask.pop(response_draft.id)
-            self.draft_scores[0, mask] = response_draft.scores
-            self.draft_tok_ids[0, mask] = response_draft.tok_ids[
-                0, -response_draft.scores.shape[1] :
-            ]
-            print(
-                f"ManagerSequential: Updated draft tok_ids and scores with response {response_draft.id}. After the update, the draft tok_ids are {self.draft_tok_ids}"
-            )
-            self.response_queue.task_done()
+                print("ManagerSequential: Waiting for draft response")
+                response_draft: Response = await self.response_queue.get()
+                print(
+                    f"ManagerSequential: Received draft response {response_draft}."
+                )
+                mask: torch.Tensor = self.id_to_mask.pop(response_draft.id)
+                self.draft_scores[0, mask] = response_draft.scores
+                self.draft_tok_ids[0, mask] = response_draft.tok_ids[
+                    0, -response_draft.scores.shape[1] :
+                ]
+                print(
+                    f"ManagerSequential: Updated draft tok_ids and scores with response {response_draft.id}. After the update, the draft tok_ids are {self.draft_tok_ids}"
+                )
+                self.response_queue.task_done()
             # 2. Verify
             mask_draft_tok_ids_to_verify = (self.tok_ids == -1) & (self.draft_tok_ids != -1)
             print(
@@ -396,6 +396,9 @@ class ManagerSequential(Manager):
             tok_ids_padded[: len(tok_ids)] = tok_ids
             self.tok_ids[0, mask] = tok_ids_padded
             self.response_queue.task_done()
+            if any_rejected:
+                print(f"Manager: Rejected verify response {response_verify.id}.")
+                self._reset()
 
 class Worker(ABC):
     """
