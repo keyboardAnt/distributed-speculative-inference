@@ -736,6 +736,16 @@ def get_device_map_with_only_gpu_0(model_name):
         return accelerate.infer_auto_device_map(model, max_memory=max_memory)
 
 
+def get_device_map_without_gpu_0(model_name):
+    with accelerate.init_empty_weights():
+        model = AutoModelForCausalLM.from_pretrained(
+            model_name, cache_dir="/workspace/hf_cache"
+        )
+        max_memory = {i: f"{torch.cuda.mem_get_info(i)[0] / 1024 / 1024 / 1024:.2f} GB" for i in range(1, torch.cuda.device_count())}
+        max_memory[0] = 0
+        return accelerate.infer_auto_device_map(model, max_memory=max_memory)
+
+
 def setup_hf_cache():
     if torch.cuda.device_count() > 0:
         os.environ["TRANSFORMERS_CACHE"] = "/workspace/hf_cache"
@@ -799,7 +809,7 @@ async def run(
             verifier.load_model(
                 verifier_name,
                 dtype=verifier_dtype,
-                device_map="balanced_low_0",
+                device_map=get_device_map_without_gpu_0(verifier_name),
                 load_in_8bit=verifier_load_in_8bit,
                 cache_dir=os.environ["TRANSFORMERS_CACHE"],
             )
