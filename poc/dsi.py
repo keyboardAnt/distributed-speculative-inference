@@ -980,7 +980,7 @@ async def main():
     verifier_load_in_8bit: bool = True
     drafter_load_in_8bit: bool = True
     vocab_size: int = 128256
-    lookahead: int = 5
+    lookahead: int = 10
     max_new_tokens: int = 100
     prompt: str = """Below is an instruction that describes a
 task, paired with an input that provides
