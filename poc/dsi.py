@@ -233,41 +233,11 @@ class Manager:
         print("Manager: Starting run")
         print(f"Manager: prompt's tok_ids.shape: {self.tok_ids.shape}")
         print(f"Manager: prompt's tok_ids: {self.tok_ids}")
-        while (self.tok_ids == -1).any():  # On init or rejection
-            print("Manager: Resetting (on init or rejection)")
-            self._reset()
-            while (
-                self.tok_ids == -1
-            ).any():  # continue on acceptance; stop on rejection
-                print(f"Manager: sequence's length: {(self.tok_ids != -1).sum()}")
-                print(f"Manager: number of empty tok_ids: {(self.tok_ids == -1).sum()}")
-                # Select n based on the number of draft tokens waiting for verification
-                mask_draft_tok_ids_waiting = (self.tok_ids == -1) & (
-                    self.draft_tok_ids != -1
-                )
-                print(
-                    f"Manager: number of draft tokens waiting for verification: {mask_draft_tok_ids_waiting.sum()}"
-                )
-                n = 1 + max(0, mask_draft_tok_ids_waiting.sum())
-                await self._send(
-                    Request.create(self.get_tok_ids_with_drafts(), n=n),
-                    self.verify_queue,
-                )
-                print(
-                    f"Manager: Sent verify request with n={n}, tok_ids.shape={self.get_tok_ids_with_drafts().shape}, and tok_ids={self.get_tok_ids_with_drafts()}"
-                )
-                curr_lookahead: int = min(
-                    self.lookahead, (self.tok_ids == -1).sum() - 1
-                )
-                print(f"Manager: The current lookahead is {curr_lookahead}")
-                if curr_lookahead > 0:
-                    self._send(
-                        Request.create(self.get_tok_ids_with_drafts(), curr_lookahead),
-                        self.draft_queue,
-                    )
-                    print(
-                        f"Manager: Sent draft request with n={curr_lookahead}, tok_ids.shape={self.get_tok_ids_with_drafts().shape}, and tok_ids={self.get_tok_ids_with_drafts()}"
-                    )
+        while (self.tok_ids == -1).any():  # On init, acceptance, or rejection
+            print(f"Manager: number of empty tok_ids: {(self.tok_ids == -1).sum()}")
+            print(f"Manager: {self.tok_ids=}")
+            await self.send_requests()
+            while (self.tok_ids == -1).any():  # On dropping
                 print("Manager: Waiting for response")
                 response: Response = await self.response_queue.get()
                 print(
@@ -287,42 +257,58 @@ class Manager:
                 #     self.response_queue.task_done()
                 #     continue
                 mask: torch.Tensor = self.id_to_mask.pop(response.id)
-                print(f"Manager: Popped mask {mask} for response {response.id}")
+                # print(f"Manager: Popped mask {mask} for response {response.id}")
                 if response.is_draft:
-                    print(
-                        f"Manager: Updating draft scores and tok_ids with response {response.id}"
-                    )
                     self.draft_scores[0, mask] = response.scores
-                    print(f"Manager: Updated draft scores with response {response.id}")
-                    # self.draft_tok_ids[0, mask] = response.tok_ids[
-                    #     0, -response.scores.shape[1] :
-                    # ]
                     self.draft_tok_ids[0, mask] = response.tok_ids[
-                        0, : response.tok_ids.shape[1]
+                        0, -response.scores.shape[1] :
                     ]
                     print(
-                        f"Manager: Updated draft tok_ids with response {response.id}. After the update, the draft tok_ids are {self.draft_tok_ids}"
+                        f"Manager: Updated draft tok_ids and scores with response {response.id}. After the update, the draft tok_ids are {self.draft_tok_ids}"
                     )
                 else:
                     tok_ids: torch.Tensor
                     any_rejected: bool
                     tok_ids, any_rejected = self.rejection_sampler(response, mask)
-                    print(f"Manager: Updated tok_ids with response {response.id}")
                     tok_ids_padded = torch.full_like(self.tok_ids[0, mask], -1)
                     tok_ids_padded[: len(tok_ids)] = tok_ids
-                    print(
-                        f"Manager: padded the tok_ids with -1s to the right to match the masked tok_ids: {tok_ids_padded=}"
-                    )
                     self.tok_ids[0, mask] = tok_ids_padded
-                    print(f"Manager: Token ids after assignment: {self.tok_ids}")
-                    if any_rejected:
-                        print(f"Manager: Rejected response {response.id}")
-                        self.response_queue.task_done()
-                        await self.preempt_all()
-                        break
-                    print("Manager: All draft tokens are accepted!")
-                print(f"Manager: Task done for response {response.id}")
+                    print(f"Manager: Updated tok_ids with response {response.id}.")
                 self.response_queue.task_done()
+                break
+            if any_rejected:
+                print(f"Manager: Rejected response {response.id}. Preempting all workers and resetting.")
+                await self.preempt_all()
+                self._reset()
+
+    @torch.no_grad()
+    async def send_requests(self) -> None:
+        # Select n based on the number of draft tokens waiting for verification
+        mask_draft_tok_ids_waiting = (self.tok_ids == -1) & (
+            self.draft_tok_ids != -1
+        )
+        print(
+            f"Manager: number of draft tokens waiting for verification: {mask_draft_tok_ids_waiting.sum()}"
+        )
+        n = 1 + max(0, mask_draft_tok_ids_waiting.sum())
+        await self._send(
+            Request.create(self.get_tok_ids_with_drafts(), n=n),
+            self.verify_queue,
+        )
+        print(
+            f"Manager: Sent verify request with n={n} and tok_ids={self.get_tok_ids_with_drafts()}"
+        )
+        curr_lookahead: int = min(
+            self.lookahead, (self.tok_ids == -1).sum() - 1
+        )
+        if curr_lookahead > 0:
+            await self._send(
+                Request.create(self.get_tok_ids_with_drafts(), curr_lookahead),
+                self.draft_queue,
+            )
+            print(
+                f"Manager: Sent draft request with n={curr_lookahead} and tok_ids={self.get_tok_ids_with_drafts()}"
+            )
 
     @torch.no_grad()
     def rejection_sampler(
@@ -550,9 +536,6 @@ class Worker(ABC):
                     print(
                         f"{self.__class__.__name__}: Processing request with ID {request.id}"
                     )
-                    print(
-                        f"{self.__class__.__name__}: Request {request.id} has {request.tok_ids.shape=}"
-                    )
                     current_task = asyncio.create_task(self.perform_task(request))
                     done, pending = await asyncio.wait(
                         {current_task, get_preempt}, return_when=asyncio.FIRST_COMPLETED
@@ -574,10 +557,9 @@ class Worker(ABC):
                         print(f"{self.__class__.__name__}: Current task was preempted")
                     else:
                         response = current_task.result()
-                        print(f"{self.__class__.__name__}: Task {request.id} completed")
                         await self.response_queue.put(response)
                         print(
-                            f"{self.__class__.__name__}: Response for task {request.id} enqueued"
+                            f"{self.__class__.__name__}: Task {request.id} completed. Response enqueued."
                         )
 
             except asyncio.CancelledError as e:
@@ -941,7 +923,8 @@ def decode(tok_ids: torch.Tensor, tokernizer_name: str) -> str:
 async def main():
     print("Script started")
     print_gpu_memory()
-    verifier_name: str = "meta-llama/Meta-Llama-3.1-70B-Instruct"
+    # verifier_name: str = "meta-llama/Meta-Llama-3.1-70B-Instruct"
+    verifier_name: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
     drafter_name: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
     verifier_dtype: torch.dtype = torch.float16
     drafter_dtype: torch.dtype = torch.float16
