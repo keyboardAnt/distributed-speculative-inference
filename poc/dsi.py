@@ -190,6 +190,10 @@ class Manager:
             f"Manager: Enqueuing request {request.id} to {'draft' if queue == self.draft_queue else 'verify'} queue"
         )
         await queue.put(request)
+        print(
+            f"Manager: Sent {"verify" if queue == self.verify_queue else "draft"} request with n={request.n} and tok_ids={self.get_tok_ids_with_drafts()}"
+        )
+
 
     def _reset(self) -> None:
         print("Manager: Resetting draft_scores, draft_tok_ids, and id_to_mask")
@@ -295,9 +299,6 @@ class Manager:
             Request.create(self.get_tok_ids_with_drafts(), n=n),
             self.verify_queue,
         )
-        print(
-            f"Manager: Sent verify request with n={n} and tok_ids={self.get_tok_ids_with_drafts()}"
-        )
         mask_draft_tok_ids_to_draft = (self.tok_ids == -1) & (self.draft_tok_ids == -1)
         curr_lookahead: int = min(
             self.lookahead, mask_draft_tok_ids_to_draft.sum() - 1
@@ -306,9 +307,6 @@ class Manager:
             await self._send(
                 Request.create(self.get_tok_ids_with_drafts(), curr_lookahead),
                 self.draft_queue,
-            )
-            print(
-                f"Manager: Sent draft request with n={curr_lookahead} and tok_ids={self.get_tok_ids_with_drafts()}"
             )
 
     @torch.no_grad()
@@ -984,7 +982,7 @@ async def main():
     verifier_load_in_8bit: bool = True
     drafter_load_in_8bit: bool = True
     vocab_size: int = 128256
-    lookahead: int = 10
+    lookahead: int = 5
     max_new_tokens: int = 100
     prompt: str = """Below is an instruction that describes a
 task, paired with an input that provides
