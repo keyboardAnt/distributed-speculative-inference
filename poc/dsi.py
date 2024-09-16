@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+from functools import cache
 import gc
 import os
 import threading
@@ -394,7 +395,7 @@ class Worker(ABC):
         name: str,
         dtype: torch.dtype,
         load_in_8bit: bool,
-        device_map: str,
+        device_map: None | str,
         cache_dir: None | str = None,
     ) -> None:
         """Loads the model from the given name and moves it to the device."""
@@ -410,13 +411,21 @@ class Worker(ABC):
         if cache_dir is None:
             cache_dir = os.environ["TRANSFORMERS_CACHE"]
         print(f"{self.__class__.__name__}: Loading model {name} with {device_map=}")
-        self.model = AutoModelForCausalLM.from_pretrained(
+        if device_map is None:
+            self.model = AutoModelForCausalLM.from_pretrained(
             name,
             torch_dtype=dtype,
-            device_map=device_map,
             cache_dir=cache_dir,
             load_in_8bit=load_in_8bit,
         )
+        else:
+            self.model = AutoModelForCausalLM.from_pretrained(
+                name,
+                torch_dtype=dtype,
+                device_map=device_map,
+                cache_dir=cache_dir,
+                load_in_8bit=load_in_8bit,
+            )
         self.model.eval()
         # if device != cpu:
         #     print(f"{self.__class__.__name__}: Moving model to {device}")
@@ -726,24 +735,47 @@ class PubSub:
             print(f"PubSub: Broadcast complete. Queue size: {self.queue.qsize()}")
 
 
-def get_device_map_with_only_gpu_0(model_name):
-    with accelerate.init_empty_weights():
-        model = AutoModelForCausalLM.from_pretrained(
-            model_name, cache_dir="/workspace/hf_cache"
-        )
-        max_memory = {i: 0 for i in range(1, torch.cuda.device_count())}
-        max_memory[0] = f"{torch.cuda.mem_get_info(0)[0] / 1024 / 1024 / 1024:.2f} GB"
-        return accelerate.infer_auto_device_map(model, max_memory=max_memory)
+# @cache
+# def get_max_memory():
+#     max_memory = {i: f"{torch.cuda.mem_get_info(i)[0] / 1024 / 1024 / 1024:.2f} GB" for i in range(torch.cuda.device_count())}
+#     return max_memory
 
 
-def get_device_map_without_gpu_0(model_name):
-    with accelerate.init_empty_weights():
-        model = AutoModelForCausalLM.from_pretrained(
-            model_name, cache_dir="/workspace/hf_cache"
-        )
-        max_memory = {i: f"{torch.cuda.mem_get_info(i)[0] / 1024 / 1024 / 1024:.2f} GB" for i in range(1, torch.cuda.device_count())}
-        max_memory[0] = 0
-        return accelerate.infer_auto_device_map(model, max_memory=max_memory)
+def get_device_map_with_only_gpu_0(model_name, dtype, load_in_8bit):
+    # max_memory = get_max_memory()
+    # max_memory = {k: v if k == 0 else 0 for k, v in max_memory.items()}
+    max_memory = {
+        i: 0
+        for i in range(1, torch.cuda.device_count())
+    }
+    model = AutoModelForCausalLM.from_pretrained(
+        model_name,
+        torch_dtype=dtype,
+        load_in_8bit=load_in_8bit,
+        device_map=None,
+        cache_dir="/workspace/hf_cache",
+    )
+    device_map = accelerate.infer_auto_device_map(model, max_memory=max_memory)
+    del model
+    garbage_collect()
+    return device_map
+
+
+# def get_device_map_without_gpu_0(model_name, dtype, load_in_8bit):
+#     # max_memory = get_max_memory()
+#     # max_memory = {k: v if k != 0 else 0 for k, v in max_memory.items()}
+#     max_memory = {0: 0}
+#     model = AutoModelForCausalLM.from_pretrained(
+#         model_name,
+#         torch_dtype=dtype,
+#         load_in_8bit=load_in_8bit,
+#         device_map=None,
+#         cache_dir="/workspace/hf_cache",
+#     )
+#     device_map = accelerate.infer_auto_device_map(model, max_memory=max_memory)
+#     del model
+#     garbage_collect()
+#     return device_map
 
 
 def setup_hf_cache():
@@ -804,12 +836,18 @@ async def run(
         for i in range(1, num_verifiers + 1)
     ]
     print("Main: Loading all verifiers")
+    # verifier_device_map = get_device_map_without_gpu_0(verifier_name, verifier_dtype, verifier_load_in_8bit)
+    # print(f"Main: Verifier device map: {verifier_device_map}")
+    # visible_devices = ",".join(str(i) for i in range(1, torch.cuda.device_count()))
+    # os.environ["CUDA_VISIBLE_DEVICES"] = visible_devices
+    # print(f"Main: CUDA_VISIBLE_DEVICES set to {os.environ['CUDA_VISIBLE_DEVICES']}")
     await asyncio.gather(
         *[
             verifier.load_model(
                 verifier_name,
                 dtype=verifier_dtype,
-                device_map=get_device_map_without_gpu_0(verifier_name),
+                # device_map="auto",
+                device_map="balanced_low_0",
                 load_in_8bit=verifier_load_in_8bit,
                 cache_dir=os.environ["TRANSFORMERS_CACHE"],
             )
@@ -818,16 +856,22 @@ async def run(
     )
     print_gpu_memory()
     print("Main: Loading drafter")
+    # drafter_device_map = get_device_map_with_only_gpu_0(drafter_name, drafter_dtype, drafter_load_in_8bit)
+    # print(f"Main: Drafter device map: {drafter_device_map}")
+    # os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+    # print(f"Main: CUDA_VISIBLE_DEVICES set to {os.environ['CUDA_VISIBLE_DEVICES']}")
     await drafter.load_model(
         drafter_name,
         dtype=drafter_dtype,
-        device_map=get_device_map_with_only_gpu_0(drafter_name),
+        # device_map="auto",
+        device_map=None,
         load_in_8bit=drafter_load_in_8bit,
         cache_dir=os.environ["TRANSFORMERS_CACHE"],
     )
     print_gpu_memory()
     print("Main: All models loaded")
-
+    os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(str(i) for i in range(torch.cuda.device_count()))
+    print(f"Main: CUDA_VISIBLE_DEVICES set to {os.environ['CUDA_VISIBLE_DEVICES']}")
     print("Main: Starting all tasks. Start measuring time NOW.")
     time_start = time.time()
     asyncio.create_task(manager.pubsub.broadcast())
@@ -940,7 +984,7 @@ async def main():
     verifier_load_in_8bit: bool = True
     drafter_load_in_8bit: bool = True
     vocab_size: int = 128256
-    lookahead: int = 6
+    lookahead: int = 10
     max_new_tokens: int = 100
     prompt: str = """Below is an instruction that describes a
 task, paired with an input that provides
