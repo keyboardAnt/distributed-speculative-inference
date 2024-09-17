@@ -718,6 +718,7 @@ class Verifier(Worker):
         outputs = self.model.forward(
             input_ids=tok_ids,
             attention_mask=torch.ones_like(tok_ids),
+            do_sample=False,
             use_cache=False,
             return_dict=True,
             output_hidden_states=False,
@@ -775,8 +776,8 @@ class DrafterOracle(Drafter):
             304,   1690,   5596,    315,    279,   1917,     11,   1690,   5220,
             690,   3469,    369,   4200,  16659,    304,   2015,    311,  30437,
             279,   9041,    315,  17563,    382]])
-        idx_first_new_token = (oracle_tok_ids[0] == tok_ids[0]).sum()
-        ret_tok_ids = oracle_tok_ids[:, idx_first_new_token:idx_first_new_token+n+1]
+        idx_first_new_token = tok_ids.shape[1]
+        ret_tok_ids = oracle_tok_ids[:, idx_first_new_token+1:idx_first_new_token+n+1]
         ret_scores = torch.zeros((1, n, self.model.config.vocab_size))
         return ret_scores, ret_tok_ids
 
