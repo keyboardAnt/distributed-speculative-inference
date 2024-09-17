@@ -246,7 +246,7 @@ class Manager:
             print(f"Manager: number of empty tok_ids: {(self.tok_ids == -1).sum()}")
             print(f"Manager: {self.tok_ids=}")
             await self.send_requests()
-            any_rejected = False
+            any_rejected: bool = False
             while (self.tok_ids == -1).any():  # On dropping
                 print("Manager: Waiting for response")
                 response: Response = await self.response_queue.get()
@@ -273,8 +273,6 @@ class Manager:
                         f"Manager: Updated draft tok_ids and scores with response {response.id}. After the update, the draft tok_ids are {self.draft_tok_ids}"
                     )
                 else:
-                    tok_ids: torch.Tensor
-                    any_rejected: bool
                     tok_ids, any_rejected = self.rejection_sampler(response, mask)
                     tok_ids_padded = torch.full_like(self.tok_ids[0, mask], -1)
                     tok_ids_padded[: len(tok_ids)] = tok_ids
