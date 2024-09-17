@@ -717,7 +717,6 @@ class Verifier(Worker):
         outputs = self.model.forward(
             input_ids=tok_ids,
             attention_mask=torch.ones_like(tok_ids),
-            do_sample=False,
             use_cache=False,
             return_dict=True,
             output_hidden_states=False,
