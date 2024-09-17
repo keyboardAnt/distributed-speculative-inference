@@ -748,6 +748,37 @@ class Drafter(Worker):
         sequences = outputs.sequences
         return scores, sequences
 
+class DrafterOracle(Drafter):
+    def _forward(
+        self, tok_ids: torch.Tensor, n: int
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        oracle_tok_ids = torch.tensor([[128000,  39314,    374,    459,   7754,    430,  16964,    264,   3465,
+             11,  35526,    449,    459,   1988,    430,   5825,   4726,   2317,
+             13,   9842,    264,   2077,    430,  36001,  45695,    279,   1715,
+            627,  14711,  30151,    512,  23340,    279,   1495,   1139,   1403,
+          20406,  43743,    627,  14711,   5688,    512,    791,  16659,    649,
+            387,   3974,    477,   4200,     11,    719,    449,    279,  28522,
+          14691,    304,   1690,   5596,    315,    279,   1917,     11,   1690,
+           5220,    690,   3469,    369,   4200,  16659,    304,   2015,    311,
+          30437,    279,   9041,    315,  17563,     13,  21382,  16659,   1101,
+           4546,    459,   1358,    315,  22934,   1093,   1694,   3025,    311,
+           4667,    449,   1274,    304,   2204,   5596,    315,    279,   1917,
+            627,  14711,   6075,     25,   4815,    791,  16659,    649,    387,
+           3974,    477,   4200,     11,    719,    449,    279,  28522,  14691,
+            304,   1690,   5596,    315,    279,   1917,     11,   1690,   5220,
+            690,   3469,    369,   4200,  16659,    304,   2015,    311,  30437,
+            279,   9041,    315,  17563,    382,  34126,  16659,   1101,   4546,
+            459,   1358,    315,  22934,   1093,   1694,   3025,    311,   4667,
+            449,   1274,    304,   2204,   5596,    315,    279,   1917,     13,
+         128009, 128006,  78191, 128007,    271,    791,  16659,    649,    387,
+           3974,    477,   4200,     11,    719,    449,    279,  28522,  14691,
+            304,   1690,   5596,    315,    279,   1917,     11,   1690,   5220,
+            690,   3469,    369,   4200,  16659,    304,   2015,    311,  30437,
+            279,   9041,    315,  17563,    382]])
+        idx_first_new_token = (oracle_tok_ids[0] == tok_ids[0]).sum()
+        ret_tok_ids = oracle_tok_ids[:, idx_first_new_token:idx_first_new_token+n+1]
+        ret_scores = torch.zeros((1, n, self.model.config.vocab_size))
+        return ret_scores, ret_tok_ids
 
 class PubSub:
     def __init__(self):
@@ -887,7 +918,8 @@ async def run(
         vocab_size,
         lookahead,
     )
-    drafter = Drafter(draft_queue, response_queue, manager, 0)
+    # drafter = Drafter(draft_queue, response_queue, manager, 0)
+    drafter = DrafterOracle(draft_queue, response_queue, manager, 0)
     print("Main: Creating drafter")
     print_gpu_memory()
     available_gpus = torch.cuda.device_count()
@@ -1055,8 +1087,7 @@ async def main():
     drafter_load_in_8bit: bool = True
     vocab_size: int = 128256
     lookahead: int = 5
-    # max_new_tokens: int = 100
-    max_new_tokens: int = 5
+    max_new_tokens: int = 100
     prompt: str = """Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
 ### Instruction:
 Break the text into two logical paragraphs.
