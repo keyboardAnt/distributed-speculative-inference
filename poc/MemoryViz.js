@@ -1630,9 +1630,80 @@ const fileInput = body.append('input')
     }
   });
 
+
+const debugLog = body.append('div').attr('id', 'debug-log').attr('class', 'instruction-text');
+
+function logDebug(message) {
+  debugLog.append('div').text(message);
+}
+
 const fileButton = body.append('button')
   .text('Select File')
   .on('click', () => fileInput.node().click());
+
+// New button for selecting files from the server's filesystem
+const serverFileButton = body.append('button')
+  .text('Select Server File')
+  .on('click', () => {
+    logDebug('Server File Button Clicked');
+    fetchServerFileList();
+  });
+
+function fetchServerFileList() {
+  logDebug('Fetching server file list...');
+  fetch('/server-file-list') // Adjust the endpoint as needed
+    .then(response => {
+      logDebug(`Server file list response: ${response.status}`);
+      return response.json();
+    })
+    .then(files => {
+      logDebug(`Files received from server: ${JSON.stringify(files)}`);
+      displayServerFileList(files);
+    })
+    .catch(error => {
+      logDebug(`Error fetching server file list: ${error}`);
+    });
+}
+
+function displayServerFileList(files) {
+  logDebug('Displaying server file list...');
+  const fileListDiv = body.append('div').attr('id', 'server-file-list');
+  fileListDiv.append('h3').text('Select a file from the server:');
+  const fileList = fileListDiv.append('ul');
+  files.forEach(file => {
+    logDebug(`Adding file to list: ${file.name}`);
+    fileList.append('li')
+      .append('a')
+      .attr('href', '#')
+      .text(file.name)
+      .on('click', () => {
+        logDebug(`File selected: ${file.name}`);
+        loadServerFile(file.url, file.name);
+        fileListDiv.remove(); // Remove the file list after selection
+      });
+  });
+}
+
+function loadServerFile(url, name) {
+  logDebug(`Loading server file: ${url}`);
+  fetch(url)
+    .then(response => {
+      logDebug(`Server file response: ${response.status}`);
+      return response.arrayBuffer();
+    })
+    .then(data => {
+      logDebug(`Server file data received: ${data.byteLength} bytes`);
+      add_snapshot(name, unique_name => {
+        logDebug(`Snapshot added: ${unique_name}`);
+        finished_loading(unique_name, data);
+      });
+      snapshot_select.node().selectedIndex = snapshot_select.node().options.length - 1;
+      selected_change();
+    })
+    .catch(error => {
+      logDebug(`Error loading server file: ${error}`);
+    });
+}
 
 function unpickle_and_annotate(data) {
   data = unpickle(data);
