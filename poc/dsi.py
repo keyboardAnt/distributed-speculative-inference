@@ -10,6 +10,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Dict, Tuple
 from uuid import UUID, uuid4
+from datetime import datetime
 
 import accelerate
 import torch
@@ -904,7 +905,7 @@ async def run(
     # visible_devices = ",".join(str(i) for i in range(1, torch.cuda.device_count()))
     # os.environ["CUDA_VISIBLE_DEVICES"] = visible_devices
     # print(f"Main: CUDA_VISIBLE_DEVICES set to {os.environ['CUDA_VISIBLE_DEVICES']}")
-    verifier_device_map = load_device_map("/workspace/distributed-speculative-inference/poc/device_map_meta-llama_Meta-Llama-3.1-70B-Instruct_8bit_on_3A40_auto.json")
+    verifier_device_map = load_device_map("/workspace/distributed-speculative-inference/poc/device_map_meta-llama_Meta-Llama-3.1-70B-Instruct_8bit_on_3A40_custom.json")
     verifier_2_device_map = {k: v + 3 for k, v in verifier_device_map.items()}
     print(f"Main: Verifier device map: {verifier_device_map}")
     print(f"Main: Verifier device map: {verifier_2_device_map}")
@@ -1046,15 +1047,17 @@ def decode(tok_ids: torch.Tensor, tokernizer_name: str) -> str:
 async def main():
     print("Script started")
     print_gpu_memory()
-    verifier_name: str = "meta-llama/Meta-Llama-3.1-70B-Instruct"
+    # verifier_name: str = "meta-llama/Meta-Llama-3.1-70B-Instruct"
+    verifier_name: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
     drafter_name: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
     verifier_dtype: torch.dtype = torch.float16
     drafter_dtype: torch.dtype = torch.float16
     verifier_load_in_8bit: bool = True
     drafter_load_in_8bit: bool = True
     vocab_size: int = 128256
-    lookahead: int = 10
-    max_new_tokens: int = 100
+    lookahead: int = 5
+    # max_new_tokens: int = 100
+    max_new_tokens: int = 5
     prompt: str = """Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
 ### Instruction:
 Break the text into two logical paragraphs.
@@ -1086,11 +1089,19 @@ The meetings can be live or virtual, but with the pandemic continuing in many pa
     for task in asyncio.all_tasks():
         if task is not asyncio.current_task():
             task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await task
+            # with contextlib.suppress(asyncio.CancelledError):
+                # await task
+            await task
     print("Main: All servers are closed")
     print("Script completed")
 
 
 if __name__ == "__main__":
+    print("Starting main. Starting CUDA memory recording.")
+    torch.cuda.memory._record_memory_history()
     asyncio.run(main())
+    current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    filename = f"cuda_memory_snapshot_{current_time}.pickle"
+    print(f"Dumping CUDA memory snapshot into {filename}.")
+    torch.cuda.memory._dump_snapshot(filename)
+    print(f"Main completed. CUDA memory snapshot dumped into {filename}.")

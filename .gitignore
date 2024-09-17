@@ -166,3 +166,6 @@ outputs
 # Results (i.e., Hydra's outputs that we want to keep)
 #          NOTE: The directory is tracked with DVC
 results
+
+# Node modules
+node_modules
