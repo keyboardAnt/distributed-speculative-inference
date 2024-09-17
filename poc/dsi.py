@@ -892,7 +892,7 @@ async def run(
     available_gpus = torch.cuda.device_count()
     print(f"Main: Available GPUs: {available_gpus}")
     # num_verifiers = max(available_gpus - 1, 1)
-    num_verifiers = 1
+    num_verifiers = 2
     print(f"Main: Number of verifiers: {num_verifiers}")
     verifiers = [
         Verifier(verify_queue, response_queue, manager, i)
@@ -905,7 +905,10 @@ async def run(
     # os.environ["CUDA_VISIBLE_DEVICES"] = visible_devices
     # print(f"Main: CUDA_VISIBLE_DEVICES set to {os.environ['CUDA_VISIBLE_DEVICES']}")
     verifier_device_map = load_device_map("/workspace/distributed-speculative-inference/poc/device_map_meta-llama_Meta-Llama-3.1-70B-Instruct_8bit_on_3A40_auto.json")
+    verifier_2_device_map = {k: v + 3 for k, v in verifier_device_map.items()}
     print(f"Main: Verifier device map: {verifier_device_map}")
+    print(f"Main: Verifier device map: {verifier_2_device_map}")
+    verifiers_device_maps = [verifier_device_map, verifier_2_device_map]
     await asyncio.gather(
         *[
             verifier.load_model(
@@ -913,11 +916,11 @@ async def run(
                 dtype=verifier_dtype,
                 # device_map="auto",
                 # device_map="balanced_low_0",
-                device_map=verifier_device_map,
+                device_map=device_map,
                 load_in_8bit=verifier_load_in_8bit,
                 cache_dir=os.environ["TRANSFORMERS_CACHE"],
             )
-            for verifier in verifiers
+            for verifier, device_map in zip(verifiers, verifiers_device_maps)
         ],
     )
     print_gpu_memory()
