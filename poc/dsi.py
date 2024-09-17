@@ -246,6 +246,7 @@ class Manager:
             print(f"Manager: number of empty tok_ids: {(self.tok_ids == -1).sum()}")
             print(f"Manager: {self.tok_ids=}")
             await self.send_requests()
+            any_rejected = False
             while (self.tok_ids == -1).any():  # On dropping
                 print("Manager: Waiting for response")
                 response: Response = await self.response_queue.get()
