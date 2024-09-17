@@ -1047,8 +1047,7 @@ def decode(tok_ids: torch.Tensor, tokernizer_name: str) -> str:
 async def main():
     print("Script started")
     print_gpu_memory()
-    # verifier_name: str = "meta-llama/Meta-Llama-3.1-70B-Instruct"
-    verifier_name: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
+    verifier_name: str = "meta-llama/Meta-Llama-3.1-70B-Instruct"
     drafter_name: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
     verifier_dtype: torch.dtype = torch.float16
     drafter_dtype: torch.dtype = torch.float16
@@ -1098,7 +1097,7 @@ The meetings can be live or virtual, but with the pandemic continuing in many pa
 
 if __name__ == "__main__":
     print("Starting main. Starting CUDA memory recording.")
-    torch.cuda.memory._record_memory_history()
+    torch.cuda.memory._record_memory_history(max_entries=1_000_000)
     asyncio.run(main())
     current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     filename = f"cuda_memory_snapshot_{current_time}.pickle"
