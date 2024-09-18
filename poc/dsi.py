@@ -8,7 +8,7 @@ import json
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Type
 from uuid import UUID, uuid4
 from datetime import datetime
 
@@ -778,30 +778,6 @@ class DrafterOracle(Drafter):
         self, tok_ids: torch.Tensor, n: int
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         # Llama 3.1 8B 8bit
-        # oracle_tok_ids = torch.tensor([[128000,  39314,    374,    459,   7754,    430,  16964,    264,   3465,
-        #      11,  35526,    449,    459,   1988,    430,   5825,   4726,   2317,
-        #      13,   9842,    264,   2077,    430,  36001,  45695,    279,   1715,
-        #     627,  14711,  30151,    512,  23340,    279,   1495,   1139,   1403,
-        #   20406,  43743,    627,  14711,   5688,    512,    791,  16659,    649,
-        #     387,   3974,    477,   4200,     11,    719,    449,    279,  28522,
-        #   14691,    304,   1690,   5596,    315,    279,   1917,     11,   1690,
-        #    5220,    690,   3469,    369,   4200,  16659,    304,   2015,    311,
-        #   30437,    279,   9041,    315,  17563,     13,  21382,  16659,   1101,
-        #    4546,    459,   1358,    315,  22934,   1093,   1694,   3025,    311,
-        #    4667,    449,   1274,    304,   2204,   5596,    315,    279,   1917,
-        #     627,  14711,   6075,     25,    720,    791,  16659,    649,    387,
-        #    3974,    477,   4200,     11,    719,    449,    279,  28522,  14691,
-        #     304,   1690,   5596,    315,    279,   1917,     11,   1690,   5220,
-        #     690,   3469,    369,   4200,  16659,    304,   2015,    311,  30437,
-        #     279,   9041,    315,  17563,     13,  21382,  16659,   1101,   4546,
-        #     459,   1358,    315,  22934,   1093,   1694,   3025,    311,   4667,
-        #     449,   1274,    304,   2204,   5596,    315,    279,   1917,     13,
-        #     720,  34126,  16659,   1101,   4546,    459,   1358,    315,  22934,
-        #    1093,   1694,   3025,    311,   4667,    449,   1274,    304,   2204,
-        #    5596,    315,    279,   1917,     13,    578,  16659,    649,    387,
-        #    3974,    477,   4200,     11,    719,    449,    279,  28522,  14691,
-        #     304,   1690,   5596,    315,    279]])
-        # Llama 3.1 70B 8bit
         oracle_tok_ids = torch.tensor([[128000,  39314,    374,    459,   7754,    430,  16964,    264,   3465,
              11,  35526,    449,    459,   1988,    430,   5825,   4726,   2317,
              13,   9842,    264,   2077,    430,  36001,  45695,    279,   1715,
@@ -813,18 +789,42 @@ class DrafterOracle(Drafter):
           30437,    279,   9041,    315,  17563,     13,  21382,  16659,   1101,
            4546,    459,   1358,    315,  22934,   1093,   1694,   3025,    311,
            4667,    449,   1274,    304,   2204,   5596,    315,    279,   1917,
-            627,  14711,   6075,     25,   4815,    791,  16659,    649,    387,
+            627,  14711,   6075,     25,    720,    791,  16659,    649,    387,
            3974,    477,   4200,     11,    719,    449,    279,  28522,  14691,
             304,   1690,   5596,    315,    279,   1917,     11,   1690,   5220,
             690,   3469,    369,   4200,  16659,    304,   2015,    311,  30437,
-            279,   9041,    315,  17563,    382,  34126,  16659,   1101,   4546,
+            279,   9041,    315,  17563,     13,  21382,  16659,   1101,   4546,
             459,   1358,    315,  22934,   1093,   1694,   3025,    311,   4667,
             449,   1274,    304,   2204,   5596,    315,    279,   1917,     13,
-         128009, 128006,  78191, 128007,    271,    791,  16659,    649,    387,
+            720,  34126,  16659,   1101,   4546,    459,   1358,    315,  22934,
+           1093,   1694,   3025,    311,   4667,    449,   1274,    304,   2204,
+           5596,    315,    279,   1917,     13,    578,  16659,    649,    387,
            3974,    477,   4200,     11,    719,    449,    279,  28522,  14691,
-            304,   1690,   5596,    315,    279,   1917,     11,   1690,   5220,
-            690,   3469,    369,   4200,  16659,    304,   2015,    311,  30437,
-            279,   9041,    315,  17563,    382]])
+            304,   1690,   5596,    315,    279]])
+        # Llama 3.1 70B 8bit
+        # oracle_tok_ids = torch.tensor([[128000,  39314,    374,    459,   7754,    430,  16964,    264,   3465,
+        #      11,  35526,    449,    459,   1988,    430,   5825,   4726,   2317,
+        #      13,   9842,    264,   2077,    430,  36001,  45695,    279,   1715,
+        #     627,  14711,  30151,    512,  23340,    279,   1495,   1139,   1403,
+        #   20406,  43743,    627,  14711,   5688,    512,    791,  16659,    649,
+        #     387,   3974,    477,   4200,     11,    719,    449,    279,  28522,
+        #   14691,    304,   1690,   5596,    315,    279,   1917,     11,   1690,
+        #    5220,    690,   3469,    369,   4200,  16659,    304,   2015,    311,
+        #   30437,    279,   9041,    315,  17563,     13,  21382,  16659,   1101,
+        #    4546,    459,   1358,    315,  22934,   1093,   1694,   3025,    311,
+        #    4667,    449,   1274,    304,   2204,   5596,    315,    279,   1917,
+        #     627,  14711,   6075,     25,   4815,    791,  16659,    649,    387,
+        #    3974,    477,   4200,     11,    719,    449,    279,  28522,  14691,
+        #     304,   1690,   5596,    315,    279,   1917,     11,   1690,   5220,
+        #     690,   3469,    369,   4200,  16659,    304,   2015,    311,  30437,
+        #     279,   9041,    315,  17563,    382,  34126,  16659,   1101,   4546,
+        #     459,   1358,    315,  22934,   1093,   1694,   3025,    311,   4667,
+        #     449,   1274,    304,   2204,   5596,    315,    279,   1917,     13,
+        #  128009, 128006,  78191, 128007,    271,    791,  16659,    649,    387,
+        #    3974,    477,   4200,     11,    719,    449,    279,  28522,  14691,
+        #     304,   1690,   5596,    315,    279,   1917,     11,   1690,   5220,
+        #     690,   3469,    369,   4200,  16659,    304,   2015,    311,  30437,
+        #     279,   9041,    315,  17563,    382]])
         idx_first_new_token = tok_ids.shape[1]
         ret_tok_ids = oracle_tok_ids[:, idx_first_new_token:idx_first_new_token+n]
         ret_scores = torch.zeros((1, n, self.model.config.vocab_size))
@@ -872,49 +872,6 @@ class PubSub:
             print(f"PubSub: Broadcast complete. Queue size: {self.queue.qsize()}")
 
 
-# @cache
-# def get_max_memory():
-#     max_memory = {i: f"{torch.cuda.mem_get_info(i)[0] / 1024 / 1024 / 1024:.2f} GB" for i in range(torch.cuda.device_count())}
-#     return max_memory
-
-
-def get_device_map_with_only_gpu_0(model_name, dtype, load_in_8bit):
-    # max_memory = get_max_memory()
-    # max_memory = {k: v if k == 0 else 0 for k, v in max_memory.items()}
-    max_memory = {
-        i: 0
-        for i in range(1, torch.cuda.device_count())
-    }
-    model = AutoModelForCausalLM.from_pretrained(
-        model_name,
-        torch_dtype=dtype,
-        load_in_8bit=load_in_8bit,
-        device_map=None,
-        cache_dir="/workspace/hf_cache",
-    )
-    device_map = accelerate.infer_auto_device_map(model, max_memory=max_memory)
-    del model
-    garbage_collect()
-    return device_map
-
-
-# def get_device_map_without_gpu_0(model_name, dtype, load_in_8bit):
-#     # max_memory = get_max_memory()
-#     # max_memory = {k: v if k != 0 else 0 for k, v in max_memory.items()}
-#     max_memory = {0: 0}
-#     model = AutoModelForCausalLM.from_pretrained(
-#         model_name,
-#         torch_dtype=dtype,
-#         load_in_8bit=load_in_8bit,
-#         device_map=None,
-#         cache_dir="/workspace/hf_cache",
-#     )
-#     device_map = accelerate.infer_auto_device_map(model, max_memory=max_memory)
-#     del model
-#     garbage_collect()
-#     return device_map
-
-
 def setup_hf_cache():
     if torch.cuda.device_count() > 0:
         os.environ["TRANSFORMERS_CACHE"] = "/workspace/hf_cache"
@@ -934,6 +891,9 @@ def load_device_map(file_name):
 
 
 async def run(
+    manager_cls: Type[Manager],
+    verifier_cls: Type[Verifier],
+    drafter_cls: Type[Drafter],
     verifier_name: str,
     drafter_name: str,
     vocab_size: int,
@@ -956,8 +916,7 @@ async def run(
     # Define the missing arguments
     print(f"Loading tokenizer for {verifier_name}")
     print_gpu_memory()
-    manager = Manager(
-    # manager = ManagerSequential(
+    manager = manager_cls(
         draft_queue,
         verify_queue,
         response_queue,
@@ -967,8 +926,7 @@ async def run(
         lookahead,
     )
     print(f"Main: Created {manager.__class__.__name__}")
-    # drafter = Drafter(draft_queue, response_queue, manager, 0)
-    drafter = DrafterOracle(draft_queue, response_queue, manager, 0)
+    drafter = drafter_cls(draft_queue, response_queue, manager, 0)
     print("Main: Creating drafter")
     print_gpu_memory()
     available_gpus = torch.cuda.device_count()
@@ -976,16 +934,12 @@ async def run(
     # num_verifiers = max(available_gpus - 1, 1)
     num_verifiers = 2
     print(f"Main: Number of verifiers: {num_verifiers}")
+
     verifiers = [
-        Verifier(verify_queue, response_queue, manager, i)
+        verifier_cls(verify_queue, response_queue, manager, i)
         for i in range(1, num_verifiers + 1)
     ]
     print("Main: Loading all verifiers")
-    # verifier_device_map = get_device_map_without_gpu_0(verifier_name, verifier_dtype, verifier_load_in_8bit)
-    # print(f"Main: Verifier device map: {verifier_device_map}")
-    # visible_devices = ",".join(str(i) for i in range(1, torch.cuda.device_count()))
-    # os.environ["CUDA_VISIBLE_DEVICES"] = visible_devices
-    # print(f"Main: CUDA_VISIBLE_DEVICES set to {os.environ['CUDA_VISIBLE_DEVICES']}")
     verifier_device_map = load_device_map("/workspace/distributed-speculative-inference/poc/device_map_meta-llama_Meta-Llama-3.1-70B-Instruct_8bit_on_3A40_custom.json")
     verifier_2_device_map = {k: v + 3 for k, v in verifier_device_map.items()}
     print(f"Main: Verifier device map: {verifier_device_map}")
@@ -1007,10 +961,6 @@ async def run(
     )
     print_gpu_memory()
     print("Main: Loading drafter")
-    # drafter_device_map = get_device_map_with_only_gpu_0(drafter_name, drafter_dtype, drafter_load_in_8bit)
-    # print(f"Main: Drafter device map: {drafter_device_map}")
-    # os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-    # print(f"Main: CUDA_VISIBLE_DEVICES set to {os.environ['CUDA_VISIBLE_DEVICES']}")
     await drafter.load_model(
         drafter_name,
         dtype=drafter_dtype,
@@ -1128,15 +1078,8 @@ def decode(tok_ids: torch.Tensor, tokernizer_name: str) -> str:
 async def main():
     print("Script started")
     print_gpu_memory()
-    verifier_name: str = "meta-llama/Meta-Llama-3.1-70B-Instruct"
-    drafter_name: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
-    verifier_dtype: torch.dtype = torch.float16
-    drafter_dtype: torch.dtype = torch.float16
-    verifier_load_in_8bit: bool = True
-    drafter_load_in_8bit: bool = True
-    vocab_size: int = 128256
-    lookahead: int = 10
-    max_new_tokens: int = 100
+    # verifier_name: str = "meta-llama/Meta-Llama-3.1-70B-Instruct"
+    verifier_name: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
     prompt: str = """Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
 ### Instruction:
 Break the text into two logical paragraphs.
@@ -1144,6 +1087,21 @@ Break the text into two logical paragraphs.
 The meetings can be live or virtual, but with the pandemic continuing in many parts of the world, many companies will opt for virtual meetings in order to minimize the spread of illness. Virtual meetings also bring an array of advantages like being able to connect with people in different parts of the world.
 ### Response:"""
     tok_ids = encode(prompt, verifier_name)
+    tok_ids = await run(
+        manager_cls=Manager,
+        verifier_cls=Verifier,
+        drafter_cls=DrafterOracle,
+        verifier_name=verifier_name,
+        drafter_name="meta-llama/Meta-Llama-3.1-8B-Instruct",
+        vocab_size=128256,
+        verifier_dtype=torch.float16,
+        drafter_dtype=torch.float16,
+        verifier_load_in_8bit=True,
+        drafter_load_in_8bit=True,
+        lookahead=10,
+        tok_ids=tok_ids,
+        max_new_tokens=100,
+    )
     # tok_ids = generate(
     #     model_name=verifier_name,
     #     dtype=verifier_dtype,
@@ -1151,18 +1109,6 @@ The meetings can be live or virtual, but with the pandemic continuing in many pa
     #     tok_ids=tok_ids,
     #     max_new_tokens=max_new_tokens,
     # )
-    tok_ids = await run(
-        verifier_name=verifier_name,
-        drafter_name=drafter_name,
-        vocab_size=vocab_size,
-        verifier_dtype=verifier_dtype,
-        drafter_dtype=drafter_dtype,
-        verifier_load_in_8bit=verifier_load_in_8bit,
-        drafter_load_in_8bit=drafter_load_in_8bit,
-        lookahead=lookahead,
-        tok_ids=tok_ids,
-        max_new_tokens=max_new_tokens,
-    )
     print(f"Main: Final output: {decode(tok_ids, verifier_name)}")
     # Close all asyncio tasks or resources without waiting for them to complete
     for task in asyncio.all_tasks():
