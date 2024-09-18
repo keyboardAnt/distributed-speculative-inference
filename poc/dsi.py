@@ -782,7 +782,7 @@ class DrafterOracle(Drafter):
            3974,    477,   4200,     11,    719,    449,    279,  28522,  14691,
             304,   1690,   5596,    315,    279]])
         idx_first_new_token = tok_ids.shape[1]
-        ret_tok_ids = oracle_tok_ids[:, idx_first_new_token+1:idx_first_new_token+n+1]
+        ret_tok_ids = oracle_tok_ids[:, idx_first_new_token:idx_first_new_token+n]
         ret_scores = torch.zeros((1, n, self.model.config.vocab_size))
         return ret_scores, ret_tok_ids
 
