@@ -242,12 +242,17 @@ class Manager:
         print(f"{self.__class__.__name__}: Starting run")
         print(f"{self.__class__.__name__}: prompt's tok_ids.shape: {self.tok_ids.shape}")
         print(f"{self.__class__.__name__}: prompt's tok_ids: {self.tok_ids}")
-        to_draft = True
+        to_verify_semaphore: int = self.verify_queue.qsize()
+        print(f"{self.__class__.__name__}: {to_verify_semaphore=}")
+        to_draft: bool = True
         while (self.tok_ids == -1).any():  # On init, acceptance, or rejection
             print(f"{self.__class__.__name__}: number of empty tok_ids: {(self.tok_ids == -1).sum()}")
             print(f"{self.__class__.__name__}: {self.tok_ids=}")
             any_rejected: bool = False
-            await self.send_reqeust_verify()
+            if to_verify_semaphore > 0:
+                await self.send_reqeust_verify()
+                to_verify_semaphore -= 1
+                print(f"{self.__class__.__name__}: {to_verify_semaphore=}")
             if to_draft:
                 await self.send_request_draft()
             to_draft = False
@@ -257,6 +262,9 @@ class Manager:
                 print(
                     f"{self.__class__.__name__}: Received response {response}. Will process if not outdated."
                 )
+                if not response.is_draft:
+                    to_verify_semaphore += 1
+                    print(f"{self.__class__.__name__}: {to_verify_semaphore=}")
                 if response.id not in self.id_to_mask:
                     print(
                         f"{self.__class__.__name__}: Response {response.id} is not in id_to_mask. Dropping."
@@ -749,7 +757,7 @@ class VerifierSlow(Verifier):
     async def _forward(
         self, tok_ids: torch.Tensor, n: int
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        await asyncio.sleep(1)
+        await asyncio.sleep(0.1)
         return await super()._forward(tok_ids, n)
 
 
@@ -907,9 +915,12 @@ async def run(
 ) -> None:
     setup_hf_cache()
     print_gpu_memory()
+    # num_verifiers = max(available_gpus - 1, 1)
+    num_verifiers = 2
+    print(f"Main: Number of verifiers: {num_verifiers}")
     print("Main: Initializing queues")
-    draft_queue = asyncio.Queue()
-    verify_queue = asyncio.Queue()
+    draft_queue = asyncio.Queue(maxsize=1)
+    verify_queue = asyncio.Queue(maxsize=num_verifiers)
     response_queue = asyncio.Queue()
 
     print("Main: Creating server instances")
@@ -931,9 +942,6 @@ async def run(
     print_gpu_memory()
     available_gpus = torch.cuda.device_count()
     print(f"Main: Available GPUs: {available_gpus}")
-    # num_verifiers = max(available_gpus - 1, 1)
-    num_verifiers = 2
-    print(f"Main: Number of verifiers: {num_verifiers}")
 
     verifiers = [
         verifier_cls(verify_queue, response_queue, manager, i)
