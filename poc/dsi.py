@@ -593,11 +593,11 @@ class Worker(ABC):
                         print(
                             f"{self.__class__.__name__} ({self.gpu_id}): Cancelling `get_request` to stop waiting for a queued request"
                         )
-                        get_request.cancel()
+                        await get_request.cancel()
                         print(f"{self.__class__.__name__} ({self.gpu_id}): `get_request` was cancelled")
                     if current_task is not None:
                         print(f"{self.__class__.__name__} ({self.gpu_id}): Cancelling current task")
-                        current_task.cancel()
+                        await current_task.cancel()
                         print(f"{self.__class__.__name__} ({self.gpu_id}): Current task was cancelled")
                     else:
                         print(f"{self.__class__.__name__} ({self.gpu_id}): No current task to cancel")
@@ -636,7 +636,7 @@ class Worker(ABC):
                             f"{self.__class__.__name__} ({self.gpu_id}): Updated timestamp_preemption to {self.timestamp_preemption}"
                         )
 
-                        current_task.cancel()
+                        await current_task.cancel()
                         print(f"{self.__class__.__name__} ({self.gpu_id}): Current task was preempted")
                     else:
                         response = current_task.result()
@@ -1091,7 +1091,7 @@ The meetings can be live or virtual, but with the pandemic continuing in many pa
 ### Response:"""
     tok_ids = encode(prompt, verifier_name)
     tok_ids = await run(
-        manager_cls=ManagerSequential,
+        manager_cls=Manager,
         verifier_cls=VerifierSlow,
         drafter_cls=Drafter,
         verifier_name=verifier_name,
@@ -1116,10 +1116,10 @@ The meetings can be live or virtual, but with the pandemic continuing in many pa
     # Close all asyncio tasks or resources without waiting for them to complete
     for task in asyncio.all_tasks():
         if task is not asyncio.current_task():
-            task.cancel()
+            await task.cancel()
             # with contextlib.suppress(asyncio.CancelledError):
                 # await task
-            await task
+            # await task
     print("Main: All servers are closed")
     print("Script completed")
 
