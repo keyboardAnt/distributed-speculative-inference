@@ -205,15 +205,6 @@ class Manager:
         self.requested_verify.fill_(False)
         self.requested_draft.fill_(False)
 
-    # @staticmethod
-    # async def _empty_queue(queue: asyncio.Queue) -> None:
-    #     while not queue.empty():
-    #         try:
-    #             queue.get_nowait()
-    #             queue.task_done()
-    #         except asyncio.QueueEmpty:
-    #             pass
-
     async def preempt_all(self) -> None:
         """
         Broadcasts a preemption message to all workers and clears the request queues.
@@ -262,7 +253,9 @@ class Manager:
                 print(
                     f"{self.__class__.__name__}: Received response {response}. Will process if not outdated."
                 )
-                if not response.is_draft:
+                if response.is_draft:
+                    to_draft = True
+                else:
                     to_verify_semaphore += 1
                     print(f"{self.__class__.__name__}: {to_verify_semaphore=}")
                 if response.id not in self.id_to_mask:
@@ -270,13 +263,15 @@ class Manager:
                         f"{self.__class__.__name__}: Response {response.id} is not in id_to_mask. Dropping."
                     )
                     self.response_queue.task_done()
+                    if to_draft or to_verify_semaphore > 0:
+                        print(f"{self.__class__.__name__}: Breaking out the listening loop because is a request to send. ({to_draft=}, {to_verify_semaphore=})")
+                        break
                     continue
                 print(
                     f"{self.__class__.__name__}: Processing response {response.id}. (It is not outdated.)"
                 )
                 mask: torch.Tensor = self.id_to_mask.pop(response.id)
                 if response.is_draft:
-                    to_draft = True
                     self.draft_scores[0, mask] = response.scores
                     self.draft_tok_ids[0, mask] = response.tok_ids[
                         0, -response.scores.shape[1] :
@@ -786,30 +781,6 @@ class DrafterOracle(Drafter):
         self, tok_ids: torch.Tensor, n: int
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         # Llama 3.1 8B 8bit
-        oracle_tok_ids = torch.tensor([[128000,  39314,    374,    459,   7754,    430,  16964,    264,   3465,
-             11,  35526,    449,    459,   1988,    430,   5825,   4726,   2317,
-             13,   9842,    264,   2077,    430,  36001,  45695,    279,   1715,
-            627,  14711,  30151,    512,  23340,    279,   1495,   1139,   1403,
-          20406,  43743,    627,  14711,   5688,    512,    791,  16659,    649,
-            387,   3974,    477,   4200,     11,    719,    449,    279,  28522,
-          14691,    304,   1690,   5596,    315,    279,   1917,     11,   1690,
-           5220,    690,   3469,    369,   4200,  16659,    304,   2015,    311,
-          30437,    279,   9041,    315,  17563,     13,  21382,  16659,   1101,
-           4546,    459,   1358,    315,  22934,   1093,   1694,   3025,    311,
-           4667,    449,   1274,    304,   2204,   5596,    315,    279,   1917,
-            627,  14711,   6075,     25,    720,    791,  16659,    649,    387,
-           3974,    477,   4200,     11,    719,    449,    279,  28522,  14691,
-            304,   1690,   5596,    315,    279,   1917,     11,   1690,   5220,
-            690,   3469,    369,   4200,  16659,    304,   2015,    311,  30437,
-            279,   9041,    315,  17563,     13,  21382,  16659,   1101,   4546,
-            459,   1358,    315,  22934,   1093,   1694,   3025,    311,   4667,
-            449,   1274,    304,   2204,   5596,    315,    279,   1917,     13,
-            720,  34126,  16659,   1101,   4546,    459,   1358,    315,  22934,
-           1093,   1694,   3025,    311,   4667,    449,   1274,    304,   2204,
-           5596,    315,    279,   1917,     13,    578,  16659,    649,    387,
-           3974,    477,   4200,     11,    719,    449,    279,  28522,  14691,
-            304,   1690,   5596,    315,    279]])
-        # Llama 3.1 70B 8bit
         # oracle_tok_ids = torch.tensor([[128000,  39314,    374,    459,   7754,    430,  16964,    264,   3465,
         #      11,  35526,    449,    459,   1988,    430,   5825,   4726,   2317,
         #      13,   9842,    264,   2077,    430,  36001,  45695,    279,   1715,
@@ -821,18 +792,42 @@ class DrafterOracle(Drafter):
         #   30437,    279,   9041,    315,  17563,     13,  21382,  16659,   1101,
         #    4546,    459,   1358,    315,  22934,   1093,   1694,   3025,    311,
         #    4667,    449,   1274,    304,   2204,   5596,    315,    279,   1917,
-        #     627,  14711,   6075,     25,   4815,    791,  16659,    649,    387,
+        #     627,  14711,   6075,     25,    720,    791,  16659,    649,    387,
         #    3974,    477,   4200,     11,    719,    449,    279,  28522,  14691,
         #     304,   1690,   5596,    315,    279,   1917,     11,   1690,   5220,
         #     690,   3469,    369,   4200,  16659,    304,   2015,    311,  30437,
-        #     279,   9041,    315,  17563,    382,  34126,  16659,   1101,   4546,
+        #     279,   9041,    315,  17563,     13,  21382,  16659,   1101,   4546,
         #     459,   1358,    315,  22934,   1093,   1694,   3025,    311,   4667,
         #     449,   1274,    304,   2204,   5596,    315,    279,   1917,     13,
-        #  128009, 128006,  78191, 128007,    271,    791,  16659,    649,    387,
+        #     720,  34126,  16659,   1101,   4546,    459,   1358,    315,  22934,
+        #    1093,   1694,   3025,    311,   4667,    449,   1274,    304,   2204,
+        #    5596,    315,    279,   1917,     13,    578,  16659,    649,    387,
         #    3974,    477,   4200,     11,    719,    449,    279,  28522,  14691,
-        #     304,   1690,   5596,    315,    279,   1917,     11,   1690,   5220,
-        #     690,   3469,    369,   4200,  16659,    304,   2015,    311,  30437,
-        #     279,   9041,    315,  17563,    382]])
+        #     304,   1690,   5596,    315,    279]])
+        # Llama 3.1 70B 8bit
+        oracle_tok_ids = torch.tensor([[128000,  39314,    374,    459,   7754,    430,  16964,    264,   3465,
+             11,  35526,    449,    459,   1988,    430,   5825,   4726,   2317,
+             13,   9842,    264,   2077,    430,  36001,  45695,    279,   1715,
+            627,  14711,  30151,    512,  23340,    279,   1495,   1139,   1403,
+          20406,  43743,    627,  14711,   5688,    512,    791,  16659,    649,
+            387,   3974,    477,   4200,     11,    719,    449,    279,  28522,
+          14691,    304,   1690,   5596,    315,    279,   1917,     11,   1690,
+           5220,    690,   3469,    369,   4200,  16659,    304,   2015,    311,
+          30437,    279,   9041,    315,  17563,     13,  21382,  16659,   1101,
+           4546,    459,   1358,    315,  22934,   1093,   1694,   3025,    311,
+           4667,    449,   1274,    304,   2204,   5596,    315,    279,   1917,
+            627,  14711,   6075,     25,   4815,    791,  16659,    649,    387,
+           3974,    477,   4200,     11,    719,    449,    279,  28522,  14691,
+            304,   1690,   5596,    315,    279,   1917,     11,   1690,   5220,
+            690,   3469,    369,   4200,  16659,    304,   2015,    311,  30437,
+            279,   9041,    315,  17563,    382,  34126,  16659,   1101,   4546,
+            459,   1358,    315,  22934,   1093,   1694,   3025,    311,   4667,
+            449,   1274,    304,   2204,   5596,    315,    279,   1917,     13,
+         128009, 128006,  78191, 128007,    271,    791,  16659,    649,    387,
+           3974,    477,   4200,     11,    719,    449,    279,  28522,  14691,
+            304,   1690,   5596,    315,    279,   1917,     11,   1690,   5220,
+            690,   3469,    369,   4200,  16659,    304,   2015,    311,  30437,
+            279,   9041,    315,  17563,    382]])
         idx_first_new_token = tok_ids.shape[1]
         ret_tok_ids = oracle_tok_ids[:, idx_first_new_token:idx_first_new_token+n]
         ret_scores = torch.zeros((1, n, self.model.config.vocab_size))
@@ -1086,8 +1081,8 @@ def decode(tok_ids: torch.Tensor, tokernizer_name: str) -> str:
 async def main():
     print("Script started")
     print_gpu_memory()
-    # verifier_name: str = "meta-llama/Meta-Llama-3.1-70B-Instruct"
-    verifier_name: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
+    verifier_name: str = "meta-llama/Meta-Llama-3.1-70B-Instruct"
+    # verifier_name: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
     prompt: str = """Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
 ### Instruction:
 Break the text into two logical paragraphs.
@@ -1098,7 +1093,7 @@ The meetings can be live or virtual, but with the pandemic continuing in many pa
     tok_ids = await run(
         manager_cls=Manager,
         verifier_cls=VerifierSlow,
-        drafter_cls=DrafterOracle,
+        drafter_cls=Drafter,
         verifier_name=verifier_name,
         drafter_name="meta-llama/Meta-Llama-3.1-8B-Instruct",
         vocab_size=128256,
