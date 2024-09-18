@@ -708,14 +708,14 @@ class Worker(ABC):
         tok_ids = tok_ids[:, : (tok_ids[0] != -1).sum()]
         # n = max(n, 1)  # Ensure n is at least 1
         assert n > 0, "n must be greater than 0"
-        scores, sequences = self._forward(tok_ids, n)
+        scores, sequences = await self._forward(tok_ids, n)
         print(
             f"{self.__class__.__name__}: Generated sequences of shape {sequences.shape}"
         )
         return scores, sequences
 
     @abstractmethod
-    def _forward(
+    async def _forward(
         self, tok_ids: torch.Tensor, n: int
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
@@ -727,7 +727,7 @@ class Worker(ABC):
 
 
 class Verifier(Worker):
-    def _forward(
+    async def _forward(
         self, tok_ids: torch.Tensor, n: int
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         outputs = self.model.forward(
@@ -745,8 +745,16 @@ class Verifier(Worker):
         return outputs.logits, sequences
 
 
+class VeriferSlow(Verifier):
+    async def _forward(
+        self, tok_ids: torch.Tensor, n: int
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        await asyncio.sleep(1)
+        return super()._forward(tok_ids, n)
+
+
 class Drafter(Worker):
-    def _forward(
+    async def _forward(
         self, tok_ids: torch.Tensor, n: int
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         outputs = self.model.generate(
@@ -766,7 +774,7 @@ class Drafter(Worker):
         return scores, sequences
 
 class DrafterOracle(Drafter):
-    def _forward(
+    async def _forward(
         self, tok_ids: torch.Tensor, n: int
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         # Llama 3.1 8B 8bit
@@ -948,9 +956,7 @@ async def run(
     # Define the missing arguments
     print(f"Loading tokenizer for {verifier_name}")
     print_gpu_memory()
-    print("Main: Creating manager")
     manager = Manager(
-    # print("Main: Creating ManagerSequential")
     # manager = ManagerSequential(
         draft_queue,
         verify_queue,
@@ -960,6 +966,7 @@ async def run(
         vocab_size,
         lookahead,
     )
+    print(f"Main: Created {manager.__class__.__name__}")
     # drafter = Drafter(draft_queue, response_queue, manager, 0)
     drafter = DrafterOracle(draft_queue, response_queue, manager, 0)
     print("Main: Creating drafter")
@@ -1128,7 +1135,7 @@ async def main():
     verifier_load_in_8bit: bool = True
     drafter_load_in_8bit: bool = True
     vocab_size: int = 128256
-    lookahead: int = 5
+    lookahead: int = 10
     max_new_tokens: int = 100
     prompt: str = """Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
 ### Instruction:
