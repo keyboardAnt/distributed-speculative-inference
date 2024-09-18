@@ -723,7 +723,7 @@ class Verifier(Worker):
             output_attentions=False,
         )
         logits_argmax = outputs.logits.argmax(dim=-1)
-        sequences = torch.cat((tok_ids[0, :1], logits_argmax[0, :])).unsqueeze(0)
+        sequences = torch.cat((tok_ids[0, :-n+1], logits_argmax[0, -n:])).unsqueeze(0)
         return outputs.logits, sequences
 
 
