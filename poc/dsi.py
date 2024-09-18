@@ -533,19 +533,19 @@ class Worker(ABC):
         - If a preemption is received, we cancel the current task and update the last preemption timestamp. This will raise a CancelledError.
         - Otherwise (a request is received), we verify that it is valid (newer than the last preemption) and process it. The processing of the request is done in a separate thread to ensure the worker keeps listening for preemptions.
         """
-        print(f"{self.__class__.__name__}: Starting to process tasks")
+        print(f"{self.__class__.__name__} ({self.gpu_id}): Starting to process tasks")
         self.ready.set()  # Ensure the ready event is set when run starts
         while True:
             preempt_queue = await self.manager.pubsub.subscribe(self.gpu_id)
             print(
-                f"{self.__class__.__name__}: Subscribed to PubSub for GPU {self.gpu_id}"
+                f"{self.__class__.__name__} ({self.gpu_id}): Subscribed to PubSub for GPU {self.gpu_id}"
             )
             get_request = asyncio.create_task(self.queue.get())
             get_preempt = asyncio.create_task(preempt_queue.get())
             current_task = None
             try:
                 print(
-                    f"{self.__class__.__name__}: Waiting for either request or preemption..."
+                    f"{self.__class__.__name__} ({self.gpu_id}): Waiting for either request or preemption..."
                 )
                 done, pending = await asyncio.wait(
                     {get_request, get_preempt}, return_when=asyncio.FIRST_COMPLETED
@@ -554,70 +554,70 @@ class Worker(ABC):
                 if get_preempt in done:
                     preempt_message = get_preempt.result()
                     print(
-                        f"{self.__class__.__name__}: Received preemption message at {preempt_message.timestamp}"
+                        f"{self.__class__.__name__} ({self.gpu_id}): Received preemption message at {preempt_message.timestamp}"
                     )
                     self.timestamp_preemption = max(
                         self.timestamp_preemption, preempt_message.timestamp
                     )
                     print(
-                        f"{self.__class__.__name__}: Updated timestamp_preemption to {self.timestamp_preemption} (it is the max of the previous timestamp and the received preemption timestamp)"
+                        f"{self.__class__.__name__} ({self.gpu_id}): Updated timestamp_preemption to {self.timestamp_preemption} (it is the max of the previous timestamp and the received preemption timestamp)"
                     )
                     if self.timestamp_request > self.timestamp_preemption:
                         print(
-                            f"{self.__class__.__name__}: Dropping outdated preemption message. "
+                            f"{self.__class__.__name__} ({self.gpu_id}): Dropping outdated preemption message. "
                             f"Last preemption timestamp: {self.timestamp_preemption}, "
                             f"last or current request timestamp: {self.timestamp_request}, "
                             f"received preemption timestamp: {preempt_message.timestamp}"
                         )
                         continue
                     print(
-                        f"{self.__class__.__name__}: Processing preemption message because it was created before the last or current request. Therefore we need to terminate the current task."
+                        f"{self.__class__.__name__} ({self.gpu_id}): Processing preemption message because it was created before the last or current request. Therefore we need to terminate the current task."
                     )
                     if get_request.done():
                         print(
-                            f"{self.__class__.__name__}: While receiving a preemption message, a request was received."
+                            f"{self.__class__.__name__} ({self.gpu_id}): While receiving a preemption message, a request was received."
                         )
                         request = get_request.result()
                         print(
-                            f"{self.__class__.__name__}: Received request {request.id} at timestamp {request.timestamp}"
+                            f"{self.__class__.__name__} ({self.gpu_id}): Received request {request.id} at timestamp {request.timestamp}"
                         )
                         if request.timestamp > self.timestamp_preemption:
                             print(
-                                f"{self.__class__.__name__}: The received request {request.id} is valid (was created after the preemption). Returning it to the queue."
+                                f"{self.__class__.__name__} ({self.gpu_id}): The received request {request.id} is valid (was created after the preemption). Returning it to the queue."
                             )
                             self.queue.put_nowait(request)
                             print(
-                                f"{self.__class__.__name__}: Request {request.id} was returned to the queue"
+                                f"{self.__class__.__name__} ({self.gpu_id}): Request {request.id} was returned to the queue"
                             )
                     else:
                         print(
-                            f"{self.__class__.__name__}: Cancelling `get_request` to stop waiting for a queued request"
+                            f"{self.__class__.__name__} ({self.gpu_id}): Cancelling `get_request` to stop waiting for a queued request"
                         )
                         get_request.cancel()
-                        print(f"{self.__class__.__name__}: `get_request` was cancelled")
+                        print(f"{self.__class__.__name__} ({self.gpu_id}): `get_request` was cancelled")
                     if current_task is not None:
-                        print(f"{self.__class__.__name__}: Cancelling current task")
+                        print(f"{self.__class__.__name__} ({self.gpu_id}): Cancelling current task")
                         current_task.cancel()
-                        print(f"{self.__class__.__name__}: Current task was cancelled")
+                        print(f"{self.__class__.__name__} ({self.gpu_id}): Current task was cancelled")
                     else:
-                        print(f"{self.__class__.__name__}: No current task to cancel")
+                        print(f"{self.__class__.__name__} ({self.gpu_id}): No current task to cancel")
                     print(
-                        f"{self.__class__.__name__}: Done processing preemption message"
+                        f"{self.__class__.__name__} ({self.gpu_id}): Done processing preemption message"
                     )
                 else:  # get_request in done
                     request = get_request.result()
                     print(
-                        f"{self.__class__.__name__}: Received request with ID {request.id} at timestamp {request.timestamp}. Last preemption timestamp: {self.timestamp_preemption}"
+                        f"{self.__class__.__name__} ({self.gpu_id}): Received request with ID {request.id} at timestamp {request.timestamp}. Last preemption timestamp: {self.timestamp_preemption}"
                     )
                     if request.timestamp < self.timestamp_preemption:
                         print(
-                            f"{self.__class__.__name__}: Dropping outdated request {request.id}"
+                            f"{self.__class__.__name__} ({self.gpu_id}): Dropping outdated request {request.id}"
                         )
                         self.queue.task_done()
                         continue
 
                     print(
-                        f"{self.__class__.__name__}: Processing request with ID {request.id}"
+                        f"{self.__class__.__name__} ({self.gpu_id}): Processing request with ID {request.id}"
                     )
                     current_task = asyncio.create_task(self.perform_task(request))
                     done, pending = await asyncio.wait(
@@ -627,27 +627,27 @@ class Worker(ABC):
                     if get_preempt in done:
                         preempt_message = get_preempt.result()
                         print(
-                            f"{self.__class__.__name__}: Received preemption message at {preempt_message.timestamp}"
+                            f"{self.__class__.__name__} ({self.gpu_id}): Received preemption message at {preempt_message.timestamp}"
                         )
                         self.timestamp_preemption = max(
                             self.timestamp_preemption, preempt_message.timestamp
                         )
                         print(
-                            f"{self.__class__.__name__}: Updated timestamp_preemption to {self.timestamp_preemption}"
+                            f"{self.__class__.__name__} ({self.gpu_id}): Updated timestamp_preemption to {self.timestamp_preemption}"
                         )
 
                         current_task.cancel()
-                        print(f"{self.__class__.__name__}: Current task was preempted")
+                        print(f"{self.__class__.__name__} ({self.gpu_id}): Current task was preempted")
                     else:
                         response = current_task.result()
                         await self.response_queue.put(response)
                         print(
-                            f"{self.__class__.__name__}: Task {request.id} completed. Response enqueued."
+                            f"{self.__class__.__name__} ({self.gpu_id}): Task {request.id} completed. Response enqueued."
                         )
 
             except asyncio.CancelledError as e:
-                print(f"{self.__class__.__name__}: Task {request.id} was cancelled")
-                print(f"{self.__class__.__name__}: CancelledError: {e}")
+                print(f"{self.__class__.__name__} ({self.gpu_id}): Task {request.id} was cancelled")
+                print(f"{self.__class__.__name__} ({self.gpu_id}): CancelledError: {e}")
                 self.queue.task_done()
                 raise e
 
@@ -672,9 +672,9 @@ class Worker(ABC):
         """
         self.timestamp_request = request.timestamp
         print(
-            f"{self.__class__.__name__}: Last or current request timestamp: {self.timestamp_request}"
+            f"{self.__class__.__name__} ({self.gpu_id}): Last or current request timestamp: {self.timestamp_request}"
         )
-        print(f"{self.__class__.__name__}: Getting scores for task {request.id}")
+        print(f"{self.__class__.__name__} ({self.gpu_id}): Getting scores for task {request.id}")
         device = next(self.model.parameters()).device
         tok_ids = request.tok_ids.to(device)
         # Run in executor (i.e., separate thread) to avoid blocking the event loop
@@ -684,7 +684,7 @@ class Worker(ABC):
         # Move scores and tok_ids to the CPU
         scores = scores.to("cpu")
         tok_ids = tok_ids.to("cpu")
-        print(f"{self.__class__.__name__}: Computed scores of shape {scores.shape}")
+        print(f"{self.__class__.__name__} ({self.gpu_id}): Computed scores of shape {scores.shape}")
         return Response(
             id=request.id,
             timestamp=time.time(),
@@ -704,7 +704,7 @@ class Worker(ABC):
             n: The number of positions for which the return value should contain scores.
         """
         print(
-            f"{self.__class__.__name__}: Using thread ID"
+            f"{self.__class__.__name__} ({self.gpu_id}): Using thread ID"
             f" {threading.get_native_id()} (PID: {os.getpid()})"
         )
         # only the prefix of tok_ids that is not -1 is the prompt
@@ -713,7 +713,7 @@ class Worker(ABC):
         assert n > 0, "n must be greater than 0"
         scores, sequences = await self._forward(tok_ids, n)
         print(
-            f"{self.__class__.__name__}: Generated sequences of shape {sequences.shape}"
+            f"{self.__class__.__name__} ({self.gpu_id}): Generated sequences of shape {sequences.shape}"
         )
         return scores, sequences
 
@@ -1091,7 +1091,7 @@ The meetings can be live or virtual, but with the pandemic continuing in many pa
 ### Response:"""
     tok_ids = encode(prompt, verifier_name)
     tok_ids = await run(
-        manager_cls=Manager,
+        manager_cls=ManagerSequential,
         verifier_cls=VerifierSlow,
         drafter_cls=Drafter,
         verifier_name=verifier_name,
@@ -1101,7 +1101,7 @@ The meetings can be live or virtual, but with the pandemic continuing in many pa
         drafter_dtype=torch.float16,
         verifier_load_in_8bit=True,
         drafter_load_in_8bit=True,
-        lookahead=10,
+        lookahead=5,
         tok_ids=tok_ids,
         max_new_tokens=100,
     )
