@@ -730,7 +730,7 @@ class Verifier(Worker):
     async def _forward(
         self, tok_ids: torch.Tensor, n: int
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        outputs = await self.model.forward(
+        outputs = self.model.forward(
             input_ids=tok_ids,
             attention_mask=torch.ones_like(tok_ids),
             use_cache=False,
@@ -742,7 +742,7 @@ class Verifier(Worker):
         if n > 1:
             tok_ids = tok_ids[:, :-n+1]
         sequences = torch.cat((tok_ids[0, :], logits_argmax[0, -n:])).unsqueeze(0)
-        return await outputs.logits, sequences
+        return outputs.logits, sequences
 
 
 class VerifierSlow(Verifier):
@@ -757,7 +757,7 @@ class Drafter(Worker):
     async def _forward(
         self, tok_ids: torch.Tensor, n: int
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        outputs = await self.model.generate(
+        outputs = self.model.generate(
             input_ids=tok_ids,
             attention_mask=torch.ones_like(tok_ids),
             max_new_tokens=n,
@@ -771,7 +771,7 @@ class Drafter(Worker):
         )
         scores = torch.stack(outputs.scores, dim=1)
         sequences = outputs.sequences
-        return await scores, sequences
+        return scores, sequences
 
 class DrafterOracle(Drafter):
     async def _forward(
@@ -828,7 +828,7 @@ class DrafterOracle(Drafter):
         idx_first_new_token = tok_ids.shape[1]
         ret_tok_ids = oracle_tok_ids[:, idx_first_new_token:idx_first_new_token+n]
         ret_scores = torch.zeros((1, n, self.model.config.vocab_size))
-        return await ret_scores, ret_tok_ids
+        return ret_scores, ret_tok_ids
 
 class PubSub:
     def __init__(self):
