@@ -755,7 +755,7 @@ class VerifierSlow(Verifier):
     async def _forward(
         self, tok_ids: torch.Tensor, n: int
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(1)
         return await super()._forward(tok_ids, n)
 
 
