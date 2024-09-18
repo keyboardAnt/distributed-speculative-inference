@@ -242,7 +242,7 @@ class Manager:
         print(f"{self.__class__.__name__}: Starting run")
         print(f"{self.__class__.__name__}: prompt's tok_ids.shape: {self.tok_ids.shape}")
         print(f"{self.__class__.__name__}: prompt's tok_ids: {self.tok_ids}")
-        to_verify_semaphore: int = self.verify_queue.qsize()
+        to_verify_semaphore: int = self.verify_queue.maxsize()
         print(f"{self.__class__.__name__}: {to_verify_semaphore=}")
         to_draft: bool = True
         while (self.tok_ids == -1).any():  # On init, acceptance, or rejection
