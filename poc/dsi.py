@@ -184,16 +184,16 @@ class Manager:
         requested = self.requested_verify if queue == self.verify_queue else self.requested_draft
         if requested[0, self.id_to_mask[request.id]].all():
             print(
-                f"Manager: Won't send request {request.id} because it covers already requested positions."
+                f"{self.__class__.__name__}: Won't send {('verify' if queue == self.verify_queue else 'draft')} request {request.id} because it covers already requested positions."
             )
             return
         requested[0, self.id_to_mask[request.id]] = True
         print(
-            f"Manager: Enqueuing request {request.id} to {'draft' if queue == self.draft_queue else 'verify'} queue"
+            f"{self.__class__.__name__}: Enqueuing request {request.id} to {'draft' if queue == self.draft_queue else 'verify'} queue"
         )
         await queue.put(request)
         print(
-            f"Manager: Sent {('verify' if queue == self.verify_queue else 'draft')} request with n={request.n} and tok_ids={self.get_tok_ids_with_drafts()}"
+            f"{self.__class__.__name__}: Sent {('verify' if queue == self.verify_queue else 'draft')} request with n={request.n} and tok_ids={self.get_tok_ids_with_drafts()}"
         )
 
 
@@ -230,7 +230,7 @@ class Manager:
         print(f"{self.__class__.__name__}: Sending preempt message to workers")
         await self.pubsub.publish(Preemption.create())
         print(
-            f"Manager: Preempt message sent to workers"
+            f"{self.__class__.__name__}: Preempt message sent to workers"
         )
         # # Clear the queues
         # print(f"{self.__class__.__name__}: Clearing queues")
@@ -242,11 +242,15 @@ class Manager:
         print(f"{self.__class__.__name__}: Starting run")
         print(f"{self.__class__.__name__}: prompt's tok_ids.shape: {self.tok_ids.shape}")
         print(f"{self.__class__.__name__}: prompt's tok_ids: {self.tok_ids}")
+        to_draft = True
         while (self.tok_ids == -1).any():  # On init, acceptance, or rejection
             print(f"{self.__class__.__name__}: number of empty tok_ids: {(self.tok_ids == -1).sum()}")
             print(f"{self.__class__.__name__}: {self.tok_ids=}")
-            await self.send_requests()
             any_rejected: bool = False
+            await self.send_reqeust_verify()
+            if to_draft:
+                await self.send_request_draft()
+            to_draft = False
             while (self.tok_ids == -1).any():  # On dropping
                 print(f"{self.__class__.__name__}: Waiting for response")
                 response: Response = await self.response_queue.get()
@@ -255,7 +259,7 @@ class Manager:
                 )
                 if response.id not in self.id_to_mask:
                     print(
-                        f"Manager: Response {response.id} is not in id_to_mask. Dropping."
+                        f"{self.__class__.__name__}: Response {response.id} is not in id_to_mask. Dropping."
                     )
                     self.response_queue.task_done()
                     continue
@@ -264,6 +268,7 @@ class Manager:
                 )
                 mask: torch.Tensor = self.id_to_mask.pop(response.id)
                 if response.is_draft:
+                    to_draft = True
                     self.draft_scores[0, mask] = response.scores
                     self.draft_tok_ids[0, mask] = response.tok_ids[
                         0, -response.scores.shape[1] :
@@ -288,9 +293,10 @@ class Manager:
                 print(f"{self.__class__.__name__}: Rejected response {response.id}. Preempting all workers and resetting.")
                 await self.preempt_all()
                 self._reset()
+                to_draft = True
 
     @torch.no_grad()
-    async def send_requests(self) -> None:
+    async def send_reqeust_verify(self) -> None:
         # Select n based on the number of draft tokens waiting for verification
         mask_draft_tok_ids_to_verify = (self.tok_ids == -1) & (
             self.draft_tok_ids != -1
@@ -303,6 +309,9 @@ class Manager:
             Request.create(self.get_tok_ids_with_drafts(), n=n),
             self.verify_queue,
         )
+
+    @torch.no_grad()
+    async def send_request_draft(self) -> None:
         mask_draft_tok_ids_to_draft = (self.tok_ids == -1) & (self.draft_tok_ids == -1)
         curr_lookahead: int = min(
             self.lookahead, mask_draft_tok_ids_to_draft.sum() - 1
@@ -333,7 +342,7 @@ class Manager:
         if any_rejected:
             idx_first_rejected = (draft_tok_ids != tok_ids_accepted).nonzero()[0].item()
             print(
-                f"Manager: First rejected token is at index {idx_first_rejected}. Accepting the first {idx_first_rejected} tokens."
+                f"{self.__class__.__name__}: First rejected token is at index {idx_first_rejected}. Accepting the first {idx_first_rejected} tokens."
             )
             tok_ids_accepted = tok_ids_accepted[: idx_first_rejected + 1]
         print(
@@ -470,8 +479,8 @@ class Worker(ABC):
         # )
         if cache_dir is None:
             cache_dir = os.environ["TRANSFORMERS_CACHE"]
-        print(f"{self.__class__.__name__}: Loading model {name} with {device_map=}")
         if device_map is None:
+            print(f"{self.__class__.__name__}: Loading model {name} without specifying device map")
             self.model = AutoModelForCausalLM.from_pretrained(
             name,
             torch_dtype=dtype,
@@ -479,6 +488,7 @@ class Worker(ABC):
             load_in_8bit=load_in_8bit,
         )
         else:
+            print(f"{self.__class__.__name__}: Loading model {name} with {device_map=}")
             self.model = AutoModelForCausalLM.from_pretrained(
                 name,
                 torch_dtype=dtype,
@@ -500,6 +510,7 @@ class Worker(ABC):
         except Exception as e:
             print(f"{self.__class__.__name__}: Error checking hf_device_map: {e}")
         print_gpu_memory()
+        print(f"{self.__class__.__name__}: {next(self.model.parameters()).device=}")
 
     async def run(self) -> None:
         """
@@ -758,6 +769,31 @@ class DrafterOracle(Drafter):
     def _forward(
         self, tok_ids: torch.Tensor, n: int
     ) -> Tuple[torch.Tensor, torch.Tensor]:
+        # Llama 3.1 8B 8bit
+        # oracle_tok_ids = torch.tensor([[128000,  39314,    374,    459,   7754,    430,  16964,    264,   3465,
+        #      11,  35526,    449,    459,   1988,    430,   5825,   4726,   2317,
+        #      13,   9842,    264,   2077,    430,  36001,  45695,    279,   1715,
+        #     627,  14711,  30151,    512,  23340,    279,   1495,   1139,   1403,
+        #   20406,  43743,    627,  14711,   5688,    512,    791,  16659,    649,
+        #     387,   3974,    477,   4200,     11,    719,    449,    279,  28522,
+        #   14691,    304,   1690,   5596,    315,    279,   1917,     11,   1690,
+        #    5220,    690,   3469,    369,   4200,  16659,    304,   2015,    311,
+        #   30437,    279,   9041,    315,  17563,     13,  21382,  16659,   1101,
+        #    4546,    459,   1358,    315,  22934,   1093,   1694,   3025,    311,
+        #    4667,    449,   1274,    304,   2204,   5596,    315,    279,   1917,
+        #     627,  14711,   6075,     25,    720,    791,  16659,    649,    387,
+        #    3974,    477,   4200,     11,    719,    449,    279,  28522,  14691,
+        #     304,   1690,   5596,    315,    279,   1917,     11,   1690,   5220,
+        #     690,   3469,    369,   4200,  16659,    304,   2015,    311,  30437,
+        #     279,   9041,    315,  17563,     13,  21382,  16659,   1101,   4546,
+        #     459,   1358,    315,  22934,   1093,   1694,   3025,    311,   4667,
+        #     449,   1274,    304,   2204,   5596,    315,    279,   1917,     13,
+        #     720,  34126,  16659,   1101,   4546,    459,   1358,    315,  22934,
+        #    1093,   1694,   3025,    311,   4667,    449,   1274,    304,   2204,
+        #    5596,    315,    279,   1917,     13,    578,  16659,    649,    387,
+        #    3974,    477,   4200,     11,    719,    449,    279,  28522,  14691,
+        #     304,   1690,   5596,    315,    279]])
+        # Llama 3.1 70B 8bit
         oracle_tok_ids = torch.tensor([[128000,  39314,    374,    459,   7754,    430,  16964,    264,   3465,
              11,  35526,    449,    459,   1988,    430,   5825,   4726,   2317,
              13,   9842,    264,   2077,    430,  36001,  45695,    279,   1715,
@@ -769,18 +805,18 @@ class DrafterOracle(Drafter):
           30437,    279,   9041,    315,  17563,     13,  21382,  16659,   1101,
            4546,    459,   1358,    315,  22934,   1093,   1694,   3025,    311,
            4667,    449,   1274,    304,   2204,   5596,    315,    279,   1917,
-            627,  14711,   6075,     25,    720,    791,  16659,    649,    387,
+            627,  14711,   6075,     25,   4815,    791,  16659,    649,    387,
            3974,    477,   4200,     11,    719,    449,    279,  28522,  14691,
             304,   1690,   5596,    315,    279,   1917,     11,   1690,   5220,
             690,   3469,    369,   4200,  16659,    304,   2015,    311,  30437,
-            279,   9041,    315,  17563,     13,  21382,  16659,   1101,   4546,
+            279,   9041,    315,  17563,    382,  34126,  16659,   1101,   4546,
             459,   1358,    315,  22934,   1093,   1694,   3025,    311,   4667,
             449,   1274,    304,   2204,   5596,    315,    279,   1917,     13,
-            720,  34126,  16659,   1101,   4546,    459,   1358,    315,  22934,
-           1093,   1694,   3025,    311,   4667,    449,   1274,    304,   2204,
-           5596,    315,    279,   1917,     13,    578,  16659,    649,    387,
+         128009, 128006,  78191, 128007,    271,    791,  16659,    649,    387,
            3974,    477,   4200,     11,    719,    449,    279,  28522,  14691,
-            304,   1690,   5596,    315,    279]])
+            304,   1690,   5596,    315,    279,   1917,     11,   1690,   5220,
+            690,   3469,    369,   4200,  16659,    304,   2015,    311,  30437,
+            279,   9041,    315,  17563,    382]])
         idx_first_new_token = tok_ids.shape[1]
         ret_tok_ids = oracle_tok_ids[:, idx_first_new_token:idx_first_new_token+n]
         ret_scores = torch.zeros((1, n, self.model.config.vocab_size))
@@ -1085,8 +1121,7 @@ def decode(tok_ids: torch.Tensor, tokernizer_name: str) -> str:
 async def main():
     print("Script started")
     print_gpu_memory()
-    # verifier_name: str = "meta-llama/Meta-Llama-3.1-70B-Instruct"
-    verifier_name: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
+    verifier_name: str = "meta-llama/Meta-Llama-3.1-70B-Instruct"
     drafter_name: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
     verifier_dtype: torch.dtype = torch.float16
     drafter_dtype: torch.dtype = torch.float16

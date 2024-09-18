@@ -169,3 +169,8 @@ results
 
 # Node modules
 node_modules
+package.json
+package-lock.json
+
+# CUDA memory snapshots
+cuda_memory_snapshot_*.pickle
