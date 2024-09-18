@@ -730,7 +730,7 @@ class Verifier(Worker):
     async def _forward(
         self, tok_ids: torch.Tensor, n: int
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        outputs = self.model.forward(
+        outputs = await self.model.forward(
             input_ids=tok_ids,
             attention_mask=torch.ones_like(tok_ids),
             use_cache=False,
@@ -742,22 +742,22 @@ class Verifier(Worker):
         if n > 1:
             tok_ids = tok_ids[:, :-n+1]
         sequences = torch.cat((tok_ids[0, :], logits_argmax[0, -n:])).unsqueeze(0)
-        return outputs.logits, sequences
+        return await outputs.logits, sequences
 
 
-class VeriferSlow(Verifier):
+class VerifierSlow(Verifier):
     async def _forward(
         self, tok_ids: torch.Tensor, n: int
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         await asyncio.sleep(1)
-        return super()._forward(tok_ids, n)
+        return await super()._forward(tok_ids, n)
 
 
 class Drafter(Worker):
     async def _forward(
         self, tok_ids: torch.Tensor, n: int
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        outputs = self.model.generate(
+        outputs = await self.model.generate(
             input_ids=tok_ids,
             attention_mask=torch.ones_like(tok_ids),
             max_new_tokens=n,
@@ -771,7 +771,7 @@ class Drafter(Worker):
         )
         scores = torch.stack(outputs.scores, dim=1)
         sequences = outputs.sequences
-        return scores, sequences
+        return await scores, sequences
 
 class DrafterOracle(Drafter):
     async def _forward(
@@ -828,7 +828,7 @@ class DrafterOracle(Drafter):
         idx_first_new_token = tok_ids.shape[1]
         ret_tok_ids = oracle_tok_ids[:, idx_first_new_token:idx_first_new_token+n]
         ret_scores = torch.zeros((1, n, self.model.config.vocab_size))
-        return ret_scores, ret_tok_ids
+        return await ret_scores, ret_tok_ids
 
 class PubSub:
     def __init__(self):
@@ -1089,7 +1089,7 @@ The meetings can be live or virtual, but with the pandemic continuing in many pa
     tok_ids = encode(prompt, verifier_name)
     tok_ids = await run(
         manager_cls=Manager,
-        verifier_cls=Verifier,
+        verifier_cls=VerifierSlow,
         drafter_cls=DrafterOracle,
         verifier_name=verifier_name,
         drafter_name="meta-llama/Meta-Llama-3.1-8B-Instruct",
