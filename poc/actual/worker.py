@@ -54,15 +54,11 @@ class Worker(ABC):
         self.timestamp_preemption = 0  # Initialize with 0
         self.timestamp_request = 0  # Initialize with 0
 
-    def set_pubsub(self, pubsub: PubSub) -> None:
+    def reset(self) -> None:
         self.ready.clear()
-        self.pubsub = pubsub
-        print(f"{self.__class__.__name__}: PubSub set")
         self.timestamp_preemption = 0
         self.timestamp_request = 0
-        print(
-            f"{self.__class__.__name__}: Resetting timestamp_preemption and timestamp_request"
-        )
+        print(f"{self.__class__.__name__}: Resetting timestamp_preemption and timestamp_request")
         self.ready.set()
         print(f"{self.__class__.__name__}: Ready event set")
 

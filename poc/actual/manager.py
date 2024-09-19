@@ -36,6 +36,7 @@ class Manager:
         draft_queue: asyncio.Queue[Request],
         verify_queue: asyncio.Queue[Request],
         response_queue: asyncio.Queue[Response],
+        pubsub: PubSub,
         tok_ids: torch.Tensor,
         max_new_tokens: int,
         vocab_size: int,
@@ -72,7 +73,7 @@ class Manager:
             self.draft_tok_ids, False, dtype=torch.bool
         )
         self.requested_draft = self.requested_verify.clone()
-        self.pubsub = PubSub()
+        self.pubsub = pubsub
         print(f"{self.__class__.__name__}: Initialized with PubSub")
 
     async def _send(self, request: Request, queue: asyncio.Queue[Request]) -> None:
