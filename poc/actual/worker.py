@@ -60,7 +60,9 @@ class Worker(ABC):
     def reset(self) -> None:
         self.timestamp_preemption = 0
         self.timestamp_request = 0
-        print(f"{self.__class__.__name__}: Resetting timestamp_preemption and timestamp_request")
+        print(
+            f"{self.__class__.__name__}: Resetting timestamp_preemption and timestamp_request"
+        )
 
     async def load_model(
         self,
@@ -83,13 +85,15 @@ class Worker(ABC):
         if cache_dir is None:
             cache_dir = os.environ["TRANSFORMERS_CACHE"]
         if device_map is None:
-            print(f"{self.__class__.__name__}: Loading model {name} without specifying device map")
+            print(
+                f"{self.__class__.__name__}: Loading model {name} without specifying device map"
+            )
             self.model = AutoModelForCausalLM.from_pretrained(
-            name,
-            torch_dtype=dtype,
-            cache_dir=cache_dir,
-            load_in_8bit=load_in_8bit,
-        )
+                name,
+                torch_dtype=dtype,
+                cache_dir=cache_dir,
+                load_in_8bit=load_in_8bit,
+            )
         else:
             print(f"{self.__class__.__name__}: Loading model {name} with {device_map=}")
             self.model = AutoModelForCausalLM.from_pretrained(
@@ -115,7 +119,6 @@ class Worker(ABC):
         print_gpu_memory()
         print(f"{self.__class__.__name__}: {next(self.model.parameters()).device=}")
 
-
     async def cancel_task(self, task: asyncio.Task) -> None:
         print(f"{self.__class__.__name__} ({self.worker_id}): Cancelling task.")
         task.cancel()
@@ -125,7 +128,9 @@ class Worker(ABC):
             print(f"{self.__class__.__name__} ({self.worker_id}): Task was cancelled")
             return
         except Exception as e:
-            print(f"{self.__class__.__name__} ({self.worker_id}): Task had an exception: {e}")
+            print(
+                f"{self.__class__.__name__} ({self.worker_id}): Task had an exception: {e}"
+            )
             raise
 
     async def run(self) -> None:
@@ -146,7 +151,9 @@ class Worker(ABC):
         - If a preemption is received, we cancel the current task and update the last preemption timestamp. This will raise a CancelledError.
         - Otherwise (a request is received), we verify that it is valid (newer than the last preemption) and process it. The processing of the request is done in a separate thread to ensure the worker keeps listening for preemptions.
         """
-        print(f"{self.__class__.__name__} ({self.worker_id}): Starting to process tasks")
+        print(
+            f"{self.__class__.__name__} ({self.worker_id}): Starting to process tasks"
+        )
         self.ready.set()  # Ensure the ready event is set when run starts
         while True:
             preempt_queue = await self.manager.pubsub.subscribe(self.worker_id)
@@ -209,9 +216,13 @@ class Worker(ABC):
                 if current_task is not None:
                     await self.cancel_task(current_task)
                     self.queue.task_done()
-                    print(f"{self.__class__.__name__} ({self.worker_id}): Current task was preempted")
+                    print(
+                        f"{self.__class__.__name__} ({self.worker_id}): Current task was preempted"
+                    )
                 else:
-                    print(f"{self.__class__.__name__} ({self.worker_id}): No current task to cancel")
+                    print(
+                        f"{self.__class__.__name__} ({self.worker_id}): No current task to cancel"
+                    )
                 print(
                     f"{self.__class__.__name__} ({self.worker_id}): Done processing preemption message"
                 )
@@ -248,7 +259,9 @@ class Worker(ABC):
                     )
                     await self.cancel_task(current_task)
                     self.queue.task_done()
-                    print(f"{self.__class__.__name__} ({self.worker_id}): Current task was preempted")
+                    print(
+                        f"{self.__class__.__name__} ({self.worker_id}): Current task was preempted"
+                    )
                 else:
                     response = current_task.result()
                     await self.response_queue.put(response)
@@ -257,7 +270,9 @@ class Worker(ABC):
                     )
             for task in pending:
                 await self.cancel_task(task)
-            print(f"{self.__class__.__name__} ({self.worker_id}): Cancelled pending tasks")
+            print(
+                f"{self.__class__.__name__} ({self.worker_id}): Cancelled pending tasks"
+            )
 
     @torch.no_grad()
     async def perform_task(self, request: Request) -> Response:
@@ -282,7 +297,9 @@ class Worker(ABC):
         print(
             f"{self.__class__.__name__} ({self.worker_id}): Last or current request timestamp: {self.timestamp_request}"
         )
-        print(f"{self.__class__.__name__} ({self.worker_id}): Getting scores for task {request.id}")
+        print(
+            f"{self.__class__.__name__} ({self.worker_id}): Getting scores for task {request.id}"
+        )
         device = next(self.model.parameters()).device
         tok_ids = request.tok_ids.to(device)
         # Run in executor (i.e., separate thread) to avoid blocking the event loop
@@ -292,7 +309,9 @@ class Worker(ABC):
         # Move scores and tok_ids to the CPU
         scores = scores.to("cpu")
         tok_ids = tok_ids.to("cpu")
-        print(f"{self.__class__.__name__} ({self.worker_id}): Computed scores of shape {scores.shape}")
+        print(
+            f"{self.__class__.__name__} ({self.worker_id}): Computed scores of shape {scores.shape}"
+        )
         return Response(
             id=request.id,
             timestamp=time.time(),
@@ -353,7 +372,7 @@ class Verifier(Worker):
         )
         logits_argmax = outputs.logits.argmax(dim=-1)
         if n > 1:
-            tok_ids = tok_ids[:, :-n+1]
+            tok_ids = tok_ids[:, : -n + 1]
         sequences = torch.cat((tok_ids[0, :], logits_argmax[0, -n:])).unsqueeze(0)
         return outputs.logits, sequences
 
@@ -418,30 +437,216 @@ class DrafterOracle(Drafter):
         #    3974,    477,   4200,     11,    719,    449,    279,  28522,  14691,
         #     304,   1690,   5596,    315,    279]])
         # Llama 3.1 70B 8bit
-        oracle_tok_ids = torch.tensor([[128000,  39314,    374,    459,   7754,    430,  16964,    264,   3465,
-             11,  35526,    449,    459,   1988,    430,   5825,   4726,   2317,
-             13,   9842,    264,   2077,    430,  36001,  45695,    279,   1715,
-            627,  14711,  30151,    512,  23340,    279,   1495,   1139,   1403,
-          20406,  43743,    627,  14711,   5688,    512,    791,  16659,    649,
-            387,   3974,    477,   4200,     11,    719,    449,    279,  28522,
-          14691,    304,   1690,   5596,    315,    279,   1917,     11,   1690,
-           5220,    690,   3469,    369,   4200,  16659,    304,   2015,    311,
-          30437,    279,   9041,    315,  17563,     13,  21382,  16659,   1101,
-           4546,    459,   1358,    315,  22934,   1093,   1694,   3025,    311,
-           4667,    449,   1274,    304,   2204,   5596,    315,    279,   1917,
-            627,  14711,   6075,     25,   4815,    791,  16659,    649,    387,
-           3974,    477,   4200,     11,    719,    449,    279,  28522,  14691,
-            304,   1690,   5596,    315,    279,   1917,     11,   1690,   5220,
-            690,   3469,    369,   4200,  16659,    304,   2015,    311,  30437,
-            279,   9041,    315,  17563,    382,  34126,  16659,   1101,   4546,
-            459,   1358,    315,  22934,   1093,   1694,   3025,    311,   4667,
-            449,   1274,    304,   2204,   5596,    315,    279,   1917,     13,
-         128009, 128006,  78191, 128007,    271,    791,  16659,    649,    387,
-           3974,    477,   4200,     11,    719,    449,    279,  28522,  14691,
-            304,   1690,   5596,    315,    279,   1917,     11,   1690,   5220,
-            690,   3469,    369,   4200,  16659,    304,   2015,    311,  30437,
-            279,   9041,    315,  17563,    382]])
+        oracle_tok_ids = torch.tensor(
+            [
+                [
+                    128000,
+                    39314,
+                    374,
+                    459,
+                    7754,
+                    430,
+                    16964,
+                    264,
+                    3465,
+                    11,
+                    35526,
+                    449,
+                    459,
+                    1988,
+                    430,
+                    5825,
+                    4726,
+                    2317,
+                    13,
+                    9842,
+                    264,
+                    2077,
+                    430,
+                    36001,
+                    45695,
+                    279,
+                    1715,
+                    627,
+                    14711,
+                    30151,
+                    512,
+                    23340,
+                    279,
+                    1495,
+                    1139,
+                    1403,
+                    20406,
+                    43743,
+                    627,
+                    14711,
+                    5688,
+                    512,
+                    791,
+                    16659,
+                    649,
+                    387,
+                    3974,
+                    477,
+                    4200,
+                    11,
+                    719,
+                    449,
+                    279,
+                    28522,
+                    14691,
+                    304,
+                    1690,
+                    5596,
+                    315,
+                    279,
+                    1917,
+                    11,
+                    1690,
+                    5220,
+                    690,
+                    3469,
+                    369,
+                    4200,
+                    16659,
+                    304,
+                    2015,
+                    311,
+                    30437,
+                    279,
+                    9041,
+                    315,
+                    17563,
+                    13,
+                    21382,
+                    16659,
+                    1101,
+                    4546,
+                    459,
+                    1358,
+                    315,
+                    22934,
+                    1093,
+                    1694,
+                    3025,
+                    311,
+                    4667,
+                    449,
+                    1274,
+                    304,
+                    2204,
+                    5596,
+                    315,
+                    279,
+                    1917,
+                    627,
+                    14711,
+                    6075,
+                    25,
+                    4815,
+                    791,
+                    16659,
+                    649,
+                    387,
+                    3974,
+                    477,
+                    4200,
+                    11,
+                    719,
+                    449,
+                    279,
+                    28522,
+                    14691,
+                    304,
+                    1690,
+                    5596,
+                    315,
+                    279,
+                    1917,
+                    11,
+                    1690,
+                    5220,
+                    690,
+                    3469,
+                    369,
+                    4200,
+                    16659,
+                    304,
+                    2015,
+                    311,
+                    30437,
+                    279,
+                    9041,
+                    315,
+                    17563,
+                    382,
+                    34126,
+                    16659,
+                    1101,
+                    4546,
+                    459,
+                    1358,
+                    315,
+                    22934,
+                    1093,
+                    1694,
+                    3025,
+                    311,
+                    4667,
+                    449,
+                    1274,
+                    304,
+                    2204,
+                    5596,
+                    315,
+                    279,
+                    1917,
+                    13,
+                    128009,
+                    128006,
+                    78191,
+                    128007,
+                    271,
+                    791,
+                    16659,
+                    649,
+                    387,
+                    3974,
+                    477,
+                    4200,
+                    11,
+                    719,
+                    449,
+                    279,
+                    28522,
+                    14691,
+                    304,
+                    1690,
+                    5596,
+                    315,
+                    279,
+                    1917,
+                    11,
+                    1690,
+                    5220,
+                    690,
+                    3469,
+                    369,
+                    4200,
+                    16659,
+                    304,
+                    2015,
+                    311,
+                    30437,
+                    279,
+                    9041,
+                    315,
+                    17563,
+                    382,
+                ]
+            ]
+        )
         idx_first_new_token = tok_ids.shape[1]
-        ret_tok_ids = oracle_tok_ids[:, idx_first_new_token:idx_first_new_token+n]
+        ret_tok_ids = oracle_tok_ids[:, idx_first_new_token : idx_first_new_token + n]
         ret_scores = torch.zeros((1, n, self.model.config.vocab_size))
         return ret_scores, ret_tok_ids

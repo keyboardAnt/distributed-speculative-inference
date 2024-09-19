@@ -68,7 +68,9 @@ class Manager:
             dtype=torch.int64,
         )
         self.id_to_mask: Dict[UUID, torch.Tensor] = {}
-        self.requested_verify = torch.full_like(self.draft_tok_ids, False, dtype=torch.bool)
+        self.requested_verify = torch.full_like(
+            self.draft_tok_ids, False, dtype=torch.bool
+        )
         self.requested_draft = self.requested_verify.clone()
         self.pubsub = PubSub()
         print(f"{self.__class__.__name__}: Initialized with PubSub")
@@ -77,7 +79,11 @@ class Manager:
         self.id_to_mask[request.id] = request.get_mask(
             seq_len=self.seq_len, is_draft=queue == self.draft_queue
         )
-        requested = self.requested_verify if queue == self.verify_queue else self.requested_draft
+        requested = (
+            self.requested_verify
+            if queue == self.verify_queue
+            else self.requested_draft
+        )
         if requested[0, self.id_to_mask[request.id]].all():
             print(
                 f"{self.__class__.__name__}: Won't send {('verify' if queue == self.verify_queue else 'draft')} request {request.id} because it covers already requested positions."
@@ -92,9 +98,10 @@ class Manager:
             f"{self.__class__.__name__}: Sent {('verify' if queue == self.verify_queue else 'draft')} request with n={request.n} and tok_ids={self.get_tok_ids_with_drafts()}"
         )
 
-
     def _reset(self) -> None:
-        print(f"{self.__class__.__name__}: Resetting draft_scores, draft_tok_ids, and id_to_mask")
+        print(
+            f"{self.__class__.__name__}: Resetting draft_scores, draft_tok_ids, and id_to_mask"
+        )
         self.draft_scores.fill_(-1)
         self.draft_tok_ids.fill_(-1)
         self.id_to_mask.clear()
@@ -116,9 +123,7 @@ class Manager:
         # Send preempt message to workers
         print(f"{self.__class__.__name__}: Sending preempt message to workers")
         await self.pubsub.publish(Preemption.create())
-        print(
-            f"{self.__class__.__name__}: Preempt message sent to workers"
-        )
+        print(f"{self.__class__.__name__}: Preempt message sent to workers")
         # # Clear the queues
         # print(f"{self.__class__.__name__}: Clearing queues")
         # await self._empty_queue(self.draft_queue)
@@ -127,13 +132,17 @@ class Manager:
 
     async def run(self) -> None:
         print(f"{self.__class__.__name__}: Starting run")
-        print(f"{self.__class__.__name__}: prompt's tok_ids.shape: {self.tok_ids.shape}")
+        print(
+            f"{self.__class__.__name__}: prompt's tok_ids.shape: {self.tok_ids.shape}"
+        )
         print(f"{self.__class__.__name__}: prompt's tok_ids: {self.tok_ids}")
         to_verify_semaphore: int = self.verify_queue.maxsize
         print(f"{self.__class__.__name__}: {to_verify_semaphore=}")
         to_draft: bool = True
         while (self.tok_ids == -1).any():  # On init, acceptance, or rejection
-            print(f"{self.__class__.__name__}: number of empty tok_ids: {(self.tok_ids == -1).sum()}")
+            print(
+                f"{self.__class__.__name__}: number of empty tok_ids: {(self.tok_ids == -1).sum()}"
+            )
             print(f"{self.__class__.__name__}: {self.tok_ids=}")
             any_rejected: bool = False
             if to_verify_semaphore > 0:
@@ -160,7 +169,9 @@ class Manager:
                     )
                     self.response_queue.task_done()
                     if to_draft or (to_verify_semaphore > 0):
-                        print(f"{self.__class__.__name__}: Breaking out the listening loop because is a request to send. ({to_draft=}, {to_verify_semaphore=})")
+                        print(
+                            f"{self.__class__.__name__}: Breaking out the listening loop because is a request to send. ({to_draft=}, {to_verify_semaphore=})"
+                        )
                         break
                     continue
                 print(
@@ -176,8 +187,13 @@ class Manager:
                         f"{self.__class__.__name__}: Updated draft tok_ids and scores with response {response.id}. After the update, the draft tok_ids are {self.draft_tok_ids}"
                     )
                     mask_verified = self.tok_ids[0, mask] != -1
-                    if (self.tok_ids[0, mask][mask_verified] != self.draft_tok_ids[0, mask][mask_verified]).any():
-                        print(f"{self.__class__.__name__}: The draft response {response.id} covers positions that were already verified. The draft token ids differ from the verified ones. (Draft tok_ids: {self.draft_tok_ids[0, mask]}, verified tok_ids: {self.tok_ids[0, mask]})")
+                    if (
+                        self.tok_ids[0, mask][mask_verified]
+                        != self.draft_tok_ids[0, mask][mask_verified]
+                    ).any():
+                        print(
+                            f"{self.__class__.__name__}: The draft response {response.id} covers positions that were already verified. The draft token ids differ from the verified ones. (Draft tok_ids: {self.draft_tok_ids[0, mask]}, verified tok_ids: {self.tok_ids[0, mask]})"
+                        )
                         any_rejected = True
                         self.response_queue.task_done()
                         break
@@ -189,7 +205,9 @@ class Manager:
                 self.response_queue.task_done()
                 break
             if any_rejected:
-                print(f"{self.__class__.__name__}: Rejected response {response.id}. Preempting all workers and resetting.")
+                print(
+                    f"{self.__class__.__name__}: Rejected response {response.id}. Preempting all workers and resetting."
+                )
                 await self.preempt_all()
                 self._reset()
                 to_draft = True
@@ -197,9 +215,7 @@ class Manager:
     @torch.no_grad()
     async def send_reqeust_verify(self) -> None:
         # Select n based on the number of draft tokens waiting for verification
-        mask_draft_tok_ids_to_verify = (self.tok_ids == -1) & (
-            self.draft_tok_ids != -1
-        )
+        mask_draft_tok_ids_to_verify = (self.tok_ids == -1) & (self.draft_tok_ids != -1)
         print(
             f"{self.__class__.__name__}: number of draft tokens waiting for verification: {mask_draft_tok_ids_to_verify.sum()}"
         )
@@ -212,9 +228,7 @@ class Manager:
     @torch.no_grad()
     async def send_request_draft(self) -> None:
         mask_draft_tok_ids_to_draft = (self.tok_ids == -1) & (self.draft_tok_ids == -1)
-        curr_lookahead: int = min(
-            self.lookahead, mask_draft_tok_ids_to_draft.sum() - 1
-        )
+        curr_lookahead: int = min(self.lookahead, mask_draft_tok_ids_to_draft.sum() - 1)
         if curr_lookahead > 0:
             await self._send(
                 Request.create(self.get_tok_ids_with_drafts(), curr_lookahead),
@@ -225,7 +239,9 @@ class Manager:
     def rejection_sampler(
         self, response: Response, mask: torch.Tensor
     ) -> Tuple[torch.Tensor, bool]:
-        print(f"{self.__class__.__name__}: Running an exact match check for response {response.id}.")
+        print(
+            f"{self.__class__.__name__}: Running an exact match check for response {response.id}."
+        )
         response_len = response.tok_ids.shape[1]
         print(f"{self.__class__.__name__}: The response has length {response_len}.")
         tok_ids_accepted = response.tok_ids.clone()[0, mask[:response_len]]
@@ -259,13 +275,19 @@ class Manager:
 class ManagerSequential(Manager):
     async def run(self) -> None:
         print(f"{self.__class__.__name__}: Starting run")
-        print(f"{self.__class__.__name__}: prompt's tok_ids.shape: {self.tok_ids.shape}")
+        print(
+            f"{self.__class__.__name__}: prompt's tok_ids.shape: {self.tok_ids.shape}"
+        )
         print(f"{self.__class__.__name__}: prompt's tok_ids: {self.tok_ids}")
         while (self.tok_ids == -1).any():  # On init, acceptance, or rejection
-            print(f"{self.__class__.__name__}: number of empty tok_ids: {(self.tok_ids == -1).sum()}")
+            print(
+                f"{self.__class__.__name__}: number of empty tok_ids: {(self.tok_ids == -1).sum()}"
+            )
             print(f"{self.__class__.__name__}: {self.tok_ids=}")
             # 1. Draft
-            mask_draft_tok_ids_to_draft = (self.tok_ids == -1) & (self.draft_tok_ids == -1)
+            mask_draft_tok_ids_to_draft = (self.tok_ids == -1) & (
+                self.draft_tok_ids == -1
+            )
             curr_lookahead: int = min(
                 self.lookahead, mask_draft_tok_ids_to_draft.sum() - 1
             )
@@ -289,7 +311,9 @@ class ManagerSequential(Manager):
                 )
                 self.response_queue.task_done()
             # 2. Verify
-            mask_draft_tok_ids_to_verify = (self.tok_ids == -1) & (self.draft_tok_ids != -1)
+            mask_draft_tok_ids_to_verify = (self.tok_ids == -1) & (
+                self.draft_tok_ids != -1
+            )
             print(
                 f"{self.__class__.__name__}: number of draft tokens waiting for verification: {mask_draft_tok_ids_to_verify.sum()}"
             )
@@ -311,5 +335,7 @@ class ManagerSequential(Manager):
             self.tok_ids[0, mask] = tok_ids_padded
             self.response_queue.task_done()
             if any_rejected:
-                print(f"{self.__class__.__name__}: Rejected verify response {response_verify.id}.")
+                print(
+                    f"{self.__class__.__name__}: Rejected verify response {response_verify.id}."
+                )
                 self._reset()

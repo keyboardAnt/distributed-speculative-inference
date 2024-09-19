@@ -20,7 +20,9 @@ class PubSub:
 
     async def subscribe(self, worker_id: int) -> asyncio.Queue[Preemption]:
         if worker_id in self.subscribers:
-            print(f"PubSub: GPU {worker_id} already subscribed. Replacing existing queue.")
+            print(
+                f"PubSub: GPU {worker_id} already subscribed. Replacing existing queue."
+            )
             # Delete the old queue
             del self.subscribers[worker_id]
 

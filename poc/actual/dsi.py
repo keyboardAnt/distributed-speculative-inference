@@ -9,35 +9,48 @@ from datetime import datetime
 import accelerate
 from poc.actual.manager import Manager
 from poc.actual.nonsi_hf import generate
-from poc.actual.utils import decode, encode, load_device_map, print_gpu_memory, setup_hf_cache
+from poc.actual.utils import (
+    decode,
+    encode,
+    load_device_map,
+    print_gpu_memory,
+    setup_hf_cache,
+)
 from poc.actual.worker import Drafter, Verifier, VerifierSlow
 import torch
 
 
 async def setup_workers_and_pubsub(
-        verify_queue: asyncio.Queue,
-        draft_queue: asyncio.Queue,
-        response_queue: asyncio.Queue,
-        manager: Manager,
-        verifier_cls: Type[Verifier],
-        drafter_cls: Type[Drafter],
-        verifier_name: str,
-        drafter_name: str,
-        verifier_dtype: torch.dtype,
-        drafter_dtype: torch.dtype,
-        verifier_load_in_8bit: bool,
-        drafter_load_in_8bit: bool,
-        num_verifiers: int,
-        verifiers_device_maps: list[dict],
-        drafter_device_map: dict | None,
+    verify_queue: asyncio.Queue,
+    draft_queue: asyncio.Queue,
+    response_queue: asyncio.Queue,
+    manager: Manager,
+    verifier_cls: Type[Verifier],
+    drafter_cls: Type[Drafter],
+    verifier_name: str,
+    drafter_name: str,
+    verifier_dtype: torch.dtype,
+    drafter_dtype: torch.dtype,
+    verifier_load_in_8bit: bool,
+    drafter_load_in_8bit: bool,
+    num_verifiers: int,
+    verifiers_device_maps: list[dict],
+    drafter_device_map: dict | None,
 ) -> None:
     setup_hf_cache()
     print_gpu_memory()
     print("Main: Creating server instances")
-    drafter = drafter_cls(queue=draft_queue, response_queue=response_queue, manager=manager, worker_id=0)
+    drafter = drafter_cls(
+        queue=draft_queue, response_queue=response_queue, manager=manager, worker_id=0
+    )
     print("Main: Created drafter")
     verifiers = [
-        verifier_cls(queue=verify_queue, response_queue=response_queue, manager=manager, worker_id=i)
+        verifier_cls(
+            queue=verify_queue,
+            response_queue=response_queue,
+            manager=manager,
+            worker_id=i,
+        )
         for i in range(1, num_verifiers + 1)
     ]
     print(f"Main: Created {len(verifiers)} verifiers")
@@ -114,7 +127,9 @@ async def run(
         lookahead,
     )
     print(f"Main: Created {manager.__class__.__name__}")
-    verifier_device_map = load_device_map("/workspace/distributed-speculative-inference/poc/actual/device_maps/device_map_meta-llama_Meta-Llama-3.1-70B-Instruct_8bit_on_3A40_custom.json")
+    verifier_device_map = load_device_map(
+        "/workspace/distributed-speculative-inference/poc/actual/device_maps/device_map_meta-llama_Meta-Llama-3.1-70B-Instruct_8bit_on_3A40_custom.json"
+    )
     verifier_2_device_map = {k: v + 3 for k, v in verifier_device_map.items()}
     verifiers_device_maps = [verifier_device_map, verifier_2_device_map]
     for i, device_map in enumerate(verifiers_device_maps):
@@ -207,7 +222,9 @@ if __name__ == "__main__":
         # Close the loop
         loop.close()
     except Exception as e:
-        print(f"Exception occurred while running asyncio tasks or shutting them down: {e}")
+        print(
+            f"Exception occurred while running asyncio tasks or shutting them down: {e}"
+        )
     current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     dirname = "./cuda_memory_snapshots"
     filename = f"cuda_memory_snapshot_{current_time}.pickle"
