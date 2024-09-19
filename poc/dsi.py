@@ -515,6 +515,13 @@ class Worker(ABC):
         print_gpu_memory()
         print(f"{self.__class__.__name__}: {next(self.model.parameters()).device=}")
 
+
+    async def cancel_task(self, task: asyncio.Task) -> None:
+        print(f"{self.__class__.__name__} ({self.gpu_id}): Cancelling task")
+        task.cancel()
+        await task
+        print(f"{self.__class__.__name__} ({self.gpu_id}): Task cancelled")
+
     async def run(self) -> None:
         """
         Main loop for processing tasks and handling preemptions.
@@ -593,14 +600,10 @@ class Worker(ABC):
                         print(
                             f"{self.__class__.__name__} ({self.gpu_id}): Cancelling `get_request` to stop waiting for a queued request"
                         )
-                        get_request.cancel()
-                        await get_request
-                        print(f"{self.__class__.__name__} ({self.gpu_id}): `get_request` was cancelled")
+                        await self.cancel_task(get_request)
                     if current_task is not None:
-                        print(f"{self.__class__.__name__} ({self.gpu_id}): Cancelling current task")
-                        current_task.cancel()
-                        await current_task
-                        print(f"{self.__class__.__name__} ({self.gpu_id}): Current task was cancelled")
+                        await self.cancel_task(current_task)
+                        self.queue.task_done()
                     else:
                         print(f"{self.__class__.__name__} ({self.gpu_id}): No current task to cancel")
                     print(
@@ -637,9 +640,8 @@ class Worker(ABC):
                         print(
                             f"{self.__class__.__name__} ({self.gpu_id}): Updated timestamp_preemption to {self.timestamp_preemption}"
                         )
-
-                        current_task.cancel()
-                        await current_task
+                        await self.cancel_task(current_task)
+                        self.queue.task_done()
                         print(f"{self.__class__.__name__} ({self.gpu_id}): Current task was preempted")
                     else:
                         response = current_task.result()
@@ -647,12 +649,6 @@ class Worker(ABC):
                         print(
                             f"{self.__class__.__name__} ({self.gpu_id}): Task {request.id} completed. Response enqueued."
                         )
-
-            except asyncio.CancelledError as e:
-                print(f"{self.__class__.__name__} ({self.gpu_id}): Task {request.id} was cancelled")
-                print(f"{self.__class__.__name__} ({self.gpu_id}): CancelledError: {e}")
-                self.queue.task_done()
-                raise e
 
     @torch.no_grad()
     async def perform_task(self, request: Request) -> Response:
@@ -697,6 +693,7 @@ class Worker(ABC):
             tok_ids=tok_ids,
         )
 
+    @torch.no_grad()
     async def forward(
         self, tok_ids: torch.Tensor, n: int
     ) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -733,6 +730,7 @@ class Worker(ABC):
 
 
 class Verifier(Worker):
+    @torch.no_grad()
     async def _forward(
         self, tok_ids: torch.Tensor, n: int
     ) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -752,14 +750,16 @@ class Verifier(Worker):
 
 
 class VerifierSlow(Verifier):
+    @torch.no_grad()
     async def _forward(
         self, tok_ids: torch.Tensor, n: int
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        await asyncio.sleep(1)
+        await asyncio.sleep(5)
         return await super()._forward(tok_ids, n)
 
 
 class Drafter(Worker):
+    @torch.no_grad()
     async def _forward(
         self, tok_ids: torch.Tensor, n: int
     ) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -1120,6 +1120,7 @@ The meetings can be live or virtual, but with the pandemic continuing in many pa
     for task in asyncio.all_tasks():
         if task is not asyncio.current_task():
             task.cancel()
+
             # with contextlib.suppress(asyncio.CancelledError):
                 # await task
             await task
