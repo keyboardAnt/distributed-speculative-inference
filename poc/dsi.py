@@ -438,7 +438,7 @@ class Worker(ABC):
         queue (asyncio.Queue): Queue of incoming tasks.
         response_queue (asyncio.Queue): Queue for sending responses.
         manager (Manager): Reference to the manager for system-wide operations.
-        gpu_id (int): ID of the GPU this worker is using.
+        worker_id (int): ID of this worker.
         model: The loaded model for processing tasks.
         timestamp_preemption (float): Timestamp of the last processed preemption.
         ready (asyncio.Event): Event to signal when the worker is ready.
@@ -449,18 +449,23 @@ class Worker(ABC):
         queue: asyncio.Queue[Request],
         response_queue: asyncio.Queue[Response],
         manager: Manager,
-        gpu_id: int,
+        worker_id: int,
     ):
         self.manager = manager
         self.queue = queue
         self.response_queue = response_queue
-        self.gpu_id = gpu_id
+        self.worker_id = worker_id
         self.model = None
         self.ready = asyncio.Event()
         print(f"{self.__class__.__name__}: Initialized with queues")
         print(f"{self.__class__.__name__}: Using thread ID {threading.get_native_id()}")
         self.timestamp_preemption = 0  # Initialize with 0
         self.timestamp_request = 0  # Initialize with 0
+
+    def reset(self) -> None:
+        self.timestamp_preemption = 0
+        self.timestamp_request = 0
+        print(f"{self.__class__.__name__}: Resetting timestamp_preemption and timestamp_request")
 
     async def load_model(
         self,
@@ -472,11 +477,11 @@ class Worker(ABC):
     ) -> None:
         """Loads the model from the given name and moves it to the device."""
         # device = cpu = "cpu"
-        # if torch.cuda.device_count() > self.gpu_id:
-        #     print(f"GPU {self.gpu_id} available. Using GPU.")
-        #     device = f"cuda:{self.gpu_id}"
+        # if torch.cuda.device_count() > self.worker_id:
+        #     print(f"GPU {self.worker_id} available. Using GPU.")
+        #     device = f"cuda:{self.worker_id}"
         # else:
-        #     print(f"GPU {self.gpu_id} not available. Using CPU.")
+        #     print(f"GPU {self.worker_id} not available. Using CPU.")
         # print(
         #     f"{self.__class__.__name__}: Loading model {name} on {device} (using device map {device_map})"
         # )
@@ -517,15 +522,15 @@ class Worker(ABC):
 
 
     async def cancel_task(self, task: asyncio.Task) -> None:
-        print(f"{self.__class__.__name__} ({self.gpu_id}): Cancelling task: {task}")
+        print(f"{self.__class__.__name__} ({self.worker_id}): Cancelling task: {task}")
         task.cancel()
         try:
             await task
         except asyncio.CancelledError:
-            print(f"{self.__class__.__name__} ({self.gpu_id}): Task was cancelled")
+            print(f"{self.__class__.__name__} ({self.worker_id}): Task was cancelled")
             return
         except Exception as e:
-            print(f"{self.__class__.__name__} ({self.gpu_id}): Task had an exception: {e}")
+            print(f"{self.__class__.__name__} ({self.worker_id}): Task had an exception: {e}")
             raise
 
     async def run(self) -> None:
@@ -546,18 +551,18 @@ class Worker(ABC):
         - If a preemption is received, we cancel the current task and update the last preemption timestamp. This will raise a CancelledError.
         - Otherwise (a request is received), we verify that it is valid (newer than the last preemption) and process it. The processing of the request is done in a separate thread to ensure the worker keeps listening for preemptions.
         """
-        print(f"{self.__class__.__name__} ({self.gpu_id}): Starting to process tasks")
+        print(f"{self.__class__.__name__} ({self.worker_id}): Starting to process tasks")
         self.ready.set()  # Ensure the ready event is set when run starts
         while True:
-            preempt_queue = await self.manager.pubsub.subscribe(self.gpu_id)
+            preempt_queue = await self.manager.pubsub.subscribe(self.worker_id)
             print(
-                f"{self.__class__.__name__} ({self.gpu_id}): Subscribed to PubSub for GPU {self.gpu_id}"
+                f"{self.__class__.__name__} ({self.worker_id}): Subscribed to PubSub for GPU {self.worker_id}"
             )
             get_request = asyncio.create_task(self.queue.get())
             get_preempt = asyncio.create_task(preempt_queue.get())
             current_task = None
             print(
-                f"{self.__class__.__name__} ({self.gpu_id}): Waiting for either request or preemption..."
+                f"{self.__class__.__name__} ({self.worker_id}): Waiting for either request or preemption..."
             )
             done, pending = await asyncio.wait(
                 {get_request, get_preempt}, return_when=asyncio.FIRST_COMPLETED
@@ -566,69 +571,69 @@ class Worker(ABC):
             if get_preempt in done:
                 preempt_message = get_preempt.result()
                 print(
-                    f"{self.__class__.__name__} ({self.gpu_id}): Received preemption message at {preempt_message.timestamp}"
+                    f"{self.__class__.__name__} ({self.worker_id}): Received preemption message at {preempt_message.timestamp}"
                 )
                 self.timestamp_preemption = max(
                     self.timestamp_preemption, preempt_message.timestamp
                 )
                 print(
-                    f"{self.__class__.__name__} ({self.gpu_id}): Updated timestamp_preemption to {self.timestamp_preemption} (it is the max of the previous timestamp and the received preemption timestamp)"
+                    f"{self.__class__.__name__} ({self.worker_id}): Updated timestamp_preemption to {self.timestamp_preemption} (it is the max of the previous timestamp and the received preemption timestamp)"
                 )
                 if self.timestamp_request > self.timestamp_preemption:
                     print(
-                        f"{self.__class__.__name__} ({self.gpu_id}): Dropping outdated preemption message. "
+                        f"{self.__class__.__name__} ({self.worker_id}): Dropping outdated preemption message. "
                         f"Last preemption timestamp: {self.timestamp_preemption}, "
                         f"last or current request timestamp: {self.timestamp_request}, "
                         f"received preemption timestamp: {preempt_message.timestamp}"
                     )
                     continue
                 print(
-                    f"{self.__class__.__name__} ({self.gpu_id}): Processing preemption message because it was created before the last or current request. Therefore we need to terminate the current task."
+                    f"{self.__class__.__name__} ({self.worker_id}): Processing preemption message because it was created before the last or current request. Therefore we need to terminate the current task."
                 )
                 if get_request.done():
                     print(
-                        f"{self.__class__.__name__} ({self.gpu_id}): While receiving a preemption message, a request was received."
+                        f"{self.__class__.__name__} ({self.worker_id}): While receiving a preemption message, a request was received."
                     )
                     request = get_request.result()
                     print(
-                        f"{self.__class__.__name__} ({self.gpu_id}): Received request {request.id} at timestamp {request.timestamp}"
+                        f"{self.__class__.__name__} ({self.worker_id}): Received request {request.id} at timestamp {request.timestamp}"
                     )
                     if request.timestamp > self.timestamp_preemption:
                         print(
-                            f"{self.__class__.__name__} ({self.gpu_id}): The received request {request.id} is valid (was created after the preemption). Returning it to the queue."
+                            f"{self.__class__.__name__} ({self.worker_id}): The received request {request.id} is valid (was created after the preemption). Returning it to the queue."
                         )
                         self.queue.put_nowait(request)
                         print(
-                            f"{self.__class__.__name__} ({self.gpu_id}): Request {request.id} was returned to the queue"
+                            f"{self.__class__.__name__} ({self.worker_id}): Request {request.id} was returned to the queue"
                         )
                 else:
                     print(
-                        f"{self.__class__.__name__} ({self.gpu_id}): Cancelling `get_request` to stop waiting for a queued request"
+                        f"{self.__class__.__name__} ({self.worker_id}): Cancelling `get_request` to stop waiting for a queued request"
                     )
                     await self.cancel_task(get_request)
                 if current_task is not None:
                     await self.cancel_task(current_task)
                     self.queue.task_done()
-                    print(f"{self.__class__.__name__} ({self.gpu_id}): Current task was preempted")
+                    print(f"{self.__class__.__name__} ({self.worker_id}): Current task was preempted")
                 else:
-                    print(f"{self.__class__.__name__} ({self.gpu_id}): No current task to cancel")
+                    print(f"{self.__class__.__name__} ({self.worker_id}): No current task to cancel")
                 print(
-                    f"{self.__class__.__name__} ({self.gpu_id}): Done processing preemption message"
+                    f"{self.__class__.__name__} ({self.worker_id}): Done processing preemption message"
                 )
             else:  # get_request in done
                 request = get_request.result()
                 print(
-                    f"{self.__class__.__name__} ({self.gpu_id}): Received request with ID {request.id} at timestamp {request.timestamp}. Last preemption timestamp: {self.timestamp_preemption}"
+                    f"{self.__class__.__name__} ({self.worker_id}): Received request with ID {request.id} at timestamp {request.timestamp}. Last preemption timestamp: {self.timestamp_preemption}"
                 )
                 if request.timestamp < self.timestamp_preemption:
                     print(
-                        f"{self.__class__.__name__} ({self.gpu_id}): Dropping outdated request {request.id}"
+                        f"{self.__class__.__name__} ({self.worker_id}): Dropping outdated request {request.id}"
                     )
                     self.queue.task_done()
                     continue
 
                 print(
-                    f"{self.__class__.__name__} ({self.gpu_id}): Processing request with ID {request.id}"
+                    f"{self.__class__.__name__} ({self.worker_id}): Processing request with ID {request.id}"
                 )
                 current_task = asyncio.create_task(self.perform_task(request))
                 done, pending = await asyncio.wait(
@@ -638,26 +643,26 @@ class Worker(ABC):
                 if get_preempt in done:
                     preempt_message = get_preempt.result()
                     print(
-                        f"{self.__class__.__name__} ({self.gpu_id}): Received preemption message at {preempt_message.timestamp}"
+                        f"{self.__class__.__name__} ({self.worker_id}): Received preemption message at {preempt_message.timestamp}"
                     )
                     self.timestamp_preemption = max(
                         self.timestamp_preemption, preempt_message.timestamp
                     )
                     print(
-                        f"{self.__class__.__name__} ({self.gpu_id}): Updated timestamp_preemption to {self.timestamp_preemption}"
+                        f"{self.__class__.__name__} ({self.worker_id}): Updated timestamp_preemption to {self.timestamp_preemption}"
                     )
                     await self.cancel_task(current_task)
                     self.queue.task_done()
-                    print(f"{self.__class__.__name__} ({self.gpu_id}): Current task was preempted")
+                    print(f"{self.__class__.__name__} ({self.worker_id}): Current task was preempted")
                 else:
                     response = current_task.result()
                     await self.response_queue.put(response)
                     print(
-                        f"{self.__class__.__name__} ({self.gpu_id}): Task {request.id} completed. Response enqueued."
+                        f"{self.__class__.__name__} ({self.worker_id}): Task {request.id} completed. Response enqueued."
                     )
             for task in pending:
                 await self.cancel_task(task)
-            print(f"{self.__class__.__name__} ({self.gpu_id}): Cancelled pending tasks")
+            print(f"{self.__class__.__name__} ({self.worker_id}): Cancelled pending tasks")
 
     @torch.no_grad()
     async def perform_task(self, request: Request) -> Response:
@@ -680,9 +685,9 @@ class Worker(ABC):
         """
         self.timestamp_request = request.timestamp
         print(
-            f"{self.__class__.__name__} ({self.gpu_id}): Last or current request timestamp: {self.timestamp_request}"
+            f"{self.__class__.__name__} ({self.worker_id}): Last or current request timestamp: {self.timestamp_request}"
         )
-        print(f"{self.__class__.__name__} ({self.gpu_id}): Getting scores for task {request.id}")
+        print(f"{self.__class__.__name__} ({self.worker_id}): Getting scores for task {request.id}")
         device = next(self.model.parameters()).device
         tok_ids = request.tok_ids.to(device)
         # Run in executor (i.e., separate thread) to avoid blocking the event loop
@@ -692,7 +697,7 @@ class Worker(ABC):
         # Move scores and tok_ids to the CPU
         scores = scores.to("cpu")
         tok_ids = tok_ids.to("cpu")
-        print(f"{self.__class__.__name__} ({self.gpu_id}): Computed scores of shape {scores.shape}")
+        print(f"{self.__class__.__name__} ({self.worker_id}): Computed scores of shape {scores.shape}")
         return Response(
             id=request.id,
             timestamp=time.time(),
@@ -713,7 +718,7 @@ class Worker(ABC):
             n: The number of positions for which the return value should contain scores.
         """
         print(
-            f"{self.__class__.__name__} ({self.gpu_id}): Using thread ID"
+            f"{self.__class__.__name__} ({self.worker_id}): Using thread ID"
             f" {threading.get_native_id()} (PID: {os.getpid()})"
         )
         # only the prefix of tok_ids that is not -1 is the prompt
@@ -722,7 +727,7 @@ class Worker(ABC):
         assert n > 0, "n must be greater than 0"
         scores, sequences = await self._forward(tok_ids, n)
         print(
-            f"{self.__class__.__name__} ({self.gpu_id}): Generated sequences of shape {sequences.shape}"
+            f"{self.__class__.__name__} ({self.worker_id}): Generated sequences of shape {sequences.shape}"
         )
         return scores, sequences
 
@@ -858,17 +863,17 @@ class PubSub:
             f"PubSub: Published message '{message}'. Queue size: {self.queue.qsize()}"
         )
 
-    async def subscribe(self, gpu_id: int) -> asyncio.Queue[Preemption]:
-        if gpu_id in self.subscribers:
-            print(f"PubSub: GPU {gpu_id} already subscribed. Replacing existing queue.")
+    async def subscribe(self, worker_id: int) -> asyncio.Queue[Preemption]:
+        if worker_id in self.subscribers:
+            print(f"PubSub: GPU {worker_id} already subscribed. Replacing existing queue.")
             # Delete the old queue
-            del self.subscribers[gpu_id]
+            del self.subscribers[worker_id]
 
         # Create a new queue
         subscriber = asyncio.Queue()
-        self.subscribers[gpu_id] = subscriber
+        self.subscribers[worker_id] = subscriber
         print(
-            f"PubSub: New subscriber added for GPU {gpu_id}."
+            f"PubSub: New subscriber added for GPU {worker_id}."
             f" Total subscribers: {len(self.subscribers)}"
         )
         return subscriber
@@ -911,61 +916,36 @@ def load_device_map(file_name):
     return device_map
 
 
-async def run(
-    manager_cls: Type[Manager],
-    verifier_cls: Type[Verifier],
-    drafter_cls: Type[Drafter],
-    verifier_name: str,
-    drafter_name: str,
-    vocab_size: int,
-    verifier_dtype: torch.dtype,
-    drafter_dtype: torch.dtype,
-    verifier_load_in_8bit: bool,
-    drafter_load_in_8bit: bool,
-    lookahead: int,
-    tok_ids: torch.Tensor,
-    max_new_tokens: int,
+async def setup_workers_and_pubsub(
+        verify_queue: asyncio.Queue,
+        draft_queue: asyncio.Queue,
+        response_queue: asyncio.Queue,
+        manager: Manager,
+        verifier_cls: Type[Verifier],
+        drafter_cls: Type[Drafter],
+        verifier_name: str,
+        drafter_name: str,
+        verifier_dtype: torch.dtype,
+        drafter_dtype: torch.dtype,
+        verifier_load_in_8bit: bool,
+        drafter_load_in_8bit: bool,
+        num_verifiers: int,
+        verifiers_device_maps: list[dict],
+        drafter_device_map: dict | None,
 ) -> None:
     setup_hf_cache()
     print_gpu_memory()
-    # num_verifiers = max(available_gpus - 1, 1)
-    num_verifiers = 2
-    print(f"Main: Number of verifiers: {num_verifiers}")
-    print("Main: Initializing queues")
-    draft_queue = asyncio.Queue(maxsize=1)
-    verify_queue = asyncio.Queue(maxsize=num_verifiers)
-    response_queue = asyncio.Queue()
-
     print("Main: Creating server instances")
-    # Define the missing arguments
-    print(f"Loading tokenizer for {verifier_name}")
-    print_gpu_memory()
-    manager = manager_cls(
-        draft_queue,
-        verify_queue,
-        response_queue,
-        tok_ids,
-        max_new_tokens,
-        vocab_size,
-        lookahead,
-    )
-    print(f"Main: Created {manager.__class__.__name__}")
-    drafter = drafter_cls(draft_queue, response_queue, manager, 0)
-    print("Main: Creating drafter")
+    drafter = drafter_cls(queue=draft_queue, response_queue=response_queue, manager=manager, worker_id=0)
+    print("Main: Created drafter")
     print_gpu_memory()
     available_gpus = torch.cuda.device_count()
     print(f"Main: Available GPUs: {available_gpus}")
-
     verifiers = [
-        verifier_cls(verify_queue, response_queue, manager, i)
+        verifier_cls(queue=verify_queue, response_queue=response_queue, manager=manager, worker_id=i)
         for i in range(1, num_verifiers + 1)
     ]
     print("Main: Loading all verifiers")
-    verifier_device_map = load_device_map("/workspace/distributed-speculative-inference/poc/device_map_meta-llama_Meta-Llama-3.1-70B-Instruct_8bit_on_3A40_custom.json")
-    verifier_2_device_map = {k: v + 3 for k, v in verifier_device_map.items()}
-    print(f"Main: Verifier device map: {verifier_device_map}")
-    print(f"Main: Verifier device map: {verifier_2_device_map}")
-    verifiers_device_maps = [verifier_device_map, verifier_2_device_map]
     await asyncio.gather(
         *[
             verifier.load_model(
@@ -985,35 +965,84 @@ async def run(
     await drafter.load_model(
         drafter_name,
         dtype=drafter_dtype,
-        # device_map="auto",
-        device_map=None,
+        # device_map=None,
+        device_map=drafter_device_map,
         load_in_8bit=drafter_load_in_8bit,
         cache_dir=os.environ["TRANSFORMERS_CACHE"],
     )
     print_gpu_memory()
     print("Main: All models loaded")
-    os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(str(i) for i in range(torch.cuda.device_count()))
-    print(f"Main: CUDA_VISIBLE_DEVICES set to {os.environ['CUDA_VISIBLE_DEVICES']}")
-    print("Main: Starting all tasks. Start measuring time NOW.")
-    time_start = time.time()
     asyncio.create_task(manager.pubsub.broadcast())
     print("Main: Started PubSub broadcast task")
-
     # Wait for the PubSub system to be ready
     await manager.pubsub.ready.wait()
     print("Main: PubSub system is ready")
     asyncio.create_task(drafter.run())
     [asyncio.create_task(verifier.run()) for verifier in verifiers]
-
     # Wait for all workers to be ready
     await asyncio.gather(
         drafter.ready.wait(), *[verifier.ready.wait() for verifier in verifiers]
     )
     print("Main: All workers are ready")
 
-    # Now start the manager
-    manager_task = asyncio.create_task(manager.run())
-    await manager_task
+
+async def run(
+    manager_cls: Type[Manager],
+    verifier_cls: Type[Verifier],
+    drafter_cls: Type[Drafter],
+    verifier_name: str,
+    drafter_name: str,
+    vocab_size: int,
+    verifier_dtype: torch.dtype,
+    drafter_dtype: torch.dtype,
+    verifier_load_in_8bit: bool,
+    drafter_load_in_8bit: bool,
+    lookahead: int,
+    tok_ids: torch.Tensor,
+    max_new_tokens: int,
+) -> None:
+    print_gpu_memory()
+    num_verifiers = 2
+    print(f"Main: Number of verifiers: {num_verifiers}")
+    draft_queue = asyncio.Queue(maxsize=1)
+    verify_queue = asyncio.Queue(maxsize=num_verifiers)
+    response_queue = asyncio.Queue()
+    print("Main: Queues created")
+    manager = manager_cls(
+        draft_queue,
+        verify_queue,
+        response_queue,
+        tok_ids,
+        max_new_tokens,
+        vocab_size,
+        lookahead,
+    )
+    print(f"Main: Created {manager.__class__.__name__}")
+    verifier_device_map = load_device_map("/workspace/distributed-speculative-inference/poc/device_map_meta-llama_Meta-Llama-3.1-70B-Instruct_8bit_on_3A40_custom.json")
+    verifier_2_device_map = {k: v + 3 for k, v in verifier_device_map.items()}
+    verifiers_device_maps = [verifier_device_map, verifier_2_device_map]
+    for i, device_map in enumerate(verifiers_device_maps):
+        print(f"Main: Verifier {i} device map: {device_map}")
+    await setup_workers_and_pubsub(
+        verify_queue=verify_queue,
+        draft_queue=draft_queue,
+        response_queue=response_queue,
+        manager=manager,
+        verifier_cls=verifier_cls,
+        drafter_cls=drafter_cls,
+        verifier_name=verifier_name,
+        drafter_name=drafter_name,
+        verifier_dtype=verifier_dtype,
+        drafter_dtype=drafter_dtype,
+        verifier_load_in_8bit=verifier_load_in_8bit,
+        drafter_load_in_8bit=drafter_load_in_8bit,
+        num_verifiers=num_verifiers,
+        verifiers_device_maps=verifiers_device_maps,
+        drafter_device_map=None,
+    )
+    print("Main: Start measuring time NOW and run manager.")
+    time_start = time.time()
+    await manager.run()
     time_end = time.time()
     print(
         f"Main: Manager task completed. Time taken: {time_end - time_start:.2f} seconds"
@@ -1099,8 +1128,8 @@ def decode(tok_ids: torch.Tensor, tokernizer_name: str) -> str:
 async def main():
     print("Script started")
     print_gpu_memory()
-    verifier_name: str = "meta-llama/Meta-Llama-3.1-70B-Instruct"
-    # verifier_name: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
+    # verifier_name: str = "meta-llama/Meta-Llama-3.1-70B-Instruct"
+    verifier_name: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
     prompt: str = """Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
 ### Instruction:
 Break the text into two logical paragraphs.
