@@ -4,7 +4,6 @@ import time
 import accelerate
 from poc.actual.manager import Manager
 from poc.actual.nonsi_hf import generate
-# from poc.actual.setup import setup
 from poc.actual.utils import (
     cuda_memory_recording,
     decode,
@@ -64,21 +63,6 @@ The meetings can be live or virtual, but with the pandemic continuing in many pa
         lookahead=5,
     )
     print(f"Main: Created {manager.__class__.__name__}")
-    # verifiers, drafter = await setup(
-    #     num_verifiers=num_verifiers,
-    #     verifier_cls=VerifierSlow,
-    #     drafter_cls=Drafter,
-    #     verifier_name=verifier_name,
-    #     drafter_name="meta-llama/Meta-Llama-3.1-8B-Instruct",
-    #     verifier_dtype=verifier_dtype,
-    #     drafter_dtype=torch.float16,
-    #     verifier_load_in_8bit=verifier_load_in_8bit,
-    #     drafter_load_in_8bit=True,
-    #     verify_queue=verify_queue,
-    #     draft_queue=draft_queue,
-    #     response_queue=response_queue,
-    #     pubsub=manager.pubsub,
-    # )
     verifier_device_map_filename = "device_map_meta-llama_Meta-Llama-3.1-70B-Instruct_8bit_on_3A40_custom.json"
     verifiers_device_maps = get_verifiers_device_maps(verifier_device_map_filename)
     verifiers, drafter = await get_workers(
