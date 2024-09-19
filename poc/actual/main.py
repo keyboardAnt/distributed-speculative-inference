@@ -19,19 +19,14 @@ import torch
 from tqdm import tqdm
 
 
-async def run(manager: Manager):
-    await get_latency(manager.run)
-    print(f"Output tok_ids: {manager.tok_ids}")
-    return manager.tok_ids
-
-
 async def get_latency(async_func, *args, **kwargs):
     print("Start measuring time NOW.")
     time_start = time.time()
-    await async_func(*args, **kwargs)
+    ret = await async_func(*args, **kwargs)
     time_end = time.time()
-    print(f"Time taken: {time_end - time_start:.2f} seconds")
-    return time_end - time_start
+    latency = time_end - time_start
+    print(f"Time taken: {latency:.2f} seconds")
+    return latency, ret
 
 
 @torch.no_grad()
@@ -93,9 +88,10 @@ The meetings can be live or virtual, but with the pandemic continuing in many pa
 
     async def run_our_implementation():
         nonlocal manager
-        tok_ids = await run(manager)
-        return tok_ids
-
+        await manager.run()
+        return manager.tok_ids
+    
+    run_func = run_our_implementation
     for prompt in tqdm(prompts, desc="Prompts"):
         tok_ids = encode(prompt, verifier_name)
         print_gpu_memory()
@@ -111,13 +107,11 @@ The meetings can be live or virtual, but with the pandemic continuing in many pa
         )
         print(f"Main: Created {manager.__class__.__name__}")
         print_gpu_memory()
-        tok_ids = await run_our_implementation()
-        # tok_ids = await run_nonsi_hf()
+        latency, tok_ids = await get_latency(run_func)
+        print(f"Main: Output tok_ids: {tok_ids}")
+        print(f"Main: Final output: {decode(tok_ids, verifier_name)}")
         for worker in workers:
             worker.reset()
-
-
-    print(f"Main: Final output: {decode(tok_ids, verifier_name)}")
 
 
 if __name__ == "__main__":
