@@ -662,7 +662,7 @@ async def get_workers(
     num_verifiers: int,
     verifiers_device_maps: list[dict],
     drafter_device_map: dict | None,
-) -> None:
+) -> list[Worker]:
     """
     Setup the workers and the pubsub system. Returns the workers.
     """
@@ -727,4 +727,5 @@ async def get_workers(
         drafter.ready.wait(), *[verifier.ready.wait() for verifier in verifiers]
     )
     print("Main: All workers are ready")
-    return verifiers, drafter
+    workers = verifiers + [drafter]
+    return workers

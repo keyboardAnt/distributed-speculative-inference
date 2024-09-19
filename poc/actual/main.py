@@ -14,7 +14,7 @@ from poc.actual.utils import (
     print_gpu_memory,
     shutdown_asyncio,
 )
-from poc.actual.worker import Drafter, VerifierSlow, get_workers
+from poc.actual.worker import Drafter, VerifierSlow, Worker, get_workers
 import torch
 
 
@@ -49,7 +49,7 @@ async def main():
     print(f"Number of verifiers: {num_verifiers}")
     verify_queue, draft_queue, response_queue = get_queues(num_verifiers)
     print("Queues created")
-    verifiers, drafter = await get_workers(
+    workers: list[Worker] = await get_workers(
         verify_queue=verify_queue,
         draft_queue=draft_queue,
         response_queue=response_queue,
@@ -109,6 +109,9 @@ The meetings can be live or virtual, but with the pandemic continuing in many pa
         print_gpu_memory()
         tok_ids = await run_our_implementation()
         # tok_ids = await run_nonsi_hf()
+        for worker in workers:
+            worker.reset()
+
 
     print(f"Main: Final output: {decode(tok_ids, verifier_name)}")
 

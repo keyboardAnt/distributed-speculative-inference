@@ -62,12 +62,12 @@ def decode(tok_ids: torch.Tensor, tokernizer_name: str) -> str:
 def shutdown_asyncio():
     try:
         print("Shutting down all asyncio tasks")
-        # Get the current event loop
-        loop = asyncio.get_event_loop()
         # Cancel all remaining tasks
-        tasks = asyncio.all_tasks(loop)
+        tasks = asyncio.all_tasks()
         for task in tasks:
             task.cancel()
+        # Get the current event loop
+        loop = asyncio.get_event_loop()
         # Wait for all tasks to complete
         loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
         # Shutdown asynchronous generators
