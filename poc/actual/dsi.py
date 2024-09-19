@@ -1,108 +1,20 @@
 import asyncio
-from functools import cache
-import os
 import time
 from typing import Type
 
 import accelerate
 from poc.actual.manager import Manager
 from poc.actual.nonsi_hf import generate
-from poc.actual.pubsub import PubSub
 from poc.actual.utils import (
     cuda_memory_recording,
     decode,
     encode,
     load_device_map,
     print_gpu_memory,
-    setup_hf_cache,
     shutdown_asyncio,
 )
-from poc.actual.worker import Drafter, Verifier, VerifierSlow
+from poc.actual.worker import Drafter, Verifier, VerifierSlow, get_workers
 import torch
-
-
-async def setup_workers_and_pubsub(
-    verify_queue: asyncio.Queue,
-    draft_queue: asyncio.Queue,
-    response_queue: asyncio.Queue,
-    pubsub: PubSub,
-    verifier_cls: Type[Verifier],
-    drafter_cls: Type[Drafter],
-    verifier_name: str,
-    drafter_name: str,
-    verifier_dtype: torch.dtype,
-    drafter_dtype: torch.dtype,
-    verifier_load_in_8bit: bool,
-    drafter_load_in_8bit: bool,
-    num_verifiers: int,
-    verifiers_device_maps: list[dict],
-    drafter_device_map: dict | None,
-) -> None:
-    """
-    Setup the workers and the pubsub system. Returns the workers.
-    """
-    setup_hf_cache()
-    print_gpu_memory()
-    print("Main: Creating server instances")
-    drafter = drafter_cls(
-        queue=draft_queue,
-        response_queue=response_queue,
-        pubsub=pubsub,
-        worker_id=0,
-    )
-    print("Main: Created drafter")
-    verifiers = [
-        verifier_cls(
-            queue=verify_queue,
-            response_queue=response_queue,
-            pubsub=pubsub,
-            worker_id=i,
-        )
-        for i in range(1, num_verifiers + 1)
-    ]
-    print(f"Main: Created {len(verifiers)} verifiers")
-    for i, (verifier, device_map) in enumerate(zip(verifiers, verifiers_device_maps)):
-        print(f"Main: Loading verifier {i}")
-        await verifier.load_model(
-            verifier_name,
-            dtype=verifier_dtype,
-            # device_map="auto",
-            # device_map="balanced_low_0",
-            device_map=device_map,
-            load_in_8bit=verifier_load_in_8bit,
-            cache_dir=os.environ["TRANSFORMERS_CACHE"],
-        )
-        print(f"Main: Verifier {i} loaded")
-        print_gpu_memory()
-    print(f"Main: All {len(verifiers)} verifiers loaded")
-    print_gpu_memory()
-    print("Main: Loading drafter")
-    await drafter.load_model(
-        drafter_name,
-        dtype=drafter_dtype,
-        # device_map=None,
-        device_map=drafter_device_map,
-        load_in_8bit=drafter_load_in_8bit,
-        cache_dir=os.environ["TRANSFORMERS_CACHE"],
-    )
-    print_gpu_memory()
-    print("Main: All models loaded")
-    asyncio.create_task(pubsub.broadcast())
-    print("Main: Started PubSub broadcast")
-    # Wait for the PubSub system to be ready
-    await pubsub.ready.wait()
-    print("Main: PubSub system is ready")
-    asyncio.create_task(drafter.run())
-    print("Main: Drafter task created")
-    for verifier in verifiers:
-        asyncio.create_task(verifier.run())
-    print("Main: Verifiers tasks created")
-    # Wait for all workers to be ready
-    await asyncio.gather(
-        drafter.ready.wait(), *[verifier.ready.wait() for verifier in verifiers]
-    )
-    print("Main: All workers are ready")
-    return verifiers, drafter
 
 
 async def run(
@@ -144,7 +56,7 @@ async def run(
     verifiers_device_maps = [verifier_device_map, verifier_2_device_map]
     for i, device_map in enumerate(verifiers_device_maps):
         print(f"Main: Verifier {i} device map: {device_map}")
-    verifiers, drafter = await setup_workers_and_pubsub(
+    verifiers, drafter = await get_workers(
         verify_queue=verify_queue,
         draft_queue=draft_queue,
         response_queue=response_queue,
