@@ -36,28 +36,25 @@ async def setup_workers_and_pubsub(
     print("Main: Creating server instances")
     drafter = drafter_cls(queue=draft_queue, response_queue=response_queue, manager=manager, worker_id=0)
     print("Main: Created drafter")
-    print_gpu_memory()
-    available_gpus = torch.cuda.device_count()
-    print(f"Main: Available GPUs: {available_gpus}")
     verifiers = [
         verifier_cls(queue=verify_queue, response_queue=response_queue, manager=manager, worker_id=i)
         for i in range(1, num_verifiers + 1)
     ]
-    print("Main: Loading all verifiers")
-    await asyncio.gather(
-        *[
-            verifier.load_model(
-                verifier_name,
-                dtype=verifier_dtype,
-                # device_map="auto",
-                # device_map="balanced_low_0",
-                device_map=device_map,
-                load_in_8bit=verifier_load_in_8bit,
-                cache_dir=os.environ["TRANSFORMERS_CACHE"],
-            )
-            for verifier, device_map in zip(verifiers, verifiers_device_maps)
-        ],
-    )
+    print(f"Main: Created {len(verifiers)} verifiers")
+    for i, (verifier, device_map) in enumerate(zip(verifiers, verifiers_device_maps)):
+        print(f"Main: Loading verifier {i}")
+        await verifier.load_model(
+            verifier_name,
+            dtype=verifier_dtype,
+            # device_map="auto",
+            # device_map="balanced_low_0",
+            device_map=device_map,
+            load_in_8bit=verifier_load_in_8bit,
+            cache_dir=os.environ["TRANSFORMERS_CACHE"],
+        )
+        print(f"Main: Verifier {i} loaded")
+        print_gpu_memory()
+    print(f"Main: All {len(verifiers)} verifiers loaded")
     print_gpu_memory()
     print("Main: Loading drafter")
     await drafter.load_model(
@@ -70,13 +67,14 @@ async def setup_workers_and_pubsub(
     )
     print_gpu_memory()
     print("Main: All models loaded")
-    asyncio.create_task(manager.pubsub.broadcast())
-    print("Main: Started PubSub broadcast task")
+    await manager.pubsub.broadcast()
+    print("Main: Started PubSub broadcast")
     # Wait for the PubSub system to be ready
     await manager.pubsub.ready.wait()
     print("Main: PubSub system is ready")
-    asyncio.create_task(drafter.run())
-    [asyncio.create_task(verifier.run()) for verifier in verifiers]
+    await drafter.run()
+    for verifier in verifiers:
+        await verifier.run()
     # Wait for all workers to be ready
     await asyncio.gather(
         drafter.ready.wait(), *[verifier.ready.wait() for verifier in verifiers]

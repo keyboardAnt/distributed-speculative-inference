@@ -33,7 +33,6 @@ def garbage_collect():
 
 
 def print_gpu_memory():
-    print(f"The current device is {torch.cuda.current_device()}")
     for i in range(torch.cuda.device_count()):
         print(
             f"GPU {i}: {torch.cuda.mem_get_info(i)[0] / 1024 / 1024 / 1024:.2f} GB free, {torch.cuda.mem_get_info(i)[1] / 1024 / 1024 / 1024:.2f} GB total"
