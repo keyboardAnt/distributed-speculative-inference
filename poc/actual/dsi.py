@@ -80,14 +80,16 @@ async def setup_workers_and_pubsub(
     )
     print_gpu_memory()
     print("Main: All models loaded")
-    await manager.pubsub.broadcast()
+    asyncio.create_task(manager.pubsub.broadcast())
     print("Main: Started PubSub broadcast")
     # Wait for the PubSub system to be ready
     await manager.pubsub.ready.wait()
     print("Main: PubSub system is ready")
-    await drafter.run()
+    asyncio.create_task(drafter.run())
+    print("Main: Drafter task created")
     for verifier in verifiers:
-        await verifier.run()
+        asyncio.create_task(verifier.run())
+    print("Main: Verifiers tasks created")
     # Wait for all workers to be ready
     await asyncio.gather(
         drafter.ready.wait(), *[verifier.ready.wait() for verifier in verifiers]

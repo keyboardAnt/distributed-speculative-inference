@@ -109,10 +109,6 @@ class Worker(ABC):
         #     self.model.to(device)
         print(f"{self.__class__.__name__}: Model loaded")
         try:
-            print(f"{self.__class__.__name__}: {self.model.device_map=}")
-        except Exception as e:
-            print(f"{self.__class__.__name__}: Error checking device_map: {e}")
-        try:
             print(f"{self.__class__.__name__}: {self.model.hf_device_map=}")
         except Exception as e:
             print(f"{self.__class__.__name__}: Error checking hf_device_map: {e}")
