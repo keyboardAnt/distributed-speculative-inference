@@ -1099,8 +1099,8 @@ def decode(tok_ids: torch.Tensor, tokernizer_name: str) -> str:
 async def main():
     print("Script started")
     print_gpu_memory()
-    # verifier_name: str = "meta-llama/Meta-Llama-3.1-70B-Instruct"
-    verifier_name: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
+    verifier_name: str = "meta-llama/Meta-Llama-3.1-70B-Instruct"
+    # verifier_name: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
     prompt: str = """Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
 ### Instruction:
 Break the text into two logical paragraphs.
@@ -1138,9 +1138,6 @@ if __name__ == "__main__":
     torch.cuda.memory._record_memory_history(max_entries=1_000_000)
     try:
         asyncio.run(main())
-    except Exception as e:
-        print(f"Exception occurred: {e}")
-    finally:
         print("Shutting down all asyncio tasks")
         # Get the current event loop
         loop = asyncio.get_event_loop()
@@ -1154,6 +1151,8 @@ if __name__ == "__main__":
         loop.run_until_complete(loop.shutdown_asyncgens())
         # Close the loop
         loop.close()
+    except Exception as e:
+        print(f"Exception occurred while running asyncio tasks or shutting them down: {e}")
     current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     filename = f"cuda_memory_snapshot_{current_time}.pickle"
     print(f"Dumping CUDA memory snapshot into {filename}.")
