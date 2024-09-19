@@ -517,7 +517,7 @@ class Worker(ABC):
 
 
     async def cancel_task(self, task: asyncio.Task) -> None:
-        print(f"{self.__class__.__name__} ({self.gpu_id}): Cancelling task")
+        print(f"{self.__class__.__name__} ({self.gpu_id}): Cancelling task: {task}")
         try:
             task.cancel()
             await task
@@ -869,14 +869,20 @@ class PubSub:
         print("PubSub: Starting broadcast loop")
         self.ready.set()  # Signal that the broadcast loop is ready
         while True:
-            message = await self.queue.get()
-            print(
-                f"PubSub: Broadcasting message '{message}' to"
-                f" {len(self.subscribers)} subscribers"
-            )
-            for subscriber in self.subscribers.values():
-                await subscriber.put(message)
-            print(f"PubSub: Broadcast complete. Queue size: {self.queue.qsize()}")
+            try:
+                message = await self.queue.get()
+                print(
+                    f"PubSub: Broadcasting message '{message}' to"
+                    f" {len(self.subscribers)} subscribers"
+                )
+                for subscriber in self.subscribers.values():
+                    await subscriber.put(message)
+                print(f"PubSub: Broadcast complete. Queue size: {self.queue.qsize()}")
+            except asyncio.CancelledError:
+                print("PubSub: Broadcast task was cancelled")
+                break
+            except Exception as e:
+                print(f"PubSub: Exception in broadcast loop: {e}")
 
 
 def setup_hf_cache():
