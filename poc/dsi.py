@@ -880,7 +880,7 @@ class PubSub:
                 print(f"PubSub: Broadcast complete. Queue size: {self.queue.qsize()}")
             except asyncio.CancelledError:
                 print("PubSub: Broadcast task was cancelled")
-                break
+                raise
             except Exception as e:
                 print(f"PubSub: Exception in broadcast loop: {e}")
 
