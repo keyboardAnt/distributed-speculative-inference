@@ -518,11 +518,15 @@ class Worker(ABC):
 
     async def cancel_task(self, task: asyncio.Task) -> None:
         print(f"{self.__class__.__name__} ({self.gpu_id}): Cancelling task: {task}")
+        task.cancel()
         try:
-            task.cancel()
             await task
         except asyncio.CancelledError:
             print(f"{self.__class__.__name__} ({self.gpu_id}): Task was cancelled")
+            return
+        except Exception as e:
+            print(f"{self.__class__.__name__} ({self.gpu_id}): Task had an exception: {e}")
+            raise
 
     async def run(self) -> None:
         """
@@ -605,6 +609,7 @@ class Worker(ABC):
                 if current_task is not None:
                     await self.cancel_task(current_task)
                     self.queue.task_done()
+                    print(f"{self.__class__.__name__} ({self.gpu_id}): Current task was preempted")
                 else:
                     print(f"{self.__class__.__name__} ({self.gpu_id}): No current task to cancel")
                 print(
@@ -650,6 +655,9 @@ class Worker(ABC):
                     print(
                         f"{self.__class__.__name__} ({self.gpu_id}): Task {request.id} completed. Response enqueued."
                     )
+            for task in pending:
+                await self.cancel_task(task)
+            print(f"{self.__class__.__name__} ({self.gpu_id}): Cancelled pending tasks")
 
     @torch.no_grad()
     async def perform_task(self, request: Request) -> Response:
@@ -1091,8 +1099,8 @@ def decode(tok_ids: torch.Tensor, tokernizer_name: str) -> str:
 async def main():
     print("Script started")
     print_gpu_memory()
-    verifier_name: str = "meta-llama/Meta-Llama-3.1-70B-Instruct"
-    # verifier_name: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
+    # verifier_name: str = "meta-llama/Meta-Llama-3.1-70B-Instruct"
+    verifier_name: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
     prompt: str = """Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
 ### Instruction:
 Break the text into two logical paragraphs.
@@ -1127,10 +1135,13 @@ The meetings can be live or virtual, but with the pandemic continuing in many pa
     for task in asyncio.all_tasks():
         if task is not asyncio.current_task():
             task.cancel()
-
-            # with contextlib.suppress(asyncio.CancelledError):
-                # await task
-            await task
+            try:
+                await task
+            except asyncio.CancelledError:
+                print(f"Main: Cancelled task {task}")
+                raise
+            except Exception as e:
+                print(f"Main: Exception in task {task}: {e}")
     print("Main: All servers are closed")
     print("Script completed")
 
