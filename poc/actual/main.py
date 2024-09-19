@@ -16,18 +16,22 @@ from poc.actual.utils import (
 )
 from poc.actual.worker import Drafter, VerifierSlow, Worker, get_workers
 import torch
+from tqdm import tqdm
 
 
 async def run(manager: Manager):
-    print("Start measuring time NOW and run manager.")
-    time_start = time.time()
-    await manager.run()
-    time_end = time.time()
-    print(
-        f"Generation completed. Time taken: {time_end - time_start:.2f} seconds"
-    )
+    await get_latency(manager.run)
     print(f"Output tok_ids: {manager.tok_ids}")
     return manager.tok_ids
+
+
+async def get_latency(async_func, *args, **kwargs):
+    print("Start measuring time NOW.")
+    time_start = time.time()
+    await async_func(*args, **kwargs)
+    time_end = time.time()
+    print(f"Time taken: {time_end - time_start:.2f} seconds")
+    return time_end - time_start
 
 
 @torch.no_grad()
@@ -92,7 +96,7 @@ The meetings can be live or virtual, but with the pandemic continuing in many pa
         tok_ids = await run(manager)
         return tok_ids
 
-    for prompt in prompts:
+    for prompt in tqdm(prompts, desc="Prompts"):
         tok_ids = encode(prompt, verifier_name)
         print_gpu_memory()
         manager = manager_cls(
