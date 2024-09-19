@@ -1131,27 +1131,32 @@ The meetings can be live or virtual, but with the pandemic continuing in many pa
     #     max_new_tokens=max_new_tokens,
     # )
     print(f"Main: Final output: {decode(tok_ids, verifier_name)}")
-    # Close all asyncio tasks or resources without waiting for them to complete
-    for task in asyncio.all_tasks():
-        if task is not asyncio.current_task():
-            task.cancel()
-            try:
-                await task
-            except asyncio.CancelledError:
-                print(f"Main: Cancelled task {task}")
-                raise
-            except Exception as e:
-                print(f"Main: Exception in task {task}: {e}")
-    print("Main: All servers are closed")
-    print("Script completed")
 
 
 if __name__ == "__main__":
-    print("Starting main. Starting CUDA memory recording.")
+    print("Starting script. Starting CUDA memory recording.")
     torch.cuda.memory._record_memory_history(max_entries=1_000_000)
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        print(f"Exception occurred: {e}")
+    finally:
+        print("Shutting down all asyncio tasks")
+        # Get the current event loop
+        loop = asyncio.get_event_loop()
+        # Cancel all remaining tasks
+        tasks = asyncio.all_tasks(loop)
+        for task in tasks:
+            task.cancel()
+        # Wait for all tasks to complete
+        loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
+        # Shutdown asynchronous generators
+        loop.run_until_complete(loop.shutdown_asyncgens())
+        # Close the loop
+        loop.close()
     current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     filename = f"cuda_memory_snapshot_{current_time}.pickle"
     print(f"Dumping CUDA memory snapshot into {filename}.")
     torch.cuda.memory._dump_snapshot(filename)
-    print(f"Main completed. CUDA memory snapshot dumped into {filename}.")
+    print(f"CUDA memory snapshot dumped into {filename}.")
+    print("Script completed")
