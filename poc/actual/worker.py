@@ -1,7 +1,7 @@
+from poc.actual.pubsub import PubSub
 import torch
 from poc.actual.utils import print_gpu_memory
 from poc.actual.event import Request, Response
-from poc.actual.manager import Manager
 from transformers import AutoModelForCausalLM
 
 
@@ -32,21 +32,18 @@ class Worker(ABC):
     Attributes:
         queue (asyncio.Queue): Queue of incoming tasks.
         response_queue (asyncio.Queue): Queue for sending responses.
-        manager (Manager): Reference to the manager for system-wide operations.
+        pubsub (PubSub): PubSub for receiving preemption messages.
         worker_id (int): ID of this worker.
-        model: The loaded model for processing tasks.
-        timestamp_preemption (float): Timestamp of the last processed preemption.
-        ready (asyncio.Event): Event to signal when the worker is ready.
     """
 
     def __init__(
         self,
         queue: asyncio.Queue[Request],
         response_queue: asyncio.Queue[Response],
-        manager: Manager,
+        pubsub: PubSub,
         worker_id: int,
     ):
-        self.manager = manager
+        self.pubsub = pubsub
         self.queue = queue
         self.response_queue = response_queue
         self.worker_id = worker_id
@@ -57,12 +54,17 @@ class Worker(ABC):
         self.timestamp_preemption = 0  # Initialize with 0
         self.timestamp_request = 0  # Initialize with 0
 
-    def reset(self) -> None:
+    def set_pubsub(self, pubsub: PubSub) -> None:
+        self.ready.clear()
+        self.pubsub = pubsub
+        print(f"{self.__class__.__name__}: PubSub set")
         self.timestamp_preemption = 0
         self.timestamp_request = 0
         print(
             f"{self.__class__.__name__}: Resetting timestamp_preemption and timestamp_request"
         )
+        self.ready.set()
+        print(f"{self.__class__.__name__}: Ready event set")
 
     async def load_model(
         self,
@@ -152,7 +154,7 @@ class Worker(ABC):
         )
         self.ready.set()  # Ensure the ready event is set when run starts
         while True:
-            preempt_queue = await self.manager.pubsub.subscribe(self.worker_id)
+            preempt_queue = await self.pubsub.subscribe(self.worker_id)
             print(
                 f"{self.__class__.__name__} ({self.worker_id}): Subscribed to PubSub for GPU {self.worker_id}"
             )
