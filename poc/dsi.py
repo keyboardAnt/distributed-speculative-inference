@@ -518,9 +518,11 @@ class Worker(ABC):
 
     async def cancel_task(self, task: asyncio.Task) -> None:
         print(f"{self.__class__.__name__} ({self.gpu_id}): Cancelling task")
-        task.cancel()
-        await task
-        print(f"{self.__class__.__name__} ({self.gpu_id}): Task cancelled")
+        try:
+            task.cancel()
+            await task
+        except asyncio.CancelledError:
+            print(f"{self.__class__.__name__} ({self.gpu_id}): Task was cancelled")
 
     async def run(self) -> None:
         """
@@ -550,12 +552,82 @@ class Worker(ABC):
             get_request = asyncio.create_task(self.queue.get())
             get_preempt = asyncio.create_task(preempt_queue.get())
             current_task = None
-            try:
+            print(
+                f"{self.__class__.__name__} ({self.gpu_id}): Waiting for either request or preemption..."
+            )
+            done, pending = await asyncio.wait(
+                {get_request, get_preempt}, return_when=asyncio.FIRST_COMPLETED
+            )
+
+            if get_preempt in done:
+                preempt_message = get_preempt.result()
                 print(
-                    f"{self.__class__.__name__} ({self.gpu_id}): Waiting for either request or preemption..."
+                    f"{self.__class__.__name__} ({self.gpu_id}): Received preemption message at {preempt_message.timestamp}"
                 )
+                self.timestamp_preemption = max(
+                    self.timestamp_preemption, preempt_message.timestamp
+                )
+                print(
+                    f"{self.__class__.__name__} ({self.gpu_id}): Updated timestamp_preemption to {self.timestamp_preemption} (it is the max of the previous timestamp and the received preemption timestamp)"
+                )
+                if self.timestamp_request > self.timestamp_preemption:
+                    print(
+                        f"{self.__class__.__name__} ({self.gpu_id}): Dropping outdated preemption message. "
+                        f"Last preemption timestamp: {self.timestamp_preemption}, "
+                        f"last or current request timestamp: {self.timestamp_request}, "
+                        f"received preemption timestamp: {preempt_message.timestamp}"
+                    )
+                    continue
+                print(
+                    f"{self.__class__.__name__} ({self.gpu_id}): Processing preemption message because it was created before the last or current request. Therefore we need to terminate the current task."
+                )
+                if get_request.done():
+                    print(
+                        f"{self.__class__.__name__} ({self.gpu_id}): While receiving a preemption message, a request was received."
+                    )
+                    request = get_request.result()
+                    print(
+                        f"{self.__class__.__name__} ({self.gpu_id}): Received request {request.id} at timestamp {request.timestamp}"
+                    )
+                    if request.timestamp > self.timestamp_preemption:
+                        print(
+                            f"{self.__class__.__name__} ({self.gpu_id}): The received request {request.id} is valid (was created after the preemption). Returning it to the queue."
+                        )
+                        self.queue.put_nowait(request)
+                        print(
+                            f"{self.__class__.__name__} ({self.gpu_id}): Request {request.id} was returned to the queue"
+                        )
+                else:
+                    print(
+                        f"{self.__class__.__name__} ({self.gpu_id}): Cancelling `get_request` to stop waiting for a queued request"
+                    )
+                    await self.cancel_task(get_request)
+                if current_task is not None:
+                    await self.cancel_task(current_task)
+                    self.queue.task_done()
+                else:
+                    print(f"{self.__class__.__name__} ({self.gpu_id}): No current task to cancel")
+                print(
+                    f"{self.__class__.__name__} ({self.gpu_id}): Done processing preemption message"
+                )
+            else:  # get_request in done
+                request = get_request.result()
+                print(
+                    f"{self.__class__.__name__} ({self.gpu_id}): Received request with ID {request.id} at timestamp {request.timestamp}. Last preemption timestamp: {self.timestamp_preemption}"
+                )
+                if request.timestamp < self.timestamp_preemption:
+                    print(
+                        f"{self.__class__.__name__} ({self.gpu_id}): Dropping outdated request {request.id}"
+                    )
+                    self.queue.task_done()
+                    continue
+
+                print(
+                    f"{self.__class__.__name__} ({self.gpu_id}): Processing request with ID {request.id}"
+                )
+                current_task = asyncio.create_task(self.perform_task(request))
                 done, pending = await asyncio.wait(
-                    {get_request, get_preempt}, return_when=asyncio.FIRST_COMPLETED
+                    {current_task, get_preempt}, return_when=asyncio.FIRST_COMPLETED
                 )
 
                 if get_preempt in done:
@@ -567,88 +639,17 @@ class Worker(ABC):
                         self.timestamp_preemption, preempt_message.timestamp
                     )
                     print(
-                        f"{self.__class__.__name__} ({self.gpu_id}): Updated timestamp_preemption to {self.timestamp_preemption} (it is the max of the previous timestamp and the received preemption timestamp)"
+                        f"{self.__class__.__name__} ({self.gpu_id}): Updated timestamp_preemption to {self.timestamp_preemption}"
                     )
-                    if self.timestamp_request > self.timestamp_preemption:
-                        print(
-                            f"{self.__class__.__name__} ({self.gpu_id}): Dropping outdated preemption message. "
-                            f"Last preemption timestamp: {self.timestamp_preemption}, "
-                            f"last or current request timestamp: {self.timestamp_request}, "
-                            f"received preemption timestamp: {preempt_message.timestamp}"
-                        )
-                        continue
+                    await self.cancel_task(current_task)
+                    self.queue.task_done()
+                    print(f"{self.__class__.__name__} ({self.gpu_id}): Current task was preempted")
+                else:
+                    response = current_task.result()
+                    await self.response_queue.put(response)
                     print(
-                        f"{self.__class__.__name__} ({self.gpu_id}): Processing preemption message because it was created before the last or current request. Therefore we need to terminate the current task."
+                        f"{self.__class__.__name__} ({self.gpu_id}): Task {request.id} completed. Response enqueued."
                     )
-                    if get_request.done():
-                        print(
-                            f"{self.__class__.__name__} ({self.gpu_id}): While receiving a preemption message, a request was received."
-                        )
-                        request = get_request.result()
-                        print(
-                            f"{self.__class__.__name__} ({self.gpu_id}): Received request {request.id} at timestamp {request.timestamp}"
-                        )
-                        if request.timestamp > self.timestamp_preemption:
-                            print(
-                                f"{self.__class__.__name__} ({self.gpu_id}): The received request {request.id} is valid (was created after the preemption). Returning it to the queue."
-                            )
-                            self.queue.put_nowait(request)
-                            print(
-                                f"{self.__class__.__name__} ({self.gpu_id}): Request {request.id} was returned to the queue"
-                            )
-                    else:
-                        print(
-                            f"{self.__class__.__name__} ({self.gpu_id}): Cancelling `get_request` to stop waiting for a queued request"
-                        )
-                        await self.cancel_task(get_request)
-                    if current_task is not None:
-                        await self.cancel_task(current_task)
-                        self.queue.task_done()
-                    else:
-                        print(f"{self.__class__.__name__} ({self.gpu_id}): No current task to cancel")
-                    print(
-                        f"{self.__class__.__name__} ({self.gpu_id}): Done processing preemption message"
-                    )
-                else:  # get_request in done
-                    request = get_request.result()
-                    print(
-                        f"{self.__class__.__name__} ({self.gpu_id}): Received request with ID {request.id} at timestamp {request.timestamp}. Last preemption timestamp: {self.timestamp_preemption}"
-                    )
-                    if request.timestamp < self.timestamp_preemption:
-                        print(
-                            f"{self.__class__.__name__} ({self.gpu_id}): Dropping outdated request {request.id}"
-                        )
-                        self.queue.task_done()
-                        continue
-
-                    print(
-                        f"{self.__class__.__name__} ({self.gpu_id}): Processing request with ID {request.id}"
-                    )
-                    current_task = asyncio.create_task(self.perform_task(request))
-                    done, pending = await asyncio.wait(
-                        {current_task, get_preempt}, return_when=asyncio.FIRST_COMPLETED
-                    )
-
-                    if get_preempt in done:
-                        preempt_message = get_preempt.result()
-                        print(
-                            f"{self.__class__.__name__} ({self.gpu_id}): Received preemption message at {preempt_message.timestamp}"
-                        )
-                        self.timestamp_preemption = max(
-                            self.timestamp_preemption, preempt_message.timestamp
-                        )
-                        print(
-                            f"{self.__class__.__name__} ({self.gpu_id}): Updated timestamp_preemption to {self.timestamp_preemption}"
-                        )
-                        await self.cancel_task(current_task)
-                        self.queue.task_done()
-                        print(f"{self.__class__.__name__} ({self.gpu_id}): Current task was preempted")
-                    else:
-                        response = current_task.result()
-                        await self.response_queue.put(response)
-                        print(
-                            f"{self.__class__.__name__} ({self.gpu_id}): Task {request.id} completed. Response enqueued."
-                        )
 
     @torch.no_grad()
     async def perform_task(self, request: Request) -> Response:
