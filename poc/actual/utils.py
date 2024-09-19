@@ -104,3 +104,20 @@ def get_device_map_filepath(device_map_filename: str) -> str:
     current_dir = os.path.dirname(current_filepath)
     device_map_dir = os.path.join(current_dir, "device_maps")
     return os.path.join(device_map_dir, device_map_filename)
+
+
+def get_verifiers_device_maps(filename: str) -> list[dict]:
+    device_map_filepath = get_device_map_filepath(filename)
+    verifier_device_map = load_device_map(device_map_filepath)
+    verifier_2_device_map = {k: v + 3 for k, v in verifier_device_map.items()}
+    verifiers_device_maps = [verifier_device_map, verifier_2_device_map]
+    for i, device_map in enumerate(verifiers_device_maps):
+        print(f"Verifier {i} device map: {device_map}")
+    return verifiers_device_maps
+
+
+def get_queues(num_verifiers: int) -> tuple[asyncio.Queue, asyncio.Queue, asyncio.Queue]:
+    verify_queue = asyncio.Queue(maxsize=num_verifiers)
+    draft_queue = asyncio.Queue(maxsize=1)
+    response_queue = asyncio.Queue()
+    return verify_queue, draft_queue, response_queue
