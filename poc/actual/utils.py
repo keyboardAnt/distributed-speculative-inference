@@ -23,7 +23,8 @@ def setup_hf_cache():
     )
 
 
-def load_device_map(file_name):
+def load_device_map(file_name: str):
+    print(f"Loading device map from {file_name}")
     with open(file_name, "r") as f:
         device_map = json.load(f)
     return device_map
@@ -93,3 +94,10 @@ def cuda_memory_recording(max_entries=1_000_000):
         print(f"Dumping CUDA memory snapshot into {filepath}.")
         torch.cuda.memory._dump_snapshot(filepath)
         print(f"CUDA memory snapshot dumped into {filepath}.")
+
+
+def get_device_map_filepath(device_map_filename: str) -> str:
+    current_filepath = os.path.abspath(__file__)
+    current_dir = os.path.dirname(current_filepath)
+    device_map_dir = os.path.join(current_dir, "device_maps")
+    return os.path.join(device_map_dir, device_map_filename)

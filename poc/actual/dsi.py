@@ -1,4 +1,5 @@
 import asyncio
+import os
 import time
 from typing import Type
 
@@ -9,6 +10,7 @@ from poc.actual.utils import (
     cuda_memory_recording,
     decode,
     encode,
+    get_device_map_filepath,
     load_device_map,
     print_gpu_memory,
     shutdown_asyncio,
@@ -49,9 +51,10 @@ async def run(
         lookahead,
     )
     print(f"Main: Created {manager.__class__.__name__}")
-    verifier_device_map = load_device_map(
-        "/workspace/distributed-speculative-inference/poc/actual/device_maps/device_map_meta-llama_Meta-Llama-3.1-70B-Instruct_8bit_on_3A40_custom.json"
+    device_map_filepath = get_device_map_filepath(
+        "device_map_meta-llama_Meta-Llama-3.1-70B-Instruct_8bit_on_3A40_custom.json"
     )
+    verifier_device_map = load_device_map(device_map_filepath)
     verifier_2_device_map = {k: v + 3 for k, v in verifier_device_map.items()}
     verifiers_device_maps = [verifier_device_map, verifier_2_device_map]
     for i, device_map in enumerate(verifiers_device_maps):
