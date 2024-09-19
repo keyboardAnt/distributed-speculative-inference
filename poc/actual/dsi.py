@@ -19,7 +19,7 @@ from poc.actual.worker import Drafter, Verifier, VerifierSlow, get_workers
 import torch
 
 
-async def run(
+async def setup(
     manager_cls: Type[Manager],
     verifier_cls: Type[Verifier],
     drafter_cls: Type[Drafter],
@@ -33,7 +33,7 @@ async def run(
     lookahead: int,
     tok_ids: torch.Tensor,
     max_new_tokens: int,
-) -> None:
+) -> tuple[Manager, list[Verifier], Drafter]:
     print_gpu_memory()
     num_verifiers = 2
     print(f"Main: Number of verifiers: {num_verifiers}")
@@ -76,14 +76,18 @@ async def run(
         verifiers_device_maps=verifiers_device_maps,
         drafter_device_map=None,
     )
-    print("Main: Start measuring time NOW and run manager.")
+    return manager, verifiers, drafter
+
+
+async def run(manager: Manager):
+    print("Start measuring time NOW and run manager.")
     time_start = time.time()
     await manager.run()
     time_end = time.time()
     print(
-        f"Main: Manager task completed. Time taken: {time_end - time_start:.2f} seconds"
+        f"Generation completed. Time taken: {time_end - time_start:.2f} seconds"
     )
-    print(f"Main: Final tok_ids: {manager.tok_ids}")
+    print(f"Output tok_ids: {manager.tok_ids}")
     return manager.tok_ids
 
 
@@ -103,7 +107,7 @@ Break the text into two logical paragraphs.
 The meetings can be live or virtual, but with the pandemic continuing in many parts of the world, many companies will opt for virtual meetings in order to minimize the spread of illness. Virtual meetings also bring an array of advantages like being able to connect with people in different parts of the world.
 ### Response:"""
     tok_ids = encode(prompt, verifier_name)
-    tok_ids = await run(
+    manager, verifiers, drafter = await setup(
         manager_cls=Manager,
         verifier_cls=VerifierSlow,
         drafter_cls=Drafter,
@@ -118,13 +122,22 @@ The meetings can be live or virtual, but with the pandemic continuing in many pa
         tok_ids=tok_ids,
         max_new_tokens=max_new_tokens,
     )
-    # tok_ids = generate(
-    #     model_name=verifier_name,
-    #     dtype=verifier_dtype,
-    #     load_in_8bit=verifier_load_in_8bit,
-    #     tok_ids=tok_ids,
-    #     max_new_tokens=max_new_tokens,
-    # )
+    tok_ids = await run(manager)
+
+    # NOTE: Hugging Face Generate has a lower overhead than our DSI implementation.
+    #       We can use this to measure the overhead of our DSI implementation.
+    def nonsi_hf_generate_baseline() -> torch.Tensor:
+        nonlocal verifier_name, verifier_dtype, verifier_load_in_8bit, tok_ids, max_new_tokens
+        tok_ids = generate(
+            model_name=verifier_name,
+            dtype=verifier_dtype,
+            load_in_8bit=verifier_load_in_8bit,
+            tok_ids=tok_ids,
+            max_new_tokens=max_new_tokens,
+        )
+        return tok_ids
+    # tok_ids = nonsi_hf_generate_baseline()
+
     print(f"Main: Final output: {decode(tok_ids, verifier_name)}")
 
 
