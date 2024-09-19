@@ -1,6 +1,6 @@
 from poc.actual.pubsub import PubSub
 import torch
-from poc.actual.utils import print_gpu_memory, setup_hf_cache
+from poc.actual.utils import print_gpu_memory, set_hf_cache
 from poc.actual.event import Request, Response
 from transformers import AutoModelForCausalLM
 import accelerate
@@ -670,7 +670,7 @@ async def get_workers(
     """
     Setup the workers and the pubsub system. Returns the workers.
     """
-    setup_hf_cache()
+    set_hf_cache()
     print_gpu_memory()
     print("Main: Creating server instances")
     drafter = drafter_cls(

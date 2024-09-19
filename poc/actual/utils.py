@@ -11,7 +11,7 @@ import os
 from transformers import AutoTokenizer
 
 
-def setup_hf_cache():
+def set_hf_cache():
     if torch.cuda.device_count() > 0:
         os.environ["TRANSFORMERS_CACHE"] = "/workspace/hf_cache"
         os.environ["HF_HOME"] = "/workspace/hf_cache"
@@ -88,7 +88,10 @@ def cuda_memory_recording(max_entries=1_000_000):
         yield
     finally:
         current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        dirname = "./cuda_memory_snapshots"
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        dirname = os.path.join(current_dir, "cuda_memory_snapshots")
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
         filename = f"cuda_memory_snapshot_{current_time}.pickle"
         filepath = os.path.join(dirname, filename)
         print(f"Dumping CUDA memory snapshot into {filepath}.")

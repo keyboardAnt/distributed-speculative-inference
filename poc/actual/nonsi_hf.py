@@ -1,5 +1,5 @@
 import torch
-from poc.actual.utils import print_gpu_memory, setup_hf_cache
+from poc.actual.utils import print_gpu_memory, set_hf_cache
 from transformers import AutoModelForCausalLM
 
 
@@ -14,7 +14,7 @@ def generate(
     tok_ids: torch.Tensor,
     max_new_tokens: int,
 ) -> str:
-    setup_hf_cache()
+    set_hf_cache()
     print(f"Loading tokenizer for {model_name}")
     print_gpu_memory()
     print(f"Loading model {model_name}")
