@@ -1018,7 +1018,7 @@ async def run(
         lookahead,
     )
     print(f"Main: Created {manager.__class__.__name__}")
-    verifier_device_map = load_device_map("/workspace/distributed-speculative-inference/poc/device_map_meta-llama_Meta-Llama-3.1-70B-Instruct_8bit_on_3A40_custom.json")
+    verifier_device_map = load_device_map("/workspace/distributed-speculative-inference/poc/actual/device_map_meta-llama_Meta-Llama-3.1-70B-Instruct_8bit_on_3A40_custom.json")
     verifier_2_device_map = {k: v + 3 for k, v in verifier_device_map.items()}
     verifiers_device_maps = [verifier_device_map, verifier_2_device_map]
     for i, device_map in enumerate(verifiers_device_maps):
