@@ -1,21 +1,21 @@
 import asyncio
-import contextlib
 from functools import cache
 import os
 import time
 from typing import Type
-from datetime import datetime
 
 import accelerate
 from poc.actual.manager import Manager
 from poc.actual.nonsi_hf import generate
 from poc.actual.pubsub import PubSub
 from poc.actual.utils import (
+    cuda_memory_recording,
     decode,
     encode,
     load_device_map,
     print_gpu_memory,
     setup_hf_cache,
+    shutdown_asyncio,
 )
 from poc.actual.worker import Drafter, Verifier, VerifierSlow
 import torch
@@ -213,46 +213,9 @@ The meetings can be live or virtual, but with the pandemic continuing in many pa
     print(f"Main: Final output: {decode(tok_ids, verifier_name)}")
 
 
-def shutdown_asyncio():
-    try:
-        asyncio.run(main())
-        print("Shutting down all asyncio tasks")
-        # Get the current event loop
-        loop = asyncio.get_event_loop()
-        # Cancel all remaining tasks
-        tasks = asyncio.all_tasks(loop)
-        for task in tasks:
-            task.cancel()
-        # Wait for all tasks to complete
-        loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
-        # Shutdown asynchronous generators
-        loop.run_until_complete(loop.shutdown_asyncgens())
-        # Close the loop
-        loop.close()
-    except Exception as e:
-        print(
-            f"Exception occurred while running asyncio tasks or shutting them down: {e}"
-        )
-
-
-@contextlib.contextmanager
-def cuda_memory_recording(max_entries=1_000_000):
-    try:
-        print("Starting CUDA memory recording.")
-        torch.cuda.memory._record_memory_history(max_entries=max_entries)
-        yield
-    finally:
-        current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        dirname = "./cuda_memory_snapshots"
-        filename = f"cuda_memory_snapshot_{current_time}.pickle"
-        filepath = os.path.join(dirname, filename)
-        print(f"Dumping CUDA memory snapshot into {filepath}.")
-        torch.cuda.memory._dump_snapshot(filepath)
-        print(f"CUDA memory snapshot dumped into {filepath}.")
-
-
 if __name__ == "__main__":
     print("Starting script.")
     with cuda_memory_recording():
+        asyncio.run(main())
         shutdown_asyncio()
     print("Script completed")
