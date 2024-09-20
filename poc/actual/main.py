@@ -20,6 +20,8 @@ from tqdm import tqdm
 
 
 async def get_latency(async_func, *args, **kwargs):
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()
     print("Start measuring time NOW.")
     time_start = time.time()
     ret = await async_func(*args, **kwargs)
