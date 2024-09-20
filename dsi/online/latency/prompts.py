@@ -27,7 +27,7 @@ return list(set(my_list))
 Test: {test_list[0]}
 [/INST]"""  # noqa: E501
 
-    elif dataset == Dataset.ALPACA:
+    elif dataset in [Dataset.ALPACA, Dataset.ALPACA_SRC]:
         template_inp = """Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
 
 ### Instruction:
