@@ -78,13 +78,14 @@ async def main():
         verifiers_device_maps=verifiers_device_maps,
         drafter_device_map=None,
     )
-    prompt: str = """Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
-### Instruction:
-Break the text into two logical paragraphs.
-### Input:
-The meetings can be live or virtual, but with the pandemic continuing in many parts of the world, many companies will opt for virtual meetings in order to minimize the spread of illness. Virtual meetings also bring an array of advantages like being able to connect with people in different parts of the world.
-### Response:"""
-    prompts = [prompt] + get_prompts(dataset=Dataset.ALPACA_SRC, split="train", num_examples=10, random_seed=42)
+#     prompt: str = """Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
+# ### Instruction:
+# Break the text into two logical paragraphs.
+# ### Input:
+# The meetings can be live or virtual, but with the pandemic continuing in many parts of the world, many companies will opt for virtual meetings in order to minimize the spread of illness. Virtual meetings also bring an array of advantages like being able to connect with people in different parts of the world.
+# ### Response:"""
+#     prompts = [prompt]
+    prompts = get_prompts(dataset=Dataset.ALPACA_SRC, split="train", num_examples=50, random_seed=42)
     
     # NOTE: Hugging Face Generate has a lower overhead than our DSI implementation.
     #       We can use this to measure the overhead of our DSI implementation.
@@ -128,10 +129,10 @@ The meetings can be live or virtual, but with the pandemic continuing in many pa
         for worker in workers:
             worker.reset()
     print(f"Latencies: {latencies}")
-    print(f"Mean latency: {sum(latencies) / len(latencies)}")
-    print(f"Standard deviation: {statistics.stdev(latencies)}")
+    print(f"Mean latency: {sum(latencies) / len(latencies):.2f} seconds")
+    print(f"Standard deviation: {statistics.stdev(latencies):.2f} seconds")
 
-    
+
 if __name__ == "__main__":
     print("Starting script.")
     with cuda_memory_recording():
