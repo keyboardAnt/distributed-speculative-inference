@@ -180,11 +180,11 @@ class Manager:
                 )
                 mask: torch.Tensor = self.id_to_mask.pop(response.id)
                 if response.is_draft:
-                    # self.draft_scores[0, mask] = response.scores
-                    scores_padded = torch.full_like(self.draft_scores[0, mask], -1)
-                    n = response.scores.shape[1]
-                    scores_padded[:n] = response.scores
-                    self.draft_scores[0, mask] = scores_padded
+                    self.draft_scores[0, mask] = response.scores
+                    # scores_padded = torch.full_like(self.draft_scores[0, mask], -1)
+                    # n = response.scores.shape[1]
+                    # scores_padded[:n] = response.scores
+                    # self.draft_scores[0, mask] = scores_padded
                     self.draft_tok_ids[0, mask] = response.tok_ids[
                         0, -n:
                     ]
@@ -307,11 +307,11 @@ class ManagerSI(Manager):
                     f"{self.__class__.__name__}: Received draft response {response_draft}."
                 )
                 mask: torch.Tensor = self.id_to_mask.pop(response_draft.id)
-                # self.draft_scores[0, mask] = response_draft.scores
-                scores_padded = torch.full_like(self.draft_scores[0, mask], -1)
-                n = response_draft.scores.shape[1]
-                scores_padded[:n] = response_draft.scores
-                self.draft_scores[0, mask] = scores_padded
+                self.draft_scores[0, mask] = response_draft.scores
+                # scores_padded = torch.full_like(self.draft_scores[0, mask], -1)
+                # n = response_draft.scores.shape[1]
+                # scores_padded[:n] = response_draft.scores
+                # self.draft_scores[0, mask] = scores_padded
                 self.draft_tok_ids[0, mask] = response_draft.tok_ids[0, -n:]
                 print(
                     f"{self.__class__.__name__}: Updated draft tok_ids and scores with response {response_draft.id}. After the update, the draft tok_ids are {self.draft_tok_ids}"
