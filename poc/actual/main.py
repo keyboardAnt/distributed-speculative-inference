@@ -9,6 +9,7 @@ from poc.actual.utils import (
     cuda_memory_recording,
     decode,
     encode,
+    garbage_collect,
     get_queues,
     get_verifiers_device_maps,
     print_gpu_memory,
@@ -19,9 +20,15 @@ import torch
 from tqdm import tqdm
 
 
-async def get_latency(async_func, *args, **kwargs):
+def cleanup():
+    print("CLEANING UP: Syncing, collecting garbage, and printing GPU memory...")
     if torch.cuda.is_available():
         torch.cuda.synchronize()
+    garbage_collect()
+    print_gpu_memory()
+
+
+async def get_latency(async_func, *args, **kwargs):
     print("Start measuring time NOW.")
     time_start = time.time()
     ret = await async_func(*args, **kwargs)
@@ -73,7 +80,7 @@ Break the text into two logical paragraphs.
 ### Input:
 The meetings can be live or virtual, but with the pandemic continuing in many parts of the world, many companies will opt for virtual meetings in order to minimize the spread of illness. Virtual meetings also bring an array of advantages like being able to connect with people in different parts of the world.
 ### Response:"""
-    prompts = [prompt]
+    prompts = [prompt] * 10
     
     # NOTE: Hugging Face Generate has a lower overhead than our DSI implementation.
     #       We can use this to measure the overhead of our DSI implementation.
@@ -96,7 +103,6 @@ The meetings can be live or virtual, but with the pandemic continuing in many pa
     run_func = run_our_implementation
     for prompt in tqdm(prompts, desc="Prompts"):
         tok_ids = encode(prompt, verifier_name)
-        print_gpu_memory()
         manager = manager_cls(
             draft_queue=draft_queue,
             verify_queue=verify_queue,
@@ -108,7 +114,7 @@ The meetings can be live or virtual, but with the pandemic continuing in many pa
             lookahead=5,
         )
         print(f"Main: Created {manager.__class__.__name__}")
-        print_gpu_memory()
+        cleanup()
         latency, tok_ids = await get_latency(run_func)
         print(f"Main: Output tok_ids: {tok_ids}")
         print(f"Main: Final output: {decode(tok_ids, verifier_name)}")

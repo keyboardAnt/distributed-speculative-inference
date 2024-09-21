@@ -33,7 +33,8 @@ def load_device_map(file_name: str):
 def garbage_collect():
     print("Collecting garbage...")
     gc.collect()
-    torch.cuda.empty_cache()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
 
 
 def print_gpu_memory():
