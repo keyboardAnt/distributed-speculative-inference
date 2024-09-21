@@ -273,7 +273,7 @@ class Manager:
         return ret
 
 
-class ManagerSequential(Manager):
+class ManagerSI(Manager):
     async def run(self) -> None:
         print(f"{self.__class__.__name__}: Starting run")
         print(
