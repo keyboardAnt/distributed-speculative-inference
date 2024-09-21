@@ -57,7 +57,8 @@ async def main():
     verifier_load_in_8bit = True
     verifier_dtype = torch.float16
     num_verifiers = 2
-    max_new_tokens = 100
+    # max_new_tokens = 100
+    max_new_tokens = 20
     verifier_device_map_filename = (
         "device_map_meta-llama_Meta-Llama-3.1-70B-Instruct_8bit_on_3A40_custom.json"
     )
@@ -147,7 +148,7 @@ async def main():
         cleanup()
         print("Running non-SI HF...")
         with logfire.span("NonSI HF"):
-            latency, out_tok_ids = await get_latency(run_nonsi_hf())
+            latency, out_tok_ids = await get_latency(run_nonsi_hf)
             latencies["NonSI HF"].append(latency)
             print(f"Main: Output tok_ids:\n{out_tok_ids}")
             logfire.info("Main: Output tok_ids:\n{out_tok_ids}", out_tok_ids=out_tok_ids)
