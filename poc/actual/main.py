@@ -123,7 +123,7 @@ async def main():
     for prompt in tqdm(prompts, desc="Prompts"):
         tok_ids = encode(prompt, verifier_name)
         for manager_cls in [Manager, ManagerSI, ManagerNonSI]:
-            with logfire.span("Manager: {cls_name} - Prompt: {prompt}", cls_name=manager_cls.__name__, prompt=prompt):
+            with logfire.span("{cls_name} - Prompt: {prompt}", cls_name=manager_cls.__name__, prompt=prompt):
                 manager = manager_cls(
                     draft_queue=draft_queue,
                     verify_queue=verify_queue,
