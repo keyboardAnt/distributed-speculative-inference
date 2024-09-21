@@ -58,7 +58,9 @@ class Worker(ABC):
         self.ready.clear()
         self.timestamp_preemption = 0
         self.timestamp_request = 0
-        print(f"{self.__class__.__name__}: Resetting timestamp_preemption and timestamp_request")
+        print(
+            f"{self.__class__.__name__}: Resetting timestamp_preemption and timestamp_request"
+        )
         self.ready.set()
         print(f"{self.__class__.__name__}: Ready event set")
 

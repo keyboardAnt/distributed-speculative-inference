@@ -117,7 +117,9 @@ def get_verifiers_device_maps(filename: str) -> list[dict]:
     return verifiers_device_maps
 
 
-def get_queues(num_verifiers: int) -> tuple[asyncio.Queue, asyncio.Queue, asyncio.Queue]:
+def get_queues(
+    num_verifiers: int,
+) -> tuple[asyncio.Queue, asyncio.Queue, asyncio.Queue]:
     verify_queue = asyncio.Queue(maxsize=num_verifiers)
     draft_queue = asyncio.Queue(maxsize=1)
     response_queue = asyncio.Queue()
