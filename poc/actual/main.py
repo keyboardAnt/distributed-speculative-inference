@@ -1,10 +1,11 @@
 import asyncio
+from collections import defaultdict
 import statistics
 import time
 
 import accelerate
 from dsi.online.latency.dataset import Dataset
-from poc.actual.manager import Manager, ManagerNonSI
+from poc.actual.manager import Manager, ManagerNonSI, ManagerSI
 from poc.actual.nonsi_hf import generate
 from poc.actual.prompt import get_prompts
 from poc.actual.pubsub import PubSub
@@ -48,8 +49,7 @@ async def main():
     manager_cls = ManagerNonSI
     verifier_cls = VerifierSlow
     drafter_cls = Drafter
-    # verifier_name: str = "meta-llama/Meta-Llama-3.1-70B-Instruct"
-    verifier_name: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
+    verifier_name: str = "meta-llama/Meta-Llama-3.1-70B-Instruct"
     verifier_load_in_8bit = True
     verifier_dtype = torch.float16
     num_verifiers = 2
@@ -115,31 +115,33 @@ async def main():
         return manager.tok_ids
 
     run_func = run_our_implementation
-    latencies = []
+    latencies = defaultdict(list)
     for prompt in tqdm(prompts, desc="Prompts"):
         tok_ids = encode(prompt, verifier_name)
-
-        manager = manager_cls(
-            draft_queue=draft_queue,
-            verify_queue=verify_queue,
-            response_queue=response_queue,
-            pubsub=pubsub,
-            tok_ids=tok_ids,
-            max_new_tokens=max_new_tokens,
-            vocab_size=128256,
-            lookahead=5,
-        )
-        print(f"Main: Created {manager.__class__.__name__}")
-        cleanup()
-        latency, tok_ids = await get_latency(run_func)
-        latencies.append(latency)
-        print(f"Main: Output tok_ids: {tok_ids}")
-        print(f"Main: Final output: {decode(tok_ids, verifier_name)}")
-        for worker in workers:
-            worker.reset()
+        for manager_cls in [Manager, ManagerSI, ManagerNonSI]:
+            manager = manager_cls(
+                draft_queue=draft_queue,
+                verify_queue=verify_queue,
+                response_queue=response_queue,
+                pubsub=pubsub,
+                tok_ids=tok_ids,
+                max_new_tokens=max_new_tokens,
+                vocab_size=128256,
+                lookahead=5,
+            )
+            print(f"Main: Created {manager.__class__.__name__}")
+            cleanup()
+            latency, tok_ids = await get_latency(run_func)
+            latencies[manager.__class__.__name__].append(latency)
+            print(f"Main: Output tok_ids: {tok_ids}")
+            print(f"Main: Final output: {decode(tok_ids, verifier_name)}")
+            for worker in workers:
+                worker.reset()
     print(f"Latencies: {latencies}")
-    print(f"Mean latency: {sum(latencies) / len(latencies):.2f} seconds")
-    print(f"Standard deviation: {statistics.stdev(latencies):.2f} seconds")
+    for manager_cls, latencies in latencies.items():
+        print(f"Latencies for {manager_cls.__name__}: {latencies}")
+        print(f"Mean latency: {sum(latencies) / len(latencies):.2f} seconds")
+        print(f"Standard deviation: {statistics.stdev(latencies):.2f} seconds")
 
 
 if __name__ == "__main__":
