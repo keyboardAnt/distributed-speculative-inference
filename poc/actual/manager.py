@@ -136,7 +136,7 @@ class Manager:
         print(
             f"{self.__class__.__name__}: prompt's tok_ids.shape: {self.tok_ids.shape}"
         )
-        print(f"{self.__class__.__name__}: prompt's tok_ids: {self.tok_ids}")
+        print(f"{self.__class__.__name__}: prompt's tok_ids:\n{self.tok_ids}")
         to_verify_semaphore: int = self.verify_queue.maxsize
         print(f"{self.__class__.__name__}: {to_verify_semaphore=}")
         to_draft: bool = True
@@ -182,7 +182,7 @@ class Manager:
                 if response.is_draft:
                     self.draft_scores[0, mask] = response.scores
                     # scores_padded = torch.full_like(self.draft_scores[0, mask], -1)
-                    # n = response.scores.shape[1]
+                    n = response.scores.shape[1]
                     # scores_padded[:n] = response.scores
                     # self.draft_scores[0, mask] = scores_padded
                     self.draft_tok_ids[0, mask] = response.tok_ids[
@@ -257,7 +257,7 @@ class Manager:
             != tok_ids_accepted[mask_drafts_available]
         ).any()
         print(
-            f"{self.__class__.__name__}: Comparing draft tok_ids {draft_tok_ids} with accepted tok_ids {tok_ids_accepted}:\n{draft_tok_ids == tok_ids_accepted}"
+            f"{self.__class__.__name__}: Comparing draft tok_ids\n{draft_tok_ids}\nwith accepted tok_ids\n{tok_ids_accepted}\nresult:\n{draft_tok_ids == tok_ids_accepted}"
         )
         if any_rejected:
             idx_first_rejected = (draft_tok_ids != tok_ids_accepted).nonzero()[0].item()
@@ -266,7 +266,7 @@ class Manager:
             )
             tok_ids_accepted = tok_ids_accepted[: idx_first_rejected + 1]
         print(
-            f"{self.__class__.__name__}: Accepting new tokens. The number of accepted tokens is {len(tok_ids_accepted)}, and the tok_ids are {tok_ids_accepted}"
+            f"{self.__class__.__name__}: Accepting new tokens. The number of accepted tokens is {len(tok_ids_accepted)}, and the tok_ids are\n{tok_ids_accepted}"
         )
         return tok_ids_accepted, any_rejected
 
@@ -283,7 +283,7 @@ class ManagerSI(Manager):
         print(
             f"{self.__class__.__name__}: prompt's tok_ids.shape: {self.tok_ids.shape}"
         )
-        print(f"{self.__class__.__name__}: prompt's tok_ids: {self.tok_ids}")
+        print(f"{self.__class__.__name__}: prompt's tok_ids:\n{self.tok_ids}")
         while (self.tok_ids == -1).any():  # On init, acceptance, or rejection
             print(
                 f"{self.__class__.__name__}: number of empty tok_ids: {(self.tok_ids == -1).sum()}"
@@ -309,7 +309,7 @@ class ManagerSI(Manager):
                 mask: torch.Tensor = self.id_to_mask.pop(response_draft.id)
                 self.draft_scores[0, mask] = response_draft.scores
                 # scores_padded = torch.full_like(self.draft_scores[0, mask], -1)
-                # n = response_draft.scores.shape[1]
+                n = response_draft.scores.shape[1]
                 # scores_padded[:n] = response_draft.scores
                 # self.draft_scores[0, mask] = scores_padded
                 self.draft_tok_ids[0, mask] = response_draft.tok_ids[0, -n:]
@@ -354,7 +354,7 @@ class ManagerNonSI(Manager):
         print(
             f"{self.__class__.__name__}: prompt's tok_ids.shape: {self.tok_ids.shape}"
         )
-        print(f"{self.__class__.__name__}: prompt's tok_ids: {self.tok_ids}")
+        print(f"{self.__class__.__name__}: prompt's tok_ids:\n{self.tok_ids}")
         while (self.tok_ids == -1).any():  # On init, acceptance, or rejection
             print(
                 f"{self.__class__.__name__}: number of empty tok_ids: {(self.tok_ids == -1).sum()}"

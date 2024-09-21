@@ -75,4 +75,4 @@ class State:
         return ret
 
     def __repr__(self) -> str:
-        return f"State(v={self.v}, tok_ids={self.tok_ids})"
+        return f"State(v={self.v}, tok_ids=\n{self.tok_ids}\n)"

@@ -189,7 +189,7 @@ class ServerDrafter(Server):
                 self._log("Drafting tokens... ")
                 if curr_lookahead > 0:
                     tok_ids = self.setup.model.draft(curr_lookahead)
-                self._log(f"Drafted: {tok_ids=}")
+                self._log(f"Drafted tok_ids:\n{tok_ids}")
                 self._log(f"State after drafting: {self.setup.model.setup.state=}")
             # if not self._is_preempted():
             #     self.setup._job_queue.put((self.setup.model.setup.gpu_id, tok_ids))
@@ -215,7 +215,7 @@ class ServerTarget(Server):
         if self._is_preempted():
             self._log("preempted.")
             return None
-        self._log(f"Verifying: {tok_ids=}")
+        self._log(f"Verifying tok_ids:\n{tok_ids}")
         msg: MsgVerifiedRightmost = self.setup.model.verify(tok_ids)
         self._log(f"Verified: {msg=}")
         self._log(f"New state: {self.setup.model.setup.state=}")
@@ -227,7 +227,7 @@ class ServerTarget(Server):
         while True:
             self._log("Reading from the job queue... If empty, will block.")
             sender_id, tok_ids = self.setup._job_queue.get()
-            self._log(f"Received tokens from {sender_id=}: {tok_ids=}")
+            self._log(f"Received tokens from {sender_id=}:\n{tok_ids}")
             msg: None | MsgVerifiedRightmost = self._verify(tok_ids)
             if self._is_preempted():
                 self._clear_preemption()

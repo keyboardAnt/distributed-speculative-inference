@@ -36,6 +36,7 @@ pytest-timeout = "^2.3.1"
 pytest-xdist = "^3.6.1"
 ipykernel = "^6.29.5"
 aioconsole = "^0.8.0"
+logfire = "^0.53.0"
 
 [build-system]
 requires = ["poetry-core"]

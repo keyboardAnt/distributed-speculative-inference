@@ -2,6 +2,7 @@ import asyncio
 from collections import defaultdict
 import statistics
 import time
+import logfire
 
 import accelerate
 from dsi.online.latency.dataset import Dataset
@@ -22,6 +23,8 @@ from poc.actual.utils import (
 from poc.actual.worker import Drafter, VerifierSlow, Worker, get_workers
 import torch
 from tqdm import tqdm
+
+logfire.configure()
 
 
 def cleanup():
@@ -120,30 +123,35 @@ async def main():
     for prompt in tqdm(prompts, desc="Prompts"):
         tok_ids = encode(prompt, verifier_name)
         for manager_cls in [Manager, ManagerSI, ManagerNonSI]:
-            manager = manager_cls(
-                draft_queue=draft_queue,
-                verify_queue=verify_queue,
-                response_queue=response_queue,
-                pubsub=pubsub,
-                tok_ids=tok_ids,
-                max_new_tokens=max_new_tokens,
-                vocab_size=128256,
-                lookahead=5,
-            )
-            print(f"Main: Created {manager.__class__.__name__}")
-            cleanup()
-            latency, out_tok_ids = await get_latency(run_func)
-            latencies[manager.__class__.__name__].append(latency)
-            print(f"Main: Output tok_ids: {out_tok_ids}")
-            print(f"Main: Final output: {decode(out_tok_ids, verifier_name)}")
-            for worker in workers:
-                worker.reset()
+            with logfire.span(f"Manager: {manager_cls} - Prompt: {prompt}", manager_cls=manager_cls, prompt=prompt):
+                manager = manager_cls(
+                    draft_queue=draft_queue,
+                    verify_queue=verify_queue,
+                    response_queue=response_queue,
+                    pubsub=pubsub,
+                    tok_ids=tok_ids,
+                    max_new_tokens=max_new_tokens,
+                    vocab_size=128256,
+                    lookahead=5,
+                )
+                print(f"Main: Created {manager.__class__.__name__}")
+                cleanup()
+                latency, out_tok_ids = await get_latency(run_func)
+                latencies[manager.__class__.__name__].append(latency)
+                print(f"Main: Output tok_ids: {out_tok_ids}")
+                print(f"Main: Final output: {decode(out_tok_ids, verifier_name)}")
+                for worker in workers:
+                    worker.reset()
     print(f"Latencies: {latencies}")
+    logfire.info("Latencies: {latencies}", latencies=latencies)
     for manager_cls, latencies in latencies.items():
         print(f"Latencies for {manager_cls.__name__}: {latencies}")
-        print(f"Mean latency: {sum(latencies) / len(latencies):.2f} seconds")
-        print(f"Standard deviation: {statistics.stdev(latencies):.2f} seconds")
-
+        mean_latency = sum(latencies) / len(latencies)
+        print(f"Mean latency: {mean_latency:.2f} seconds")
+        stddev = statistics.stdev(latencies)
+        print(f"Standard deviation: {stddev:.2f} seconds")
+        logfire.info("Mean latency for {manager_cls}: {mean_latency:.2f} seconds", manager_cls=manager_cls, mean_latency=mean_latency)
+        logfire.info("Standard deviation for {manager_cls}: {stddev:.2f} seconds", manager_cls=manager_cls, stddev=stddev)
 
 if __name__ == "__main__":
     print("Starting script.")
