@@ -53,8 +53,7 @@ async def main():
     verifier_load_in_8bit = True
     verifier_dtype = torch.float16
     num_verifiers = 2
-    # max_new_tokens = 100
-    max_new_tokens = 10
+    max_new_tokens = 100
     verifier_device_map_filename = (
         "device_map_meta-llama_Meta-Llama-3.1-70B-Instruct_8bit_on_3A40_custom.json"
     )
@@ -131,10 +130,10 @@ async def main():
             )
             print(f"Main: Created {manager.__class__.__name__}")
             cleanup()
-            latency, tok_ids = await get_latency(run_func)
+            latency, out_tok_ids = await get_latency(run_func)
             latencies[manager.__class__.__name__].append(latency)
-            print(f"Main: Output tok_ids: {tok_ids}")
-            print(f"Main: Final output: {decode(tok_ids, verifier_name)}")
+            print(f"Main: Output tok_ids: {out_tok_ids}")
+            print(f"Main: Final output: {decode(out_tok_ids, verifier_name)}")
             for worker in workers:
                 worker.reset()
     print(f"Latencies: {latencies}")
