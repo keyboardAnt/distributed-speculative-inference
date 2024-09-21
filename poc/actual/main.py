@@ -147,7 +147,7 @@ async def main():
 
 if __name__ == "__main__":
     print("Starting script.")
-    with cuda_memory_recording():
+    with cuda_memory_recording(max_entries=1_000):
         asyncio.run(main())
         shutdown_asyncio()
     print("Script completed")

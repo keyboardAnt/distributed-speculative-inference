@@ -82,7 +82,7 @@ def shutdown_asyncio():
 
 
 @contextlib.contextmanager
-def cuda_memory_recording(max_entries=1_000_000):
+def cuda_memory_recording(max_entries: int):
     try:
         print("Starting CUDA memory recording.")
         torch.cuda.memory._record_memory_history(max_entries=max_entries)
