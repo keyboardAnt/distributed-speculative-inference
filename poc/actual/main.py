@@ -49,7 +49,8 @@ async def main():
     manager_cls = ManagerNonSI
     verifier_cls = VerifierSlow
     drafter_cls = Drafter
-    verifier_name: str = "meta-llama/Meta-Llama-3.1-70B-Instruct"
+    # verifier_name: str = "meta-llama/Meta-Llama-3.1-70B-Instruct"
+    verifier_name: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
     verifier_load_in_8bit = True
     verifier_dtype = torch.float16
     num_verifiers = 2
@@ -115,6 +116,7 @@ async def main():
 
     run_func = run_our_implementation
     latencies = defaultdict(list)
+    prompts = prompts[1:]
     for prompt in tqdm(prompts, desc="Prompts"):
         tok_ids = encode(prompt, verifier_name)
         for manager_cls in [Manager, ManagerSI, ManagerNonSI]:
