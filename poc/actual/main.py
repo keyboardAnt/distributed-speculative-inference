@@ -117,13 +117,12 @@ async def main():
         await manager.run()
         return manager.tok_ids
 
-    run_func = run_our_implementation
     latencies = defaultdict(list)
     prompts = prompts[1:]
     for prompt in tqdm(prompts, desc="Prompts"):
         tok_ids = encode(prompt, verifier_name)
         for manager_cls in [Manager, ManagerSI, ManagerNonSI]:
-            with logfire.span(f"Manager: {manager_cls} - Prompt: {prompt}", manager_cls=manager_cls, prompt=prompt):
+            with logfire.span("Manager: {cls_name} - Prompt: {prompt}", cls_name=manager_cls.__name__, prompt=prompt):
                 manager = manager_cls(
                     draft_queue=draft_queue,
                     verify_queue=verify_queue,
@@ -136,12 +135,27 @@ async def main():
                 )
                 print(f"Main: Created {manager.__class__.__name__}")
                 cleanup()
-                latency, out_tok_ids = await get_latency(run_func)
+                latency, out_tok_ids = await get_latency(run_our_implementation)
                 latencies[manager.__class__.__name__].append(latency)
                 print(f"Main: Output tok_ids: {out_tok_ids}")
-                print(f"Main: Final output: {decode(out_tok_ids, verifier_name)}")
+                logfire.info("Main: Output tok_ids: {out_tok_ids}", out_tok_ids=out_tok_ids)
+                out_str = decode(out_tok_ids, verifier_name)
+                print(f"Main: Final output: {out_str}")
+                logfire.info("Main: Final output: {out_str}", out_str=out_str)
                 for worker in workers:
                     worker.reset()
+        cleanup()
+        print("Running non-SI HF...")
+        with logfire.span("NonSI HF"):
+            latency, out_tok_ids = await get_latency(run_nonsi_hf())
+            latencies["NonSI HF"].append(latency)
+            print(f"Main: Output tok_ids:\n{out_tok_ids}")
+            logfire.info("Main: Output tok_ids:\n{out_tok_ids}", out_tok_ids=out_tok_ids)
+            out_str = decode(out_tok_ids, verifier_name)
+            print(f"Main: Final output:\n{out_str}")
+            logfire.info("Main: Final output:\n{out_str}", out_str=out_str)
+            for worker in workers:
+                worker.reset()
     print(f"Latencies: {latencies}")
     logfire.info("Latencies: {latencies}", latencies=latencies)
     for manager_cls, latencies in latencies.items():
