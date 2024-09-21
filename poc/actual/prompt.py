@@ -14,7 +14,3 @@ def get_prompts(dataset: str, split: str, num_examples: int, random_seed: int) -
     )
     prompted_examples = [get_prompt(dataset, ex) for ex in examples]
     return prompted_examples
-
-
-if __name__ == "__main__":
-    print(get_prompts(dataset=Dataset.ALPACA_SRC, split="train", num_examples=10, random_seed=42))
