@@ -4,7 +4,7 @@ import time
 
 import accelerate
 from dsi.online.latency.dataset import Dataset
-from poc.actual.manager import Manager
+from poc.actual.manager import Manager, ManagerNonSI
 from poc.actual.nonsi_hf import generate
 from poc.actual.prompt import get_prompts
 from poc.actual.pubsub import PubSub
@@ -44,7 +44,8 @@ async def get_latency(async_func, *args, **kwargs):
 @torch.no_grad()
 async def main():
     print("Main started")
-    manager_cls = Manager
+    # manager_cls = Manager
+    manager_cls = ManagerNonSI
     verifier_cls = VerifierSlow
     drafter_cls = Drafter
     # verifier_name: str = "meta-llama/Meta-Llama-3.1-70B-Instruct"

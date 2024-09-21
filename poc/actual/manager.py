@@ -340,3 +340,72 @@ class ManagerSI(Manager):
                     f"{self.__class__.__name__}: Rejected verify response {response_verify.id}."
                 )
                 self._reset()
+
+
+class ManagerNonSI(Manager):
+    async def run(self) -> None:
+        print(f"{self.__class__.__name__}: Starting run")
+        print(
+            f"{self.__class__.__name__}: prompt's tok_ids.shape: {self.tok_ids.shape}"
+        )
+        print(f"{self.__class__.__name__}: prompt's tok_ids: {self.tok_ids}")
+        while (self.tok_ids == -1).any():  # On init, acceptance, or rejection
+            print(
+                f"{self.__class__.__name__}: number of empty tok_ids: {(self.tok_ids == -1).sum()}"
+            )
+            print(f"{self.__class__.__name__}: {self.tok_ids=}")
+            # # 1. Draft
+            # mask_draft_tok_ids_to_draft = (self.tok_ids == -1) & (
+            #     self.draft_tok_ids == -1
+            # )
+            # curr_lookahead: int = min(
+            #     self.lookahead, mask_draft_tok_ids_to_draft.sum() - 1
+            # )
+            # if curr_lookahead > 0:
+            #     await self._send(
+            #         Request.create(self.get_tok_ids_with_drafts(), curr_lookahead),
+            #         self.draft_queue,
+            #     )
+            #     print(f"{self.__class__.__name__}: Waiting for draft response")
+            #     response_draft: Response = await self.response_queue.get()
+            #     print(
+            #         f"{self.__class__.__name__}: Received draft response {response_draft}."
+            #     )
+            #     mask: torch.Tensor = self.id_to_mask.pop(response_draft.id)
+            #     self.draft_scores[0, mask] = response_draft.scores
+            #     self.draft_tok_ids[0, mask] = response_draft.tok_ids[
+            #         0, -response_draft.scores.shape[1] :
+            #     ]
+            #     print(
+            #         f"{self.__class__.__name__}: Updated draft tok_ids and scores with response {response_draft.id}. After the update, the draft tok_ids are {self.draft_tok_ids}"
+            #     )
+            #     self.response_queue.task_done()
+            # 2. Verify
+            # mask_draft_tok_ids_to_verify = (self.tok_ids == -1) & (
+            #     self.draft_tok_ids != -1
+            # )
+            # print(
+            #     f"{self.__class__.__name__}: number of draft tokens waiting for verification: {mask_draft_tok_ids_to_verify.sum()}"
+            # )
+            # n = 1 + max(0, mask_draft_tok_ids_to_verify.sum())
+            await self._send(
+                Request.create(self.get_tok_ids_with_drafts(), n=1),
+                self.verify_queue,
+            )
+            response_verify: Response = await self.response_queue.get()
+            print(
+                f"{self.__class__.__name__}: Received verify response {response_verify}."
+            )
+            mask: torch.Tensor = self.id_to_mask.pop(response_verify.id)
+            tok_ids: torch.Tensor
+            any_rejected: bool
+            tok_ids, any_rejected = self.rejection_sampler(response_verify, mask)
+            tok_ids_padded = torch.full_like(self.tok_ids[0, mask], -1)
+            tok_ids_padded[: len(tok_ids)] = tok_ids
+            self.tok_ids[0, mask] = tok_ids_padded
+            self.response_queue.task_done()
+            if any_rejected:
+                print(
+                    f"{self.__class__.__name__}: Rejected verify response {response_verify.id}."
+                )
+                self._reset()
