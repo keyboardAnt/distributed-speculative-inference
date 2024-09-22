@@ -96,7 +96,7 @@ class Manager:
         )
         await queue.put(request)
         print(
-            f"{self.__class__.__name__}: Sent {('verify' if queue == self.verify_queue else 'draft')} request with n={request.n} and tok_ids={self.get_tok_ids_with_drafts()}"
+            f"{self.__class__.__name__}: Sent {('verify' if queue == self.verify_queue else 'draft')} request with n={request.n} and tok_ids:\n{self.get_tok_ids_with_drafts()}"
         )
 
     def _reset(self) -> None:
