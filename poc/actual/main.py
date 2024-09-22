@@ -21,7 +21,7 @@ from poc.actual.utils import (
     print_gpu_memory,
     shutdown_asyncio,
 )
-from poc.actual.worker import Drafter, VerifierSlow, Worker, get_workers
+from poc.actual.worker import Drafter, Verifier, VerifierSlow, Worker, get_workers
 import torch
 from tqdm import tqdm
 
@@ -51,15 +51,17 @@ async def main():
     print("Main started")
     # manager_cls = Manager
     manager_cls = ManagerNonSI
-    verifier_cls = VerifierSlow
+    # verifier_cls = VerifierSlow
+    verifier_cls = Verifier
     drafter_cls = Drafter
     # verifier_name: str = "meta-llama/Meta-Llama-3.1-70B-Instruct"
     verifier_name: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
     verifier_load_in_8bit = True
     verifier_dtype = torch.float16
     num_verifiers = 2
+    max_new_tokens = 200
     # max_new_tokens = 100
-    max_new_tokens = 20
+    # max_new_tokens = 20
     verifier_device_map_filename = (
         "device_map_meta-llama_Meta-Llama-3.1-70B-Instruct_8bit_on_3A40_custom.json"
     )
@@ -122,7 +124,8 @@ async def main():
     latencies = defaultdict(list)
     # TODO: Remove this
     prompts = prompts[:1]
-    with logfire.span("Run with args: {args}", args=locals()):
+    ts = time.time()
+    with logfire.span("Run with args:\n{args}\nat {ts}", args=locals(), ts=ts):
         for prompt in tqdm(prompts, desc="Prompts"):
             with logfire.span("Prompt: {prompt}", prompt=prompt):
                 tok_ids = encode(prompt, verifier_name)
@@ -165,11 +168,10 @@ async def main():
         print(f"Latencies: {latencies}")
         logfire.info("Latencies: {latencies}", latencies=latencies)
         for manager_cls, latencies in latencies.items():
-            print(f"Latencies for {manager_cls}: {latencies}")
-            mean_latency = sum(latencies) / len(latencies)
-            print(f"Mean latency: {mean_latency:.2f} seconds")
-            logfire.info("Mean latency for {manager_cls}: {mean_latency:.2f} seconds", manager_cls=manager_cls, mean_latency=mean_latency)
             if len(latencies) > 1:
+                mean_latency = sum(latencies) / len(latencies)
+                print(f"Mean latency: {mean_latency:.2f} seconds")
+                logfire.info("Mean latency for {manager_cls}: {mean_latency:.2f} seconds", manager_cls=manager_cls, mean_latency=mean_latency)
                 stddev = statistics.stdev(latencies)
                 print(f"Standard deviation: {stddev:.2f} seconds")
                 logfire.info("Standard deviation for {manager_cls}: {stddev:.2f} seconds", manager_cls=manager_cls, stddev=stddev)
