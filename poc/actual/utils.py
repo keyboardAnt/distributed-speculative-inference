@@ -124,3 +124,61 @@ def get_queues(
     draft_queue = asyncio.Queue(maxsize=1)
     response_queue = asyncio.Queue()
     return verify_queue, draft_queue, response_queue
+
+
+def right_pad_like(array_to_pad: torch.Tensor, like: torch.Tensor, dim: int) -> torch.Tensor:
+    """
+    Right pads the `array_to_pad` with -1s to be like the `like` tensor.
+    The shape of the `like` tensor should be the same as the `array_to_pad` except for the `dim` dimension.
+    The `dim` dimension of the `like` tensor should be at least as large as the `dim` dimension of the `array_to_pad`.
+    """
+    if array_to_pad.dim() != like.dim():
+        raise ValueError(f"Tensors must have the same number of dimensions. Got {array_to_pad.dim()} and {like.dim()}")
+    
+    if dim < 0 or dim >= array_to_pad.dim():
+        raise ValueError(f"Invalid dimension {dim}. Must be between 0 and {array_to_pad.dim() - 1}")
+    
+    for i in range(array_to_pad.dim()):
+        if i != dim and array_to_pad.shape[i] != like.shape[i]:
+            raise ValueError(f"Shapes must match in all dimensions except {dim}. Mismatch at dimension {i}: {array_to_pad.shape[i]} vs {like.shape[i]}")
+    
+    if array_to_pad.shape[dim] > like.shape[dim]:
+        raise ValueError(f"The 'dim' dimension of array_to_pad ({array_to_pad.shape[dim]}) cannot be larger than that of 'like' ({like.shape[dim]})")
+    
+    n = array_to_pad.shape[dim]
+    padded = torch.full_like(like, -1)
+    padded.narrow(dim, 0, n).copy_(array_to_pad)
+    return padded
+
+
+def get_shorter_mask(mask_1d: torch.Tensor, n: int) -> torch.Tensor:
+    """
+    The mask is a 1-dimensional boolean tensor of False values, with a subsequence of True values.
+    This function "shortens" the mask by keeping the first `n` True values and replacing the rest with False values.
+
+    Raises an error if `n` is strictly greater than the number of True values in the mask.
+    
+    Examples:
+    - if the mask is [False, True, True, True, False] and `n` is 0, the function will return [False, True, True, True, False].
+    - if the mask is [False, True, True, True, False] and `n` is 1, the function will return [False, True, False, False, False].
+    - if the mask is [False, True, True, True, False] and `n` is 2, the function will return [False, True, True, False, False].
+    - if the mask is [False, True, True, True, False] and `n` is 3, the function will return [False, False, False, False, False].
+    - if the mask is [False, True, True, True, False] and `n` is 4, the function will raise an error.
+    - if the mask is [True, True, True, False, False] and `n` is 2, the function will return [True, True, False, False, False].
+    """
+    true_count = mask_1d.sum().item()  # Count the number of True values in the mask
+    if n > true_count:
+        raise ValueError(f"Cannot shorten the mask to keep {n} True values because there are only {true_count} True values in the mask")
+    if n == true_count:
+        return mask_1d
+
+    new_mask = mask_1d.clone()  # Clone the original mask to avoid modifying it directly
+    if n == 0:
+        new_mask[:] = False
+        return new_mask
+
+    true_indices = (new_mask == True).nonzero(as_tuple=True)[0]
+    if n < true_indices.size(0):
+        new_mask[true_indices[n]:] = False  # Set all True values beyond the first `n` to False
+
+    return new_mask
