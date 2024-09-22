@@ -189,7 +189,7 @@ class Manager:
                         0, -n:
                     ]
                     print(
-                        f"{self.__class__.__name__}: Updated draft tok_ids and scores with response {response.id}. After the update, the draft tok_ids are {self.draft_tok_ids}"
+                        f"{self.__class__.__name__}: Updated draft tok_ids and scores with response {response.id}. After the update, the draft tok_ids are\n{self.draft_tok_ids}"
                     )
                     mask_verified = self.tok_ids[0, mask] != -1
                     if (
@@ -314,7 +314,7 @@ class ManagerSI(Manager):
                 # self.draft_scores[0, mask] = scores_padded
                 self.draft_tok_ids[0, mask] = response_draft.tok_ids[0, -n:]
                 print(
-                    f"{self.__class__.__name__}: Updated draft tok_ids and scores with response {response_draft.id}. After the update, the draft tok_ids are {self.draft_tok_ids}"
+                    f"{self.__class__.__name__}: Updated draft tok_ids and scores with response {response_draft.id}. After the update, the draft tok_ids are\n{self.draft_tok_ids}"
                 )
                 self.response_queue.task_done()
             # 2. Verify
