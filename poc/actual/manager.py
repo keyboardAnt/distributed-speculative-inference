@@ -144,7 +144,7 @@ class Manager:
             print(
                 f"{self.__class__.__name__}: number of empty tok_ids: {(self.tok_ids == -1).sum()}"
             )
-            print(f"{self.__class__.__name__}: {self.tok_ids=}")
+            print(f"{self.__class__.__name__}: tok_ids:\n{self.tok_ids}")
             any_rejected: bool = False
             if to_verify_semaphore > 0:
                 await self.send_reqeust_verify()
