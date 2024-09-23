@@ -24,8 +24,10 @@ from poc.actual.utils import (
 from poc.actual.worker import Drafter, Verifier, VerifierSlow, Worker, get_workers
 import torch
 from tqdm import tqdm
+from logfire.testing import SeededRandomIdGenerator
 
-logfire.configure()
+
+logfire.configure(id_generator=SeededRandomIdGenerator(None))
 
 
 def cleanup():
