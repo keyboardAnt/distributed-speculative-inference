@@ -368,7 +368,7 @@ class Verifier(Worker):
         )
         logits_argmax = outputs.logits.argmax(dim=-1)
         if n > 1:
-            tok_ids = tok_ids[:, : -n]
+            tok_ids = tok_ids[:, : -(n - 1)]
         sequences = torch.cat((tok_ids[0, :], logits_argmax[0, -n:])).unsqueeze(0)
         return outputs.logits, sequences
 

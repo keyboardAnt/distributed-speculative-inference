@@ -1,5 +1,5 @@
 from enum import Enum
-from poc.actual.utils import get_shorter_mask
+from poc.actual.utils import get_shorter_mask, right_pad_like
 import torch
 from poc.actual.pubsub import PubSub
 from poc.actual.event import Preemption, Request, Response
@@ -202,15 +202,16 @@ class Manager:
                 )
                 mask: torch.Tensor = self.id_to_mask.pop(response.id)
                 if response.is_draft:
-                    n = response.scores.shape[1]
                     try:
                         self.draft_scores[:, mask] = response.scores
                     except RuntimeError as e:
                         print(f"{self.__class__.__name__}: Error updating draft scores: {e}")
-                        mask = get_shorter_mask(mask_1d=mask, n=n)
-                    self.draft_tok_ids[0, mask] = response.tok_ids[
-                        0, -n:
-                    ]
+                        mask = get_shorter_mask(mask_1d=mask, n=response.scores.shape[1])
+                        self.draft_scores[:, mask] = response.scores
+                    # self.draft_tok_ids[0, mask] = response.tok_ids[
+                    #     0, -response.tok_ids.shape[1]:
+                    # ]
+                    self.draft_tok_ids[0, mask] = right_pad_like(array_to_pad=response.tok_ids, like=self.draft_tok_ids, dim=1)[0, mask]
                     print(
                         f"{self.__class__.__name__}: Updated draft tok_ids and scores with response {response.id}. After the update, the draft tok_ids are\n{self.draft_tok_ids}"
                     )
@@ -299,15 +300,6 @@ class Manager:
         ret[nonempty_mask] = self.tok_ids[nonempty_mask]
         return ret
 
-    def _crop_length(self, n: int) -> None:
-        """
-        Crops the `tok_ids`, `draft_tok_ids`, and `draft_scores` to the first `n` tokens.
-        """
-        self.tok_ids = self.tok_ids[:, :n]
-        self.draft_tok_ids = self.draft_tok_ids[:, :n]
-        self.draft_scores = self.draft_scores[:, :n, :]
-
-
 class ManagerSI(Manager):
     async def run(self) -> None:
         print(f"{self.__class__.__name__}: Starting run")
@@ -334,7 +326,6 @@ class ManagerSI(Manager):
                 )
                 print(f"{self.__class__.__name__}: Waiting for draft response")
                 response_draft: Response = await self.response_queue.get()
-                n = response_draft.scores.shape[1]
                 print(
                     f"{self.__class__.__name__}: Received draft response {response_draft}."
                 )
@@ -343,8 +334,10 @@ class ManagerSI(Manager):
                     self.draft_scores[:, mask] = response_draft.scores
                 except RuntimeError as e:
                     print(f"{self.__class__.__name__}: Error updating draft scores: {e}")
-                    mask = get_shorter_mask(mask_1d=mask, n=n)
-                self.draft_tok_ids[0, mask] = response_draft.tok_ids[0, -n:]
+                    mask = get_shorter_mask(mask_1d=mask, n=response_draft.scores.shape[1])
+                    self.draft_scores[:, mask] = response_draft.scores
+                # self.draft_tok_ids[0, mask] = response_draft.tok_ids[0, -n:]
+                self.draft_tok_ids[0, mask] = right_pad_like(array_to_pad=response_draft.tok_ids, like=self.draft_tok_ids, dim=1)[0, mask]
                 print(
                     f"{self.__class__.__name__}: Updated draft tok_ids and scores with response {response_draft.id}. After the update, the draft tok_ids are\n{self.draft_tok_ids}"
                 )

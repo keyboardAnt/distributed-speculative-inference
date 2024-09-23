@@ -53,7 +53,8 @@ async def main():
     print("Main started")
     verifier_cls = VerifierSlow
     drafter_cls = Drafter
-    verifier_name: str = "meta-llama/Meta-Llama-3.1-70B-Instruct"
+    # verifier_name: str = "meta-llama/Meta-Llama-3.1-70B-Instruct"
+    verifier_name: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
     verifier_load_in_8bit = True
     verifier_dtype = torch.float16
     num_verifiers = 2
@@ -124,6 +125,18 @@ async def main():
             with logfire.span("Prompt {i}", i=i):
                 tok_ids = encode(prompt, verifier_name)
                 logfire.info("Prompt:\n{prompt}\n\nTok IDs:\n{tok_ids}", i=i, prompt=prompt, tok_ids=tok_ids)
+                print("Running non-SI HF...")
+                logfire.info("Non-SI HF")
+                latency, out_tok_ids = await get_latency(run_nonsi_hf)
+                latencies["NonSI HF"].append(latency)
+                print(f"Main: Output tok_ids:\n{out_tok_ids}")
+                logfire.info("Output tok_ids:\n{out_tok_ids}", out_tok_ids=out_tok_ids)
+                out_str = decode(out_tok_ids, verifier_name)
+                print(f"Main: Final output:\n{out_str}")
+                logfire.info("Final output:\n{out_str}", out_str=out_str)
+                for worker in workers:
+                    worker.reset()
+                cleanup()
                 for manager_cls in [Manager, ManagerSI, ManagerNonSI]:
                     with logfire.span("algo: {manager_cls}", manager_cls=manager_cls.__name__):
                         manager = manager_cls(
@@ -147,18 +160,6 @@ async def main():
                         logfire.info("Token IDs:\n{out_tok_ids}\n\nFinal output:\n{out_str}", out_tok_ids=out_tok_ids, out_str=out_str)
                         for worker in workers:
                             worker.reset()
-                cleanup()
-                print("Running non-SI HF...")
-                logfire.info("Non-SI HF")
-                latency, out_tok_ids = await get_latency(run_nonsi_hf)
-                latencies["NonSI HF"].append(latency)
-                print(f"Main: Output tok_ids:\n{out_tok_ids}")
-                logfire.info("Output tok_ids:\n{out_tok_ids}", out_tok_ids=out_tok_ids)
-                out_str = decode(out_tok_ids, verifier_name)
-                print(f"Main: Final output:\n{out_str}")
-                logfire.info("Final output:\n{out_str}", out_str=out_str)
-                for worker in workers:
-                    worker.reset()
         print(f"Latencies: {latencies}")
         logfire.info("Latencies: {latencies}", latencies=latencies)
         for manager_cls, latencies in latencies.items():
