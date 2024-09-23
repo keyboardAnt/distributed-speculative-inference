@@ -119,7 +119,7 @@ async def main():
 
     latencies = defaultdict(list)
     ts = time.time()
-    with logfire.span("Run with args:\n{args}\nat {ts}", args=locals(), ts=ts):
+    with logfire.span("Run ({ts}) with args:\n{args}", ts=ts, args=locals()):
         for i, prompt in enumerate(tqdm(prompts, desc="Prompts")):
             with logfire.span("Prompt {i}", i=i):
                 tok_ids = encode(prompt, verifier_name)
