@@ -124,7 +124,7 @@ async def main():
             logfire.info("Prompt: {prompt}", prompt=prompt)
             tok_ids = encode(prompt, verifier_name)
             for manager_cls in [Manager, ManagerSI, ManagerNonSI]:
-                logfire.info("Manager: {manager_cls}", manager_cls=manager_cls.__name__)
+                logfire.info("algo: {manager_cls}", manager_cls=manager_cls.__name__)
                 manager = manager_cls(
                     draft_queue=draft_queue,
                     verify_queue=verify_queue,
