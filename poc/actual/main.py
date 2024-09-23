@@ -124,7 +124,7 @@ async def main():
             logfire.info("Prompt: {prompt}", prompt=prompt)
             tok_ids = encode(prompt, verifier_name)
             for manager_cls in [Manager, ManagerSI, ManagerNonSI]:
-                logfire.info("Manager: {manager_cls}", manager_cls=manager_cls)
+                logfire.info("Manager: {manager_cls}", manager_cls=manager_cls.__name__)
                 manager = manager_cls(
                     draft_queue=draft_queue,
                     verify_queue=verify_queue,
@@ -164,10 +164,10 @@ async def main():
             if len(latencies) > 1:
                 mean_latency = sum(latencies) / len(latencies)
                 print(f"Mean latency: {mean_latency:.2f} seconds")
-                logfire.info("Mean latency for {manager_cls}: {mean_latency:.2f} seconds", manager_cls=manager_cls, mean_latency=mean_latency)
+                logfire.info("Mean latency for {manager_cls}: {mean_latency:.2f} seconds", manager_cls=manager_cls.__name__, mean_latency=mean_latency)
                 stddev = statistics.stdev(latencies)
                 print(f"Standard deviation: {stddev:.2f} seconds")
-                logfire.info("Standard deviation for {manager_cls}: {stddev:.2f} seconds", manager_cls=manager_cls, stddev=stddev)
+                logfire.info("Standard deviation for {manager_cls}: {stddev:.2f} seconds", manager_cls=manager_cls.__name__, stddev=stddev)
 
 
 if __name__ == "__main__":
