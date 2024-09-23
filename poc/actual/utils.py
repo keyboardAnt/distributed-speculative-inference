@@ -11,16 +11,18 @@ import os
 from transformers import AutoTokenizer
 
 
-def set_hf_cache():
+def set_hf_cache() -> str:
     if torch.cuda.device_count() > 0:
-        os.environ["TRANSFORMERS_CACHE"] = "/workspace/hf_cache"
-        os.environ["HF_HOME"] = "/workspace/hf_cache"
+        cache_dir = "/workspace/hf_cache"
+        os.environ["TRANSFORMERS_CACHE"] = cache_dir
+        os.environ["HF_HOME"] = cache_dir
     print(
         f"Main: Set Hugging Face cache directory to {os.environ.get('TRANSFORMERS_CACHE', 'Not set')}"
     )
     print(
         f"Main: Set Hugging Face home directory to {os.environ.get('HF_HOME', 'Not set')}"
     )
+    return cache_dir
 
 
 def load_device_map(file_name: str):
