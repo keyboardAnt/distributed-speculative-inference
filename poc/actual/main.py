@@ -119,43 +119,43 @@ async def main():
     ts = time.time()
     with logfire.span("Run with args:\n{args}\nat {ts}", args=locals(), ts=ts):
         for prompt in tqdm(prompts, desc="Prompts"):
-            with logfire.span("Prompt: {prompt}", prompt=prompt):
-                tok_ids = encode(prompt, verifier_name)
-                for manager_cls in [Manager, ManagerSI, ManagerNonSI]:
-                    with logfire.span("{cls_name}", cls_name=manager_cls):
-                        manager = manager_cls(
-                            draft_queue=draft_queue,
-                            verify_queue=verify_queue,
-                            response_queue=response_queue,
-                            pubsub=pubsub,
-                            tok_ids=tok_ids,
-                            max_new_tokens=max_new_tokens,
-                            vocab_size=128256,
-                            lookahead=5,
-                        )
-                        print(f"Main: Created {manager.__class__.__name__}")
-                        cleanup()
-                        latency, out_tok_ids = await get_latency(run_our_implementation)
-                        latencies[manager.__class__.__name__].append(latency)
-                        print(f"Main: Output tok_ids:\n{out_tok_ids}")
-                        logfire.info("Main: Output tok_ids:\n{out_tok_ids}", out_tok_ids=out_tok_ids)
-                        out_str = decode(out_tok_ids, verifier_name)
-                        print(f"Main: Final output:\n{out_str}")
-                        logfire.info("Main: Final output:\n{out_str}", out_str=out_str)
-                        for worker in workers:
-                            worker.reset()
+            logfire.info("Prompt: {prompt}", prompt=prompt)
+            tok_ids = encode(prompt, verifier_name)
+            for manager_cls in [Manager, ManagerSI, ManagerNonSI]:
+                logfire.info("Manager: {manager_cls}", manager_cls=manager_cls)
+                manager = manager_cls(
+                    draft_queue=draft_queue,
+                    verify_queue=verify_queue,
+                    response_queue=response_queue,
+                    pubsub=pubsub,
+                    tok_ids=tok_ids,
+                    max_new_tokens=max_new_tokens,
+                    vocab_size=128256,
+                    lookahead=5,
+                )
+                print(f"Main: Created {manager.__class__.__name__}")
                 cleanup()
-                print("Running non-SI HF...")
-                with logfire.span("NonSI HF"):
-                    latency, out_tok_ids = await get_latency(run_nonsi_hf)
-                    latencies["NonSI HF"].append(latency)
-                    print(f"Main: Output tok_ids:\n{out_tok_ids}")
-                    logfire.info("Main: Output tok_ids:\n{out_tok_ids}", out_tok_ids=out_tok_ids)
-                    out_str = decode(out_tok_ids, verifier_name)
-                    print(f"Main: Final output:\n{out_str}")
-                    logfire.info("Main: Final output:\n{out_str}", out_str=out_str)
-                    for worker in workers:
-                        worker.reset()
+                latency, out_tok_ids = await get_latency(run_our_implementation)
+                latencies[manager.__class__.__name__].append(latency)
+                print(f"Main: Output tok_ids:\n{out_tok_ids}")
+                logfire.info("Main: Output tok_ids:\n{out_tok_ids}", out_tok_ids=out_tok_ids)
+                out_str = decode(out_tok_ids, verifier_name)
+                print(f"Main: Final output:\n{out_str}")
+                logfire.info("Main: Final output:\n{out_str}", out_str=out_str)
+                for worker in workers:
+                    worker.reset()
+            cleanup()
+            print("Running non-SI HF...")
+            logfire.info("Non-SI HF")
+            latency, out_tok_ids = await get_latency(run_nonsi_hf)
+            latencies["NonSI HF"].append(latency)
+            print(f"Main: Output tok_ids:\n{out_tok_ids}")
+            logfire.info("Main: Output tok_ids:\n{out_tok_ids}", out_tok_ids=out_tok_ids)
+            out_str = decode(out_tok_ids, verifier_name)
+            print(f"Main: Final output:\n{out_str}")
+            logfire.info("Main: Final output:\n{out_str}", out_str=out_str)
+            for worker in workers:
+                worker.reset()
         print(f"Latencies: {latencies}")
         logfire.info("Latencies: {latencies}", latencies=latencies)
         for manager_cls, latencies in latencies.items():
