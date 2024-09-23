@@ -55,7 +55,7 @@ async def main():
     verifier_load_in_8bit = True
     verifier_dtype = torch.float16
     num_verifiers = 2
-    max_new_tokens = 50
+    max_new_tokens = 200
     verifier_device_map_filename = (
         "device_map_meta-llama_Meta-Llama-3.1-70B-Instruct_8bit_on_3A40_custom.json"
     )
@@ -89,7 +89,7 @@ async def main():
     # ### Response:"""
     #     prompts = [prompt]
     prompts = get_prompts(
-        dataset=Dataset.ALPACA_SRC, split="train", num_examples=50, random_seed=42
+        dataset=Dataset.ALPACA_SRC, split="train", num_examples=30, random_seed=42
     )
 
     # NOTE: Hugging Face Generate has a lower overhead than our DSI implementation.
