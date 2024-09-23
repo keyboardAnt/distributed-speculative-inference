@@ -327,14 +327,10 @@ class Worker(ABC):
             current prompt. All entries in tok_ids should be non-negative.
             n: The number of positions for which the return value should contain scores.
         """
-        print(
-            f"{self.__class__.__name__} ({self.worker_id}): Using thread ID"
-            f" {threading.get_native_id()} (PID: {os.getpid()})"
-        )
         # only the prefix of tok_ids that is not -1 is the prompt
-        tok_ids = tok_ids[:, : (tok_ids[0] != -1).sum()]
+        # tok_ids = tok_ids[:, : (tok_ids[0] != -1).sum()]
+        tok_ids = tok_ids[:, tok_ids[0] != -1]
         # n = max(n, 1)  # Ensure n is at least 1
-        assert n > 0, "n must be greater than 0"
         scores, sequences = await self._forward(tok_ids, n)
         print(
             f"{self.__class__.__name__} ({self.worker_id}): Generated sequences of shape {sequences.shape}"

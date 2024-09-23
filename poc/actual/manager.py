@@ -271,28 +271,34 @@ class Manager:
         print(
             f"{self.__class__.__name__}: Running an exact match check for response {response.id}."
         )
-        response_len = response.tok_ids.shape[1]
-        print(f"{self.__class__.__name__}: The response has length {response_len}.")
-        tok_ids_accepted = response.tok_ids.clone()[0, mask[:response_len]]
+        verifier_tok_ids = response.tok_ids[0, mask[:response.tok_ids.shape[1]]]
         draft_tok_ids = self.draft_tok_ids[0, mask]
-        mask_drafts_available = draft_tok_ids != -1
-        any_rejected = (
-            draft_tok_ids[mask_drafts_available]
-            != tok_ids_accepted[mask_drafts_available]
-        ).any()
-        print(
-            f"{self.__class__.__name__}: Comparing draft tok_ids\n{draft_tok_ids}\nwith accepted tok_ids\n{tok_ids_accepted}\nresult:\n{draft_tok_ids == tok_ids_accepted}"
-        )
-        if any_rejected:
-            idx_first_rejected = (draft_tok_ids != tok_ids_accepted).nonzero()[0].item()
-            print(
-                f"{self.__class__.__name__}: First rejected token is at index {idx_first_rejected}. Accepting the first {idx_first_rejected} tokens."
-            )
-            tok_ids_accepted = tok_ids_accepted[: idx_first_rejected + 1]
-        print(
-            f"{self.__class__.__name__}: Accepting new tokens. The number of accepted tokens is {len(tok_ids_accepted)}, and the tok_ids are\n{tok_ids_accepted}"
-        )
-        return tok_ids_accepted, any_rejected
+        # find the common prefix where (draft_tok_ids equals verifier_tok_ids) or (draft_tok_ids is -1)
+        is_accepted = (draft_tok_ids == verifier_tok_ids) | (draft_tok_ids == -1)
+        accepted_tok_ids = verifier_tok_ids[is_accepted]
+        print(f"{self.__class__.__name__}: Comparing verifier_tok_ids:\n{verifier_tok_ids}\nwith draft_tok_ids:\n{draft_tok_ids}")
+        print(f"{self.__class__.__name__}: is_accepted:\n{is_accepted}")
+        print(f"{self.__class__.__name__}: Accepted token ids (a total of {accepted_tok_ids.shape[0]} tokens):\n{accepted_tok_ids}")
+        # mask_drafts_available = draft_tok_ids != -1
+        
+        # any_rejected = (
+        #     draft_tok_ids[mask_drafts_available]
+        #     != verifier_tok_ids[mask_drafts_available]
+        # ).any()
+        # print(
+        #     f"{self.__class__.__name__}: Comparing draft tok_ids\n{draft_tok_ids}\nwith accepted tok_ids\n{verifier_tok_ids}\nresult:\n{draft_tok_ids == verifier_tok_ids}"
+        # )
+        # if any_rejected:
+        #     idx_first_rejected = (draft_tok_ids != verifier_tok_ids).nonzero()[0].item()
+        #     print(
+        #         f"{self.__class__.__name__}: First rejected token is at index {idx_first_rejected}. Accepting the first {idx_first_rejected} tokens."
+        #     )
+        #     verifier_tok_ids = verifier_tok_ids[: idx_first_rejected + 1]
+        # print(
+        #     f"{self.__class__.__name__}: Accepting new tokens. The number of accepted tokens is {len(verifier_tok_ids)}, and the tok_ids are\n{verifier_tok_ids}"
+        # )
+        # return verifier_tok_ids, any_rejected
+        return accepted_tok_ids, is_accepted.all()
 
     def get_tok_ids_with_drafts(self) -> torch.Tensor:
         ret: torch.Tensor = self.draft_tok_ids.clone()

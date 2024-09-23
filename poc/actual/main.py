@@ -92,7 +92,7 @@ async def main():
     # ### Response:"""
     #     prompts = [prompt]
     prompts = get_prompts(
-        dataset=Dataset.ALPACA_SRC, split="train", num_examples=30, random_seed=42
+        dataset=Dataset.ALPACA_SRC, split="train", num_examples=10, random_seed=42
     )
 
     # NOTE: Hugging Face Generate has a lower overhead than our DSI implementation.
@@ -119,24 +119,13 @@ async def main():
         return manager.tok_ids
 
     latencies = defaultdict(list)
+    cleanup()
     ts = time.time()
     with logfire.span("Run ({ts}) with args:\n{args}", ts=ts, args=locals()):
         for i, prompt in enumerate(tqdm(prompts, desc="Prompts")):
             with logfire.span("Prompt {i}", i=i):
                 tok_ids = encode(prompt, verifier_name)
-                logfire.info("Prompt:\n{prompt}\n\nTok IDs:\n{tok_ids}", i=i, prompt=prompt, tok_ids=tok_ids)
-                print("Running non-SI HF...")
-                logfire.info("Non-SI HF")
-                latency, out_tok_ids = await get_latency(run_nonsi_hf)
-                latencies["NonSI HF"].append(latency)
-                print(f"Main: Output tok_ids:\n{out_tok_ids}")
-                logfire.info("Output tok_ids:\n{out_tok_ids}", out_tok_ids=out_tok_ids)
-                out_str = decode(out_tok_ids, verifier_name)
-                print(f"Main: Final output:\n{out_str}")
-                logfire.info("Final output:\n{out_str}", out_str=out_str)
-                for worker in workers:
-                    worker.reset()
-                cleanup()
+                logfire.info("Input Prompt:\n{prompt}\n\nTok IDs:\n{tok_ids}", i=i, prompt=prompt, tok_ids=tok_ids)
                 for manager_cls in [Manager, ManagerSI, ManagerNonSI]:
                     with logfire.span("algo: {manager_cls}", manager_cls=manager_cls.__name__):
                         manager = manager_cls(
@@ -150,16 +139,27 @@ async def main():
                             lookahead=5,
                         )
                         print(f"Main: Created {manager.__class__.__name__}")
-                        cleanup()
                         latency, out_tok_ids = await get_latency(run_our_implementation)
                         latencies[manager_cls.__name__].append(latency)
                         logfire.info("Latency: {latency:.2f} seconds", latency=latency)
                         print(f"Main: Output tok_ids:\n{out_tok_ids}")
                         out_str = decode(out_tok_ids, verifier_name)
                         print(f"Main: Final output:\n{out_str}")
-                        logfire.info("Token IDs:\n{out_tok_ids}\n\nFinal output:\n{out_str}", out_tok_ids=out_tok_ids, out_str=out_str)
+                        logfire.info("Output Token IDs:\n{out_tok_ids}\n\nFinal output:\n{out_str}", out_tok_ids=out_tok_ids, out_str=out_str)
                         for worker in workers:
                             worker.reset()
+                        cleanup()
+                # print("Running non-SI HF...")
+                # with logfire.span("Non-SI HF"):
+                #     latency, out_tok_ids = await get_latency(run_nonsi_hf)
+                #     latencies["NonSI HF"].append(latency)
+                #     print(f"Main: Output tok_ids:\n{out_tok_ids}")
+                #     out_str = decode(out_tok_ids, verifier_name)
+                #     print(f"Main: Final output:\n{out_str}")
+                #     logfire.info("Output Token IDs:\n{out_tok_ids}\n\nFinal output:\n{out_str}", out_tok_ids=out_tok_ids, out_str=out_str)
+                #     for worker in workers:
+                #         worker.reset()
+                # cleanup()
         print(f"Latencies: {latencies}")
         logfire.info("Latencies: {latencies}", latencies=latencies)
         for manager_cls, latencies in latencies.items():
