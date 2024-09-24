@@ -2,7 +2,7 @@
 name = "distributed-speculative-inference"
 version = "0.1.0"
 description = "Distributed Speculative Inference of LLMs"
-authors = ["Nadav Timor <nadav.timor@weizmann.ac.il>"]
+authors = ["Anonymized <Anonymized@Anonymized.com>"]
 license = "Apache-2.0"
 readme = "README.md"
 packages = [{include = "dsi"}]

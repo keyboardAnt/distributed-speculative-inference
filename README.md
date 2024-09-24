@@ -6,15 +6,11 @@
 The fastest off-the-shelf inference algorithm of LLMs
 </h3>
 
-<p align="center">
-| <a href="https://arxiv.org/abs/2405.14105"><b>Paper</b></a> |
-</p>
-
 ---
 
 ## About
 
-Distributed Speculative Inference (DSI) is the fastest off-the-shelf inference algorithm, introduced in the paper _"[Distributed Speculative Inference of Large Language Models](https://arxiv.org/abs/2405.14105)"_ in May 2024.
+Distributed Speculative Inference (DSI) is the fastest off-the-shelf inference algorithm, introduced in the paper _"DSI: Faster Inference of Large Language Models via Speculation Parallelism"_.
 
 |                                                                    | EAGLE[^1] | Speculative Inference (SI)[^2][^3]        | Distributed Speculative Inference (DSI)           |
 |--------------------------------------------------------------------|---------------|---------------------------------------------------|--------------------------------------------------|
@@ -92,8 +88,6 @@ By default, running new experiments will also visualize the results. To visualiz
 
 #### Testing
 
-[![Python tests](https://github.com/keyboardAnt/distributed-speculative-inference/actions/workflows/python-tests.yaml/badge.svg)](https://github.com/keyboardAnt/distributed-speculative-inference/actions/workflows/python-tests.yaml)
-
 Run tests: `python ./scripts/test.py all` (from the project root)
 
 It runs tests that measure wall time serially and then the rest of the tests in parallel. You can run only the online tests (for example, with `python ./scripts/test.py online -- -vvv`) or only the offline (`poetry run python ./scripts/test.py offline -- -vvv`).
@@ -105,23 +99,3 @@ Run `pre-commit run --all-files` to check formating and re-format when possible.
 #### Stored results
 
 [DVC](https://dvc.org/doc) tracks raw results stored on Google Drive. To pull the result: `dvc pull`
-
-## Sponsors
-
-Our efforts and resources are supported by the following organizations. Thank you for your support!
-
-- Weizmann Institute
-- Intel Labs
-
-
-## Citation
-
-If you use DSI (or the code in this repo) for your research, please cite our [paper](https://arxiv.org/abs/2405.14105):
-```bibtex
-@article{timor2024distributed,
-  title={Distributed Speculative Inference of Large Language Models},
-  author={Timor, Nadav and Mamou, Jonathan and Korat, Daniel and Berchansky, Moshe and Pereg, Oren and Wasserblat, Moshe and Galanti, Tomer and Gordon, Michal and Harel, David},
-  journal={arXiv preprint arXiv:2405.14105},
-  year={2024}
-}
-```
