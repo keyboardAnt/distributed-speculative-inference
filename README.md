@@ -3,7 +3,7 @@
 </h1>
 
 <h3 align="center">
-The fastest off-the-shelf inference algorithm of LLMs
+The fastest off-the-shelf inference algorithm for LLMs
 </h3>
 
 <p align="center">
