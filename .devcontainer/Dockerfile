@@ -22,12 +22,15 @@ RUN DEBIAN_FRONTEND=noninteractive \
     libxml2-dev \
     libxmlsec1-dev \
     libffi-dev \
-    liblzma-dev
+    liblzma-dev \
+    libcairo2-dev \
+    pkg-config \
+    libpango1.0-dev
 
 # Python and poetry installation
 USER $USER
 ARG HOME="/home/$USER"
-ARG PYTHON_VERSION=3.11
+ARG PYTHON_VERSION=3.11.9
 
 ENV PYENV_ROOT="${HOME}/.pyenv"
 ENV PATH="${PYENV_ROOT}/shims:${PYENV_ROOT}/bin:${HOME}/.local/bin:$PATH"

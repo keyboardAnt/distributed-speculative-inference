@@ -8,7 +8,7 @@ readme = "README.md"
 packages = [{include = "dsi"}]
 
 [tool.poetry.dependencies]
-python = "^3.11.9"
+python = "~3.11.9"
 numpy = "^1.26.4"
 matplotlib = "^3.9.0"
 pandas = "^2.2.2"
@@ -32,6 +32,11 @@ isort = "^5.13.2"
 pytest-mock = "^3.14.0"
 pytest-timeout = "^2.3.1"
 pytest-xdist = "^3.6.1"
+ipykernel = "^6.29.5"
+
+
+[tool.poetry.group.docs.dependencies]
+manim = "^0.18.1"
 
 [build-system]
 requires = ["poetry-core"]
