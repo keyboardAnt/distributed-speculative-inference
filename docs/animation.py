@@ -128,9 +128,10 @@ class DistributedSpeculativeInference(Scene):
         algo_label = self.create_algorithm_label(algorithm.name, vertical_position)
         self.play(Write(algo_label))
 
-        # Create and animate GPUs using the timeline's actual start position
+        # First, collect all rectangles grouped by their starting x position
+        rectangles_by_x = {}
         for i, gpu in enumerate(algorithm.gpus):
-            current_x = start_x  # Use the timeline's actual start x-coordinate
+            current_x = start_x
             current_y = vertical_position - (i * self.gpu_config.vertical_spacing)
 
             for time_unit in gpu.time_units:
@@ -138,8 +139,17 @@ class DistributedSpeculativeInference(Scene):
                     rect = self.create_gpu_rectangle(
                         time_unit, np.array([current_x, current_y, 0])
                     )
-                    self.play(Create(rect), run_time=self.gpu_config.animation_speed)
+                    if current_x not in rectangles_by_x:
+                        rectangles_by_x[current_x] = []
+                    rectangles_by_x[current_x].append(rect)
                 current_x += time_unit.width
+
+        # Animate rectangles in order of their x positions
+        for x in sorted(rectangles_by_x.keys()):
+            self.play(
+                *[Create(rect) for rect in rectangles_by_x[x]],
+                run_time=self.gpu_config.animation_speed,
+            )
 
     def construct(self):
         # Create timeline
