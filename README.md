@@ -7,7 +7,7 @@ The fastest off-the-shelf inference algorithm for LLMs
 </h3>
 
 <p align="center">
-| <a href="https://arxiv.org/abs/2405.14105"><b>Paper</b></a> |
+| <a href="https://openreview.net/forum?id=cJd1BgZ9CS"><b>Paper</b></a> (ICLR'25) |
 </p>
 
 ---
@@ -116,12 +116,14 @@ Our efforts and resources are supported by the following organizations. Thank yo
 
 ## Citation
 
-If you use DSI (or the code in this repo) for your research, please cite our [paper](https://arxiv.org/abs/2405.14105):
+If you use DSI (or the code in this repo) for your research, please cite our paper (https://openreview.net/forum?id=cJd1BgZ9CS):
 ```bibtex
-@article{timor2024distributed,
-  title={Distributed Speculative Inference of Large Language Models},
-  author={Timor, Nadav and Mamou, Jonathan and Korat, Daniel and Berchansky, Moshe and Pereg, Oren and Wasserblat, Moshe and Galanti, Tomer and Gordon, Michal and Harel, David},
-  journal={arXiv preprint arXiv:2405.14105},
-  year={2024}
+@inproceedings{
+  timor2025dsi,
+  title={{DSI}: Faster Inference of Large Language Models via Speculation Parallelism},
+  author={Nadav Timor and Jonathan Mamou and Daniel Korat and Moshe Berchansky and Oren Pereg and Moshe Wasserblat and Tomer Galanti and Michal Gordon-Kiwkowitz and David Harel},
+  booktitle={The Thirteenth International Conference on Learning Representations},
+  year={2025},
+  url={https://openreview.net/forum?id=cJd1BgZ9CS}
 }
 ```
