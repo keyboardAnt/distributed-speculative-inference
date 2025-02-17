@@ -7,7 +7,7 @@ The fastest off-the-shelf inference algorithm for LLMs
 </h3>
 
 <p align="center">
-| <a href="https://openreview.net/forum?id=cJd1BgZ9CS"><b>Paper</b></a> (ICLR'25) |
+| <a href="https://openreview.net/forum?id=cJd1BgZ9CS"><b>Paper</b></a> (ICLR’25) |
 </p>
 
 ---
